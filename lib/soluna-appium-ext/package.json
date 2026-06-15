@@ -1,0 +1,72 @@
+{
+  "name": "soluna-appium-ext",
+  "version": "0.1.0",
+  "description": "Appium plugin for device discovery and host preflight checks",
+  "main": "build/lib/index.js",
+  "scripts": {
+    "test": "npm run test:unit",
+    "clean": "rm -rf build",
+    "build": "tsc -p tsconfig.json",
+    "lint": "eslint \"lib/**/*.ts\" \"test/**/*.ts\"",
+    "test:unit": "mocha --require tsx/cjs \"test/unit/**/*.spec.ts\"",
+    "test:watch": "npm run test:unit -- --watch",
+    "prepare": "npm run build",
+    "test:single": "mocha --require tsx/cjs"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/xieliangji/soluna-appium-ext.git"
+  },
+  "keywords": [
+    "appium",
+    "appium-plugin",
+    "android",
+    "ios"
+  ],
+  "author": "谢良基",
+  "license": "MIT",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/xieliangji/soluna-appium-ext/issues"
+  },
+  "homepage": "https://github.com/xieliangji/soluna-appium-ext#readme",
+  "types": "build/lib/index.d.ts",
+  "engines": {
+    "node": ">=20",
+    "npm": ">=10"
+  },
+  "files": [
+    "build/lib",
+    "lib",
+    "tsconfig.json"
+  ],
+  "appium": {
+    "pluginName": "soluna-ext",
+    "mainClass": "SolunaExtPlugin"
+  },
+  "peerDependencies": {
+    "appium": ">=2 <4"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/chai": "^5.2.3",
+    "@types/express": "^5.0.6",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "^25.5.0",
+    "@types/supertest": "^7.2.0",
+    "@typescript-eslint/eslint-plugin": "^8.57.1",
+    "@typescript-eslint/parser": "^8.57.1",
+    "appium": "^3.2.2",
+    "chai": "^6.2.2",
+    "eslint": "^10.0.1",
+    "express": "^5.2.1",
+    "mocha": "^11.7.5",
+    "supertest": "^7.2.2",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "@appium/base-plugin": "^3.1.1",
+    "@appium/types": "^1.2.1"
+  }
+}

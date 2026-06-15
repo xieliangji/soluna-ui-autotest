@@ -1,0 +1,46 @@
+schemaVersion: "1.0"
+id: ugreen-profile
+description: Stable non-copy locators for the local UGREEN profile nickname smoke.
+elements:
+  mineTab:
+    android:
+      strategy: xpath
+      value: "(//*[@resource-id='com.ugreen.iot:id/customTabLayout']//*[@resource-id='com.ugreen.iot:id/llTabContent'])[3]"
+    ios:
+      strategy: xpath
+      value: "//XCUIElementTypeImage[starts-with(@name,'TabMine')]/parent::XCUIElementTypeButton"
+  profileEntry:
+    android:
+      strategy: id
+      value: com.ugreen.iot:id/flow_user_top
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeTable/XCUIElementTypeStaticText[number(@y) < 280])[1]"
+  nicknameRow:
+    android:
+      strategy: xpath
+      value: "(//*[@resource-id='com.ugreen.iot:id/recyclerView']/android.view.ViewGroup)[2]"
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeCell)[2]"
+  nicknameInput:
+    android:
+      strategy: class
+      value: android.widget.EditText
+    ios:
+      strategy: class
+      value: XCUIElementTypeTextField
+  confirmButton:
+    android:
+      strategy: id
+      value: com.ugreen.iot:id/btn_positive
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeTextField/following::XCUIElementTypeButton[@visible='true' and @accessible='true'])[1]"
+  nicknameValue:
+    android:
+      strategy: xpath
+      value: "(//*[@resource-id='com.ugreen.iot:id/recyclerView']//*[@resource-id='com.ugreen.iot:id/tv_right_text'])[1]"
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeCell)[2]/XCUIElementTypeStaticText[1]"

@@ -1,0 +1,196 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.soluna-ui-autotest.local/v1/artifact-store.schema.json",
+  "title": "Soluna Artifact Store Config",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "id", "type", "endpoint", "secure", "bucket", "credentials"],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0"
+    },
+    "id": {
+      "$ref": "#/$defs/id"
+    },
+    "type": {
+      "const": "minio"
+    },
+    "endpoint": {
+      "$ref": "#/$defs/nonEmptyString"
+    },
+    "secure": {
+      "type": "boolean"
+    },
+    "bucket": {
+      "$ref": "#/$defs/nonEmptyString"
+    },
+    "prefix": {
+      "type": "string",
+      "default": ""
+    },
+    "publicBaseUrl": {
+      "$ref": "#/$defs/nonEmptyString"
+    },
+    "credentials": {
+      "$ref": "#/$defs/credentials"
+    },
+    "upload": {
+      "$ref": "#/$defs/upload"
+    },
+    "notifications": {
+      "$ref": "#/$defs/notifications"
+    }
+  },
+  "$defs": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+    },
+    "nonEmptyString": {
+      "type": "string",
+      "minLength": 1
+    },
+    "envName": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+    },
+    "credentials": {
+      "type": "object",
+      "additionalProperties": false,
+      "anyOf": [
+        {
+          "required": ["accessKey", "secretKey"]
+        },
+        {
+          "required": ["accessKeyEnv", "secretKeyEnv"]
+        }
+      ],
+      "properties": {
+        "accessKey": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "secretKey": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "sessionToken": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "accessKeyEnv": {
+          "$ref": "#/$defs/envName"
+        },
+        "secretKeyEnv": {
+          "$ref": "#/$defs/envName"
+        },
+        "sessionTokenEnv": {
+          "$ref": "#/$defs/envName"
+        }
+      }
+    },
+    "upload": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "workerCount": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 1
+        },
+        "queueCapacity": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 512
+        },
+        "drainTimeoutMs": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 60000
+        },
+        "compression": {
+          "$ref": "#/$defs/compression"
+        },
+        "retry": {
+          "$ref": "#/$defs/retry"
+        }
+      }
+    },
+    "notifications": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "uploadFailures": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "planStarted": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "testFinished": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "reportPublished": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "planFinished": {
+          "$ref": "#/$defs/nonEmptyString"
+        }
+      }
+    },
+    "compression": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": true
+        },
+        "minBytes": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 0
+        },
+        "contentTypes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/nonEmptyString"
+          },
+          "default": [
+            "text/*",
+            "application/json",
+            "application/xml",
+            "application/javascript",
+            "application/*+json",
+            "application/*+xml"
+          ]
+        }
+      }
+    },
+    "retry": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "maxAttempts": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 5,
+          "description": "0 means keep retrying until the process stops or bounded drain times out."
+        },
+        "initialDelayMs": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 1000
+        },
+        "maxDelayMs": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 30000
+        },
+        "backoffMultiplier": {
+          "type": "number",
+          "minimum": 1,
+          "default": 2.0
+        }
+      }
+    }
+  }
+}

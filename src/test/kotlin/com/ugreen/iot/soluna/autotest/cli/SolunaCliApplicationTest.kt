@@ -1,0 +1,200 @@
+package com.ugreen.iot.soluna.autotest.cli
+
+import com.ugreen.iot.soluna.autotest.appium.server.AppiumServerHandle
+import com.ugreen.iot.soluna.autotest.config.DeviceAppiumDefinition
+import com.ugreen.iot.soluna.autotest.config.DeviceAppiumServerDefinition
+import com.ugreen.iot.soluna.autotest.config.DeviceConfigDefinition
+import com.ugreen.iot.soluna.autotest.config.DeviceDefinition
+import com.ugreen.iot.soluna.autotest.core.execution.CaseExecutionResult
+import com.ugreen.iot.soluna.autotest.core.execution.ExecutionStatus
+import com.ugreen.iot.soluna.autotest.core.execution.PlanExecutionResult
+import com.ugreen.iot.soluna.autotest.core.execution.StageExecutionResult
+import com.ugreen.iot.soluna.autotest.core.model.PlanDefinition
+import com.ugreen.iot.soluna.autotest.report.LocalReportWriter
+import com.ugreen.iot.soluna.autotest.runner.PlanRunRequest
+import com.ugreen.iot.soluna.autotest.runner.PlanRunResult
+import java.nio.file.Files
+import java.nio.file.Path
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertIs
+import kotlin.test.assertNotNull
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
+
+class SolunaCliApplicationTest {
+    @Test
+    fun `prints help without running plan`() {
+        var called = false
+        val stdout = StringBuilder()
+        val stderr = StringBuilder()
+        val cli = SolunaCliApplication(
+            runPlan = {
+                called = true
+                planRunResult(it, ExecutionStatus.PASSED)
+            },
+        )
+
+        val exitCode = cli.run(arrayOf("--help"), stdout, stderr)
+
+        assertEquals(0, exitCode)
+        assertTrue(stdout.toString().contains("soluna run <plan.yaml>"))
+        assertEquals("", stderr.toString())
+        assertEquals(false, called)
+    }
+
+    @Test
+    fun `run command only requires plan path`() {
+        var capturedRequest: PlanRunRequest? = null
+        val stdout = StringBuilder()
+        val stderr = StringBuilder()
+        val cli = SolunaCliApplication(
+            runPlan = { request ->
+                capturedRequest = request
+                planRunResult(request, ExecutionStatus.PASSED)
+            },
+        )
+
+        val exitCode = cli.run(arrayOf("run", "plans/main.yaml"), stdout, stderr)
+
+        val request = assertNotNull(capturedRequest)
+        assertEquals(0, exitCode)
+        assertEquals(Path.of("plans/main.yaml"), request.planPath)
+        assertTrue(request.runId.startsWith("run-"))
+        assertEquals(emptyMap(), request.parameterOverrides)
+        assertIs<LocalReportWriter>(request.reportWriter)
+        assertEquals(Path.of("build/soluna-runs"), request.localArtifactRoot)
+        assertTrue(stdout.toString().contains("status: passed"))
+        assertEquals("", stderr.toString())
+    }
+
+    @Test
+    fun `run command accepts narrow optional overrides`() {
+        var capturedRequest: PlanRunRequest? = null
+        val reportRoot = Files.createTempDirectory("soluna-cli-report-root")
+        val stdout = StringBuilder()
+        val stderr = StringBuilder()
+        val cli = SolunaCliApplication(
+            runPlan = { request ->
+                capturedRequest = request
+                planRunResult(request, ExecutionStatus.FAILED)
+            },
+        )
+
+        val exitCode = cli.run(
+            arrayOf(
+                "run",
+                "plans/main.yaml",
+                "--run-id",
+                "cli-run",
+                "--param",
+                "nickname=SolunaCLI",
+                "--param=retries=2",
+                "--param=enabled=true",
+                "--report-root",
+                reportRoot.toString(),
+                "--expect",
+                "failed",
+            ),
+            stdout,
+            stderr,
+        )
+
+        val request = assertNotNull(capturedRequest)
+        assertEquals(0, exitCode)
+        assertEquals("cli-run", request.runId)
+        assertEquals("SolunaCLI", request.parameterOverrides.getValue("nickname").asText())
+        assertEquals(2, request.parameterOverrides.getValue("retries").asInt())
+        assertEquals(true, request.parameterOverrides.getValue("enabled").asBoolean())
+        assertEquals(reportRoot, request.localArtifactRoot)
+        assertIs<LocalReportWriter>(request.reportWriter)
+        assertTrue(stdout.toString().contains("status: failed"))
+        assertEquals("", stderr.toString())
+    }
+
+    @Test
+    fun `rejects non-plan configuration options`() {
+        var capturedRequest: PlanRunRequest? = null
+        val stdout = StringBuilder()
+        val stderr = StringBuilder()
+        val cli = SolunaCliApplication(
+            runPlan = { request ->
+                capturedRequest = request
+                planRunResult(request, ExecutionStatus.PASSED)
+            },
+        )
+
+        val exitCode = cli.run(
+            arrayOf("run", "plans/main.yaml", "--device-config", "devices/android.yaml"),
+            stdout,
+            stderr,
+        )
+
+        assertEquals(2, exitCode)
+        assertNull(capturedRequest)
+        assertEquals("", stdout.toString())
+        assertTrue(stderr.toString().contains("Unknown option '--device-config'"))
+    }
+
+    @Test
+    fun `returns failure exit code when expected status does not match result`() {
+        val stdout = StringBuilder()
+        val stderr = StringBuilder()
+        val cli = SolunaCliApplication(
+            runPlan = { request -> planRunResult(request, ExecutionStatus.FAILED) },
+        )
+
+        val exitCode = cli.run(arrayOf("run", "plans/main.yaml"), stdout, stderr)
+
+        assertEquals(1, exitCode)
+        assertTrue(stdout.toString().contains("status: failed"))
+        assertEquals("", stderr.toString())
+    }
+
+    private fun planRunResult(
+        request: PlanRunRequest,
+        status: ExecutionStatus,
+    ): PlanRunResult {
+        return PlanRunResult(
+            plan = PlanDefinition(
+                schemaVersion = "1.0",
+                id = "plan-cli",
+                name = "CLI Plan",
+            ),
+            deviceConfig = DeviceConfigDefinition(
+                schemaVersion = "1.0",
+                id = "android-device",
+                device = DeviceDefinition(
+                    platform = "android",
+                    udid = "android-001",
+                ),
+                appium = DeviceAppiumDefinition(
+                    server = DeviceAppiumServerDefinition(managed = false),
+                ),
+            ),
+            serverHandle = AppiumServerHandle(
+                url = "http://127.0.0.1:4723",
+                managed = false,
+            ),
+            driverSession = null,
+            executionResult = PlanExecutionResult(
+                runId = request.runId,
+                planId = "plan-cli",
+                status = status,
+                stages = listOf(
+                    StageExecutionResult(
+                        stageId = "stage-cli",
+                        status = status,
+                        cases = listOf(
+                            CaseExecutionResult(
+                                caseId = "case-cli",
+                                status = status,
+                                actions = emptyList(),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        )
+    }
+}

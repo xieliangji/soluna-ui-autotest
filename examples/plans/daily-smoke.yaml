@@ -1,0 +1,47 @@
+schemaVersion: "1.0"
+id: daily-smoke
+name: Daily Smoke
+version: "0.1.0"
+metadata:
+  owner: qa
+  environment: staging
+parameters:
+  - id: default
+    file: ../data/default.yaml
+fragmentRefs:
+  - id: app
+    file: ../fragments/app-lifecycle.yaml
+deviceConfig: ../devices/00008150-001E15AA1140401C.yaml
+artifactStore: ../artifacts/minio.yaml
+app:
+  id: demo-app
+  name: Demo App
+  platform: ios
+  reset: false
+defaults:
+  implicitWaitMs: 5000
+  failureStrategy: stop-case
+  retryStrategy: no-retry
+stages:
+  - id: logged-out
+    name: Logged Out
+    initialState: fresh-launch
+    setupFragments:
+      - app.restart
+    cases:
+      - id: login-success
+        name: Login Success
+        elementRefs:
+          - id: login
+            file: ../elements/daily-smoke.yaml
+        actions:
+          - 点击: tap-login
+            element: login.loginButton
+            desc: 点击登录按钮
+          - input: input-username
+            element: login.usernameInput
+            value: "${account.username}"
+            desc: 输入用户名
+          - screenshot: capture-home
+            desc: Home After Login
+            resourceId: home-after-login

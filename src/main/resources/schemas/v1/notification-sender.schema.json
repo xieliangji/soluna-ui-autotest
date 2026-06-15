@@ -1,0 +1,109 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.soluna-ui-autotest.local/v1/notification-sender.schema.json",
+  "title": "Soluna Notification Sender Config",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "id", "type", "robot"],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0"
+    },
+    "id": {
+      "$ref": "#/$defs/id"
+    },
+    "type": {
+      "const": "dingtalk"
+    },
+    "robot": {
+      "$ref": "#/$defs/dingtalkRobot"
+    },
+    "uploadFailurePolicy": {
+      "$ref": "#/$defs/uploadFailurePolicy"
+    }
+  },
+  "$defs": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+    },
+    "nonEmptyString": {
+      "type": "string",
+      "minLength": 1
+    },
+    "envName": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+    },
+    "dingtalkRobot": {
+      "type": "object",
+      "additionalProperties": false,
+      "anyOf": [
+        {
+          "required": ["webhook"]
+        },
+        {
+          "required": ["webhookEnv"]
+        }
+      ],
+      "properties": {
+        "webhook": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "secret": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "webhookEnv": {
+          "$ref": "#/$defs/envName"
+        },
+        "secretEnv": {
+          "$ref": "#/$defs/envName"
+        },
+        "atMobiles": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/nonEmptyString"
+          },
+          "default": []
+        },
+        "atUserIds": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/nonEmptyString"
+          },
+          "default": []
+        },
+        "isAtAll": {
+          "type": "boolean",
+          "default": false
+        }
+      }
+    },
+    "uploadFailurePolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "title": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "windowMs": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 300000
+        },
+        "threshold": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 5
+        },
+        "suppressForMs": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 600000
+        }
+      }
+    }
+  }
+}

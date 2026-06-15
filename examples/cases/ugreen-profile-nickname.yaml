@@ -1,0 +1,60 @@
+schemaVersion: "1.0"
+id: update-and-restore-nickname
+name: Update And Restore Nickname
+dataRefs:
+  - id: profile
+    file: ../data/ugreen-profile.yaml
+elementRefs:
+  - id: profile
+    file: ../elements/ugreen-profile.yaml
+actions:
+  - tap: open-mine-tab
+    element: profile.mineTab
+    desc: 点击我的Tab
+  - tap: open-profile-page
+    element: profile.profileEntry
+    desc: 打开个人信息页
+  - getText: capture-original-nickname
+    element: profile.nicknameValue
+    scope: case
+    saveAs: originalNickname
+    desc: 记录原昵称
+  - tap: open-nickname-dialog
+    element: profile.nicknameRow
+    desc: 打开昵称编辑弹窗
+  - input: input-new-nickname
+    element: profile.nicknameInput
+    value: "${profile.newNickname}"
+    desc: 输入新昵称
+  - tap: confirm-new-nickname
+    element: profile.confirmButton
+    desc: 确认新昵称
+  - assertElementAttrEquals: assert-new-nickname
+    element: profile.nicknameValue
+    attr: text
+    expected: "${profile.newNickname}"
+    desc: 校验新昵称
+teardownFragments:
+  - app.restart
+teardownActions:
+  - tap: open-mine-tab-for-restore
+    element: profile.mineTab
+    desc: 恢复前点击我的Tab
+  - tap: open-profile-page-for-restore
+    element: profile.profileEntry
+    desc: 恢复前打开个人信息页
+  - tap: open-nickname-dialog-for-restore
+    element: profile.nicknameRow
+    desc: 恢复前打开昵称编辑弹窗
+  - input: restore-original-nickname
+    element: profile.nicknameInput
+    value: "@{case.originalNickname}"
+    desc: 输入原昵称
+  - tap: confirm-original-nickname
+    element: profile.confirmButton
+    desc: 确认恢复原昵称
+  - assertElementAttrEquals: assert-original-nickname
+    element: profile.nicknameValue
+    attr: text
+    expected: "@{case.originalNickname}"
+    desc: 校验原昵称恢复成功

@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.soluna-ui-autotest.local/v1/parameter-data.schema.json",
+  "title": "Soluna UI Autotest Parameter Data",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "id", "values"],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0"
+    },
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+    },
+    "description": {
+      "type": "string"
+    },
+    "values": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "secrets": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "default": []
+    }
+  }
+}

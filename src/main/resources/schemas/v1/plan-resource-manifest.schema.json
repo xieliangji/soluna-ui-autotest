@@ -1,0 +1,109 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.soluna-ui-autotest.local/v1/plan-resource-manifest.schema.json",
+  "title": "Soluna Plan Resource Manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "plan", "resourceBatch", "resources"],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0"
+    },
+    "plan": {
+      "$ref": "#/$defs/plan"
+    },
+    "resourceBatch": {
+      "$ref": "#/$defs/resourceBatch"
+    },
+    "resources": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/resource"
+      },
+      "default": []
+    }
+  },
+  "$defs": {
+    "nonEmptyString": {
+      "type": "string",
+      "minLength": 1
+    },
+    "nullableString": {
+      "type": ["string", "null"]
+    },
+    "plan": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["planId", "planName", "metadata"],
+      "properties": {
+        "planId": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "planName": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "planVersion": {
+          "$ref": "#/$defs/nullableString"
+        },
+        "metadata": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      }
+    },
+    "resourceBatch": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["runId", "generatedAt"],
+      "properties": {
+        "runId": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "generatedAt": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "minioPrefix": {
+          "$ref": "#/$defs/nullableString"
+        }
+      }
+    },
+    "resource": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["resourceId", "type", "purpose", "contentType", "sizeBytes", "capturedAt"],
+      "properties": {
+        "resourceId": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "type": {
+          "enum": ["image"]
+        },
+        "purpose": {
+          "enum": ["explicit_screenshot"]
+        },
+        "name": {
+          "$ref": "#/$defs/nullableString"
+        },
+        "actionId": {
+          "$ref": "#/$defs/nullableString"
+        },
+        "objectKey": {
+          "$ref": "#/$defs/nullableString"
+        },
+        "url": {
+          "$ref": "#/$defs/nullableString"
+        },
+        "contentType": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "sizeBytes": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "capturedAt": {
+          "$ref": "#/$defs/nonEmptyString"
+        }
+      }
+    }
+  }
+}

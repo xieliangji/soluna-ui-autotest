@@ -1,0 +1,231 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.soluna-ui-autotest.local/v1/report-data.schema.json",
+  "title": "Soluna Report Data",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "generatedAt",
+    "runId",
+    "planId",
+    "planName",
+    "status",
+    "deviceId",
+    "platform",
+    "traceArtifacts",
+    "setupActions",
+    "teardownActions",
+    "stages"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0"
+    },
+    "generatedAt": {
+      "$ref": "#/$defs/nonEmptyString"
+    },
+    "runId": {
+      "$ref": "#/$defs/nonEmptyString"
+    },
+    "planId": {
+      "$ref": "#/$defs/nonEmptyString"
+    },
+    "planName": {
+      "$ref": "#/$defs/nonEmptyString"
+    },
+    "status": {
+      "$ref": "#/$defs/status"
+    },
+    "deviceId": {
+      "$ref": "#/$defs/nonEmptyString"
+    },
+    "platform": {
+      "$ref": "#/$defs/nonEmptyString"
+    },
+    "traceArtifacts": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/traceArtifact"
+      },
+      "default": []
+    },
+    "setupActions": {
+      "$ref": "#/$defs/actionList"
+    },
+    "teardownActions": {
+      "$ref": "#/$defs/actionList"
+    },
+    "stages": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/stage"
+      },
+      "default": []
+    }
+  },
+  "$defs": {
+    "nonEmptyString": {
+      "type": "string",
+      "minLength": 1
+    },
+    "nullableString": {
+      "type": ["string", "null"]
+    },
+    "status": {
+      "enum": ["running", "passed", "failed", "skipped"]
+    },
+    "phase": {
+      "enum": [
+        "plan.setup",
+        "plan.teardown",
+        "stage.setup",
+        "stage.teardown",
+        "case.setup",
+        "case.action",
+        "case.teardown"
+      ]
+    },
+    "actionList": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/action"
+      },
+      "default": []
+    },
+    "action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["index", "phase", "status", "message", "error"],
+      "properties": {
+        "index": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "phase": {
+          "$ref": "#/$defs/phase"
+        },
+        "status": {
+          "$ref": "#/$defs/status"
+        },
+        "message": {
+          "$ref": "#/$defs/nullableString"
+        },
+        "error": {
+          "$ref": "#/$defs/nullableString"
+        }
+      }
+    },
+    "stage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["stageId", "status", "setupActions", "teardownActions", "cases"],
+      "properties": {
+        "stageId": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "status": {
+          "$ref": "#/$defs/status"
+        },
+        "setupActions": {
+          "$ref": "#/$defs/actionList"
+        },
+        "teardownActions": {
+          "$ref": "#/$defs/actionList"
+        },
+        "cases": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/case"
+          },
+          "default": []
+        }
+      }
+    },
+    "case": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["caseId", "status", "setupActions", "teardownActions", "actions"],
+      "properties": {
+        "caseId": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "status": {
+          "$ref": "#/$defs/status"
+        },
+        "setupActions": {
+          "$ref": "#/$defs/actionList"
+        },
+        "teardownActions": {
+          "$ref": "#/$defs/actionList"
+        },
+        "actions": {
+          "$ref": "#/$defs/actionList"
+        }
+      }
+    },
+    "traceArtifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "captureId",
+        "stageId",
+        "caseId",
+        "actionId",
+        "actionKeyword",
+        "phase",
+        "index",
+        "attempt",
+        "timing",
+        "href",
+        "contentType",
+        "sizeBytes",
+        "capturedAt"
+      ],
+      "properties": {
+        "captureId": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "stageId": {
+          "$ref": "#/$defs/nullableString"
+        },
+        "caseId": {
+          "$ref": "#/$defs/nullableString"
+        },
+        "actionId": {
+          "$ref": "#/$defs/nullableString"
+        },
+        "actionKeyword": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "phase": {
+          "$ref": "#/$defs/phase"
+        },
+        "index": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "attempt": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "timing": {
+          "enum": ["before", "after"]
+        },
+        "href": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "contentType": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "sizeBytes": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "capturedAt": {
+          "$ref": "#/$defs/nonEmptyString"
+        }
+      }
+    }
+  }
+}

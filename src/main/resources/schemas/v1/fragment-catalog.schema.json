@@ -1,0 +1,300 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.soluna-ui-autotest.local/v1/fragment-catalog.schema.json",
+  "title": "Soluna UI Autotest Fragment Catalog",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "id", "fragments"],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0"
+    },
+    "id": {
+      "$ref": "#/$defs/id"
+    },
+    "description": {
+      "type": "string"
+    },
+    "fragments": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "$ref": "#/$defs/fragment"
+      }
+    }
+  },
+  "$defs": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+    },
+    "nonEmptyString": {
+      "type": "string",
+      "minLength": 1
+    },
+    "fragment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["actions"],
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "actions": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/action"
+          }
+        }
+      }
+    },
+    "action": {
+      "oneOf": [
+        { "allOf": [{ "$ref": "#/$defs/tapAction" }, { "required": ["tap"] }] },
+        { "allOf": [{ "$ref": "#/$defs/tapAction" }, { "required": ["click"] }] },
+        { "allOf": [{ "$ref": "#/$defs/tapAction" }, { "required": ["点击"] }] },
+        { "allOf": [{ "$ref": "#/$defs/tapAction" }, { "required": ["轻点"] }] },
+        { "allOf": [{ "$ref": "#/$defs/inputAction" }, { "required": ["input"] }] },
+        { "allOf": [{ "$ref": "#/$defs/inputAction" }, { "required": ["type"] }] },
+        { "allOf": [{ "$ref": "#/$defs/inputAction" }, { "required": ["输入"] }] },
+        { "allOf": [{ "$ref": "#/$defs/inputAction" }, { "required": ["录入"] }] },
+        { "allOf": [{ "$ref": "#/$defs/restartAppAction" }, { "required": ["restartApp"] }] },
+        { "allOf": [{ "$ref": "#/$defs/restartAppAction" }, { "required": ["restart"] }] },
+        { "allOf": [{ "$ref": "#/$defs/restartAppAction" }, { "required": ["重启应用"] }] },
+        { "allOf": [{ "$ref": "#/$defs/restartAppAction" }, { "required": ["重启App"] }] },
+        { "allOf": [{ "$ref": "#/$defs/restartAppAction" }, { "required": ["重启APP"] }] },
+        { "allOf": [{ "$ref": "#/$defs/getTextAction" }, { "required": ["getText"] }] },
+        { "allOf": [{ "$ref": "#/$defs/getTextAction" }, { "required": ["readText"] }] },
+        { "allOf": [{ "$ref": "#/$defs/getTextAction" }, { "required": ["saveText"] }] },
+        { "allOf": [{ "$ref": "#/$defs/getTextAction" }, { "required": ["获取文本"] }] },
+        { "allOf": [{ "$ref": "#/$defs/getTextAction" }, { "required": ["读取文本"] }] },
+        { "allOf": [{ "$ref": "#/$defs/getTextAction" }, { "required": ["保存文本"] }] },
+        { "allOf": [{ "$ref": "#/$defs/waitAction" }, { "required": ["wait"] }] },
+        { "allOf": [{ "$ref": "#/$defs/waitAction" }, { "required": ["sleep"] }] },
+        { "allOf": [{ "$ref": "#/$defs/waitAction" }, { "required": ["pause"] }] },
+        { "allOf": [{ "$ref": "#/$defs/waitAction" }, { "required": ["等待"] }] },
+        { "allOf": [{ "$ref": "#/$defs/waitAction" }, { "required": ["暂停"] }] },
+        { "allOf": [{ "$ref": "#/$defs/assertElementAttrEqualsAction" }, { "required": ["assertElementAttrEquals"] }] },
+        { "allOf": [{ "$ref": "#/$defs/assertElementAttrEqualsAction" }, { "required": ["elementAttrEquals"] }] },
+        { "allOf": [{ "$ref": "#/$defs/assertElementAttrEqualsAction" }, { "required": ["断言元素属性相等"] }] },
+        { "allOf": [{ "$ref": "#/$defs/assertElementAttrEqualsAction" }, { "required": ["元素属性相等"] }] },
+        { "allOf": [{ "$ref": "#/$defs/assertElementAttrEqualsAction" }, { "required": ["attrEquals"] }] },
+        { "allOf": [{ "$ref": "#/$defs/assertElementAttrEqualsAction" }, { "required": ["属性相等"] }] },
+        { "allOf": [{ "$ref": "#/$defs/assertElementAttrRegexMatchAction" }, { "required": ["assertElementAttrRegexMatch"] }] },
+        { "allOf": [{ "$ref": "#/$defs/assertElementAttrRegexMatchAction" }, { "required": ["elementAttrRegexMatch"] }] },
+        { "allOf": [{ "$ref": "#/$defs/assertElementAttrRegexMatchAction" }, { "required": ["attrRegexMatch"] }] },
+        { "allOf": [{ "$ref": "#/$defs/assertElementAttrRegexMatchAction" }, { "required": ["断言元素属性匹配"] }] },
+        { "allOf": [{ "$ref": "#/$defs/assertElementAttrRegexMatchAction" }, { "required": ["元素属性匹配"] }] },
+        { "allOf": [{ "$ref": "#/$defs/assertElementAttrRegexMatchAction" }, { "required": ["属性匹配"] }] },
+        { "allOf": [{ "$ref": "#/$defs/assertSourceRegexMatchAction" }, { "required": ["assertSourceRegexMatch"] }] },
+        { "allOf": [{ "$ref": "#/$defs/assertSourceRegexMatchAction" }, { "required": ["sourceRegexMatch"] }] },
+        { "allOf": [{ "$ref": "#/$defs/assertSourceRegexMatchAction" }, { "required": ["断言源码匹配"] }] },
+        { "allOf": [{ "$ref": "#/$defs/assertSourceRegexMatchAction" }, { "required": ["源码匹配"] }] },
+        { "allOf": [{ "$ref": "#/$defs/screenshotAction" }, { "required": ["screenshot"] }] },
+        { "allOf": [{ "$ref": "#/$defs/screenshotAction" }, { "required": ["截图"] }] },
+        { "allOf": [{ "$ref": "#/$defs/screenshotAction" }, { "required": ["显式截图"] }] }
+      ]
+    },
+    "tapAction": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "tap": { "$ref": "#/$defs/id" },
+        "click": { "$ref": "#/$defs/id" },
+        "点击": { "$ref": "#/$defs/id" },
+        "轻点": { "$ref": "#/$defs/id" },
+        "desc": { "$ref": "#/$defs/nonEmptyString" },
+        "element": { "$ref": "#/$defs/nonEmptyString" },
+        "xRatio": { "$ref": "#/$defs/ratio" },
+        "yRatio": { "$ref": "#/$defs/ratio" },
+        "wait": { "$ref": "#/$defs/wait" }
+      },
+      "oneOf": [
+        {
+          "required": ["element"],
+          "not": {
+            "anyOf": [
+              { "required": ["xRatio"] },
+              { "required": ["yRatio"] }
+            ]
+          }
+        },
+        {
+          "required": ["xRatio", "yRatio"],
+          "not": { "required": ["element"] }
+        }
+      ]
+    },
+    "inputAction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["element", "value"],
+      "properties": {
+        "input": { "$ref": "#/$defs/id" },
+        "type": { "$ref": "#/$defs/id" },
+        "输入": { "$ref": "#/$defs/id" },
+        "录入": { "$ref": "#/$defs/id" },
+        "desc": { "$ref": "#/$defs/nonEmptyString" },
+        "element": { "$ref": "#/$defs/nonEmptyString" },
+        "value": true,
+        "clearFirst": { "type": "boolean" },
+        "wait": { "$ref": "#/$defs/wait" }
+      }
+    },
+    "restartAppAction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["appId"],
+      "properties": {
+        "restartApp": { "$ref": "#/$defs/id" },
+        "restart": { "$ref": "#/$defs/id" },
+        "重启应用": { "$ref": "#/$defs/id" },
+        "重启App": { "$ref": "#/$defs/id" },
+        "重启APP": { "$ref": "#/$defs/id" },
+        "desc": { "$ref": "#/$defs/nonEmptyString" },
+        "appId": { "$ref": "#/$defs/nonEmptyString" }
+      }
+    },
+    "getTextAction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["element", "saveAs"],
+      "properties": {
+        "getText": { "$ref": "#/$defs/id" },
+        "readText": { "$ref": "#/$defs/id" },
+        "saveText": { "$ref": "#/$defs/id" },
+        "获取文本": { "$ref": "#/$defs/id" },
+        "读取文本": { "$ref": "#/$defs/id" },
+        "保存文本": { "$ref": "#/$defs/id" },
+        "desc": { "$ref": "#/$defs/nonEmptyString" },
+        "element": { "$ref": "#/$defs/nonEmptyString" },
+        "scope": { "enum": ["plan", "case"] },
+        "saveAs": { "$ref": "#/$defs/id" },
+        "wait": { "$ref": "#/$defs/wait" }
+      }
+    },
+    "waitAction": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "wait": { "$ref": "#/$defs/id" },
+        "sleep": { "$ref": "#/$defs/id" },
+        "pause": { "$ref": "#/$defs/id" },
+        "等待": { "$ref": "#/$defs/id" },
+        "暂停": { "$ref": "#/$defs/id" },
+        "desc": { "$ref": "#/$defs/nonEmptyString" },
+        "durationMs": { "type": "integer", "minimum": 0 },
+        "timeoutMs": { "type": "integer", "minimum": 0 }
+      },
+      "oneOf": [
+        { "required": ["durationMs"] },
+        { "required": ["timeoutMs"] }
+      ]
+    },
+    "assertElementAttrEqualsAction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["element", "attr", "expected"],
+      "properties": {
+        "assertElementAttrEquals": { "$ref": "#/$defs/id" },
+        "elementAttrEquals": { "$ref": "#/$defs/id" },
+        "attrEquals": { "$ref": "#/$defs/id" },
+        "断言元素属性相等": { "$ref": "#/$defs/id" },
+        "元素属性相等": { "$ref": "#/$defs/id" },
+        "属性相等": { "$ref": "#/$defs/id" },
+        "desc": { "$ref": "#/$defs/nonEmptyString" },
+        "element": { "$ref": "#/$defs/nonEmptyString" },
+        "attr": { "$ref": "#/$defs/nonEmptyString" },
+        "expected": true,
+        "wait": { "$ref": "#/$defs/wait" }
+      }
+    },
+    "assertElementAttrRegexMatchAction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["element", "attr", "pattern"],
+      "properties": {
+        "assertElementAttrRegexMatch": { "$ref": "#/$defs/id" },
+        "elementAttrRegexMatch": { "$ref": "#/$defs/id" },
+        "attrRegexMatch": { "$ref": "#/$defs/id" },
+        "断言元素属性匹配": { "$ref": "#/$defs/id" },
+        "元素属性匹配": { "$ref": "#/$defs/id" },
+        "属性匹配": { "$ref": "#/$defs/id" },
+        "desc": { "$ref": "#/$defs/nonEmptyString" },
+        "element": { "$ref": "#/$defs/nonEmptyString" },
+        "attr": { "$ref": "#/$defs/nonEmptyString" },
+        "pattern": { "$ref": "#/$defs/nonEmptyString" },
+        "wait": { "$ref": "#/$defs/wait" }
+      }
+    },
+    "assertSourceRegexMatchAction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["pattern"],
+      "properties": {
+        "assertSourceRegexMatch": { "$ref": "#/$defs/id" },
+        "sourceRegexMatch": { "$ref": "#/$defs/id" },
+        "断言源码匹配": { "$ref": "#/$defs/id" },
+        "源码匹配": { "$ref": "#/$defs/id" },
+        "desc": { "$ref": "#/$defs/nonEmptyString" },
+        "pattern": { "$ref": "#/$defs/nonEmptyString" }
+      }
+    },
+    "screenshotAction": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "screenshot": { "$ref": "#/$defs/id" },
+        "截图": { "$ref": "#/$defs/id" },
+        "显式截图": { "$ref": "#/$defs/id" },
+        "desc": { "$ref": "#/$defs/nonEmptyString" },
+        "resourceId": { "$ref": "#/$defs/id" }
+      }
+    },
+    "ratio": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "wait": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "timeoutMs": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "intervalMs": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "condition": {
+          "type": "object",
+          "additionalProperties": true,
+          "default": {}
+        }
+      }
+    },
+    "assertion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type"],
+      "properties": {
+        "type": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "target": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "expected": true,
+        "args": {
+          "type": "object",
+          "additionalProperties": true,
+          "default": {}
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,9 @@
+schemaVersion: "1.0"
+id: daily-smoke-elements
+elements:
+  loginButton:
+    strategy: text
+    value: "${i18n.loginButtonText}"
+  usernameInput:
+    strategy: id
+    value: username_input

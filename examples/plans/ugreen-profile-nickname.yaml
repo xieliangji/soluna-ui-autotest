@@ -1,0 +1,38 @@
+schemaVersion: "1.0"
+id: ugreen-profile-nickname
+name: UGREEN Profile Nickname Smoke
+version: "0.1.0"
+metadata:
+  owner: local
+fragmentRefs:
+  - id: app
+    file: ../fragments/app-lifecycle.yaml
+deviceConfig: ../devices/AMRF026323000807.yaml
+app:
+  id: com.ugreen.iot
+  name: UGREEN
+  platform: android
+  reset: false
+defaults:
+  implicitWaitMs: 5000
+  actionWait:
+    timeoutMs: 10000
+    intervalMs: 500
+  failureStrategy: stop-case
+  retryStrategy: no-retry
+trace:
+  screenshots:
+    enabled: true
+    beforeAction: onFailure
+    retainBeforeActionCount: 5
+    upload: onFailure
+localArtifacts:
+  cleanup:
+    mode: never
+stages:
+  - id: profile-nickname
+    name: Profile Nickname
+    setupFragments:
+      - app.restart
+    caseRefs:
+      - file: ../cases/ugreen-profile-nickname.yaml
