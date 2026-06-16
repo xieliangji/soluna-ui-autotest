@@ -29,10 +29,15 @@ class PlanDefaultsResolver {
     private fun ActionDefinition.withDefaultWait(
         wait: WaitDefinition,
     ): ActionDefinition {
-        return if (this.wait == null) {
+        val withOwnWait = if (this.wait == null) {
             copy(wait = wait)
         } else {
             this
         }
+        return withOwnWait.copy(
+            conditionAction = withOwnWait.conditionAction?.withDefaultWait(wait),
+            thenActions = withOwnWait.thenActions.map { it.withDefaultWait(wait) },
+            elseActions = withOwnWait.elseActions.map { it.withDefaultWait(wait) },
+        )
     }
 }

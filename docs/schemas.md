@@ -20,10 +20,17 @@ Current schemas:
 - `notification-sender.schema.json`: DingTalk robot notification sender config.
 - `plan-resource-manifest.schema.json`: plan-level explicit screenshot resource manifest written beside report files.
 - `report-data.schema.json`: report data JSON written as `execution-result.json` and consumed by report renderers.
+- `soluna-project.schema.json`: asset project root metadata consumed by tooling and future project discovery.
+- `run-request.schema.json`: platform-to-runner execution request summary.
+- `run-result.schema.json`: runner-to-platform execution result summary.
 
 `plan.schema.json` is the root execution contract consumed by `PlanRunner`. A run starts from the plan path; device config, artifact store config, parameter data, case files, element catalogs, and fragment catalogs must be referenced by the plan directly or indirectly. `deviceConfig` is required on the plan. `artifactStore` is optional and points to an artifact config file when a run should publish report/resource artifacts.
 
 `plan.schema.json` supports both legacy inline cases and the preferred `caseRefs` composition model. New plans should keep cases in standalone YAML files and let stages reference them through `caseRefs`.
+
+`soluna-project.schema.json` defines a Soluna asset project, not the framework project. It records project identity, framework/schema compatibility, app roots, shared/device/artifact roots, and optional project defaults. The current CLI does not require this file; it is the contract for future project discovery, platform-managed assets, and Codex agents that generate cases outside this repository.
+
+`run-request.schema.json` and `run-result.schema.json` are service/platform boundary contracts. They intentionally expose plan URI, asset revision, device selection, parameter overrides, run status, counts, and artifact links instead of internal Kotlin runner models.
 
 Plan defaults currently include:
 
@@ -49,6 +56,8 @@ Plan diagnostics and local artifact handling currently include:
 - `teardownFragments`: reusable teardown fragments that execute after case actions even when the main action flow failed.
 - `teardownActions`: inline teardown actions.
 
+`fragment-catalog.schema.json` is the only current DSL schema that accepts generic control flow. The supported control structure is `if` / `then` / `else`; the `if` value must be one existing executable action or assertion keyword, and branch arrays contain normal action objects. Control keys are intentionally business-neutral. Business predicates such as page state, login state, or element visibility must be expressed through ordinary action/assertion keywords like `assertElementAttrRegexMatch` or `assertSourceRegexMatch`.
+
 Action DSL now uses a single keyword field whose value is the action id, for example `tap: open-mine-tab`. `case.schema.json`, `plan.schema.json`, and `fragment-catalog.schema.json` explicitly enumerate the currently supported action keywords and aliases: `tap`, `input`, `restartApp`, `getText`, `wait`, `assertElementAttrEquals`, `assertElementAttrRegexMatch`, `assertSourceRegexMatch`, and `screenshot`. Unsupported action types fail schema/policy validation before execution.
 
 Element attribute assertions use an explicit `attr` field instead of encoding the attribute in the keyword. `attr` may contain slash-separated fallback candidates such as `name/label/text`. Regex assertions use contains-style matching by default through the regex engine; cases that need full-string matching should use anchors such as `^...$`. Assertion actions poll until matched or timed out when they have a `wait` value; plan-level `defaults.actionWait` supplies that wait unless the action overrides it.
@@ -58,6 +67,8 @@ Action-specific fields are declared directly on the action object instead of thr
 Plan and stage schemas expose the same lifecycle pattern through `setupFragments` / `setupActions` and `teardownFragments` / `teardownActions`. Teardown results are recorded separately from main action results.
 
 `element-catalog.schema.json` is the only v1 DSL input schema that stores locator definitions. Parameter syntax remains `${...}`; element syntax is a distinct `element: alias.name` field on actions. An element can define common `strategy` / `value`, or platform-specific `android` and `ios` locators.
+
+Asset projects should keep case-specific data close to the case naming convention, while element catalogs stay module-oriented. For example, public profile case data can live under `data/common/profile/update-and-restore-nickname.yaml`, but shared login/device/mine locators should live in `elements/common.yaml` rather than a case-named element file.
 
 `case.schema.json`, `plan.schema.json`, and `fragment-catalog.schema.json` do not allow inline `locator` on actions. Actions reference elements through `element`; `PlanReferenceResolver` resolves that reference into the internal runtime `ActionDefinition.locator` before execution. This keeps locator ownership in element catalogs while preserving compact runtime executor inputs.
 

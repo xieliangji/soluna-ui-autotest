@@ -1,0 +1,10 @@
+schemaVersion: "1.0"
+id: app-lifecycle
+description: Reusable app lifecycle fragments for UGREEN.
+fragments:
+  restart:
+    name: Restart App
+    actions:
+      - restartApp: restart-app
+        appId: "${app.id}"
+        desc: 重启目标应用

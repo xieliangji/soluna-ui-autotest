@@ -1,0 +1,7 @@
+schemaVersion: "1.0"
+id: update-and-restore-nickname
+description: Profile nickname update-and-restore case input data.
+values:
+  profile:
+    newNickname: SolunaTester
+secrets: []

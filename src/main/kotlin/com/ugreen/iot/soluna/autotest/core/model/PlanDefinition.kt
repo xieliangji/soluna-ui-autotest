@@ -118,6 +118,9 @@ data class ActionDefinition(
     val assertion: AssertionDefinition? = null,
     val resourceId: String? = null,
     val args: Map<String, JsonNode> = emptyMap(),
+    val conditionAction: ActionDefinition? = null,
+    val thenActions: List<ActionDefinition> = emptyList(),
+    val elseActions: List<ActionDefinition> = emptyList(),
 )
 
 data class LocatorDefinition(
@@ -183,5 +186,6 @@ data class FragmentCatalogDefinition(
 
 data class FragmentDefinition(
     val name: String? = null,
+    val elementRefs: List<ElementFileRef> = emptyList(),
     val actions: List<ActionDefinition> = emptyList(),
 )

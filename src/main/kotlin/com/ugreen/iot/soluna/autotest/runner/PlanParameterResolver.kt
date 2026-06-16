@@ -90,6 +90,9 @@ class PlanParameterResolver(
             assertion = action.assertion?.let { resolveAssertion(it, values) },
             resourceId = action.resourceId?.let { resolveString(it, values) },
             args = action.args.mapValues { (_, value) -> resolveNode(value, values) },
+            conditionAction = action.conditionAction?.let { resolveAction(it, values) },
+            thenActions = action.thenActions.map { resolveAction(it, values) },
+            elseActions = action.elseActions.map { resolveAction(it, values) },
         )
     }
 

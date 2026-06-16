@@ -55,27 +55,27 @@ class PlanReferenceResolverTest {
               - id: profile-data
                 file: ../data/profile.yaml
             elementRefs:
-              - id: profile
-                file: ../elements/profile.yaml
+              - id: common
+                file: ../elements/common.yaml
             actions:
               - tap: tap-profile
-                element: profile.entry
+                element: common.entry
               - input: input-nickname
-                element: profile.nicknameInput
+                element: common.nicknameInput
                 value: "${'$'}{profile.newNickname}"
             teardownFragments:
               - app.restart
             teardownActions:
               - input: restore-nickname
-                element: profile.nicknameInput
+                element: common.nicknameInput
                 value: "@{case.originalNickname}"
             """.trimIndent(),
         )
         write(
-            root.resolve("elements/profile.yaml"),
+            root.resolve("elements/common.yaml"),
             """
             schemaVersion: "1.0"
-            id: profile-elements
+            id: common-elements
             elements:
               entry:
                 strategy: id
@@ -149,18 +149,18 @@ class PlanReferenceResolverTest {
             id: edit-profile
             name: Edit Profile
             elementRefs:
-              - id: profile
-                file: ../elements/profile.yaml
+              - id: common
+                file: ../elements/common.yaml
             actions:
               - tap: tap-profile
-                element: profile.entry
+                element: common.entry
             """.trimIndent(),
         )
         write(
-            root.resolve("elements/profile.yaml"),
+            root.resolve("elements/common.yaml"),
             """
             schemaVersion: "1.0"
-            id: profile-elements
+            id: common-elements
             elements:
               entry:
                 android:
@@ -179,6 +179,129 @@ class PlanReferenceResolverTest {
 
         assertEquals("id", action.locator?.strategy)
         assertEquals("com.example.android:id/profile", action.locator?.value)
+    }
+
+    @Test
+    fun `resolves element references inside fragment control flow`() {
+        val root = Files.createTempDirectory("soluna-fragment-if-resolver-test")
+        write(
+            root.resolve("plans/app-state.yaml"),
+            """
+            schemaVersion: "1.0"
+            id: app-state-plan
+            name: App State Plan
+            deviceConfig: ../devices/android.yaml
+            fragmentRefs:
+              - id: common
+                file: ../fragments/app-state.yaml
+            stages:
+              - id: main
+                name: Main
+                setupFragments:
+                  - common.ensureLoginPage
+                cases:
+                  - id: noop
+                    name: Noop
+                    actions:
+                      - wait: noop
+                        durationMs: 0
+            """.trimIndent(),
+        )
+        write(
+            root.resolve("fragments/app-state.yaml"),
+            """
+            schemaVersion: "1.0"
+            id: app-state
+            fragments:
+              ensureLoginPage:
+                elementRefs:
+                  - id: common
+                    file: ../elements/common.yaml
+                actions:
+                  - if:
+                      assertElementAttrRegexMatch: detect-login-page
+                      element: common.loginPageMarker
+                      attr: text
+                      pattern: "${'$'}{appState.loginPagePattern}"
+                    then: []
+                    else:
+                      - tap: open-mine-tab
+                        element: common.mineTab
+            """.trimIndent(),
+        )
+        write(
+            root.resolve("elements/common.yaml"),
+            """
+            schemaVersion: "1.0"
+            id: app-state-elements
+            elements:
+              loginPageMarker:
+                strategy: id
+                value: com.example:id/login_marker
+              mineTab:
+                strategy: id
+                value: com.example:id/mine_tab
+            """.trimIndent(),
+        )
+
+        val planPath = root.resolve("plans/app-state.yaml")
+        val parsed = YamlPlanParser().parse(Files.readString(planPath))
+        val assembled = PlanReferenceResolver().resolve(parsed, planPath)
+        val ifAction = assembled.stages.single().setupActions.single()
+
+        assertEquals("if", ifAction.keyword)
+        assertEquals("com.example:id/login_marker", ifAction.conditionAction?.locator?.value)
+        assertEquals("com.example:id/mine_tab", ifAction.elseActions.single().locator?.value)
+    }
+
+    @Test
+    fun `resolves AIot asset project profile plans`() {
+        val plans = listOf(
+            Path.of("AIot-Tests/apps/com.ugreen.iot/plans/profile/nickname-android.yaml")
+                .toAbsolutePath()
+                .normalize() to "android",
+            Path.of("AIot-Tests/apps/com.ugreen.iot/plans/profile/nickname-ios.yaml")
+                .toAbsolutePath()
+                .normalize() to "ios",
+        )
+
+        plans.forEach { (planPath, platform) ->
+            val parsed = YamlPlanParser().parse(Files.readString(planPath))
+            val assembled = PlanReferenceResolver().resolve(parsed, planPath)
+            val resolved = PlanParameterResolver().resolve(assembled, planPath)
+            val stage = resolved.stages.single()
+            val case = stage.cases.single()
+
+            assertEquals("app.restart", stage.setupFragments.single())
+            assertEquals(listOf("restart-app"), stage.setupActions.map { it.id })
+            assertEquals("com.ugreen.iot", stage.setupActions.single().args["appId"]?.asText())
+            assertEquals("SolunaTester", case.actions.first { it.id == "input-new-nickname" }.value?.asText())
+            assertEquals(platform, resolved.app?.platform)
+            assertEquals(
+                expectedProfileEntryLocator(platform),
+                case.actions.first { it.id == "open-profile-page" }.locator?.value,
+            )
+            assertEquals(
+                expectedNicknameValueAttr(platform),
+                case.actions.first { it.id == "assert-new-nickname" }.args["attr"]?.asText(),
+            )
+        }
+    }
+
+    private fun expectedProfileEntryLocator(platform: String): String {
+        return when (platform) {
+            "android" -> "com.ugreen.iot:id/flow_user_top"
+            "ios" -> "(//XCUIElementTypeTable/XCUIElementTypeStaticText[number(@y) < 280])[1]"
+            else -> error("Unsupported platform $platform")
+        }
+    }
+
+    private fun expectedNicknameValueAttr(platform: String): String {
+        return when (platform) {
+            "android" -> "text"
+            "ios" -> "name/label"
+            else -> error("Unsupported platform $platform")
+        }
     }
 
     private fun write(

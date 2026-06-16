@@ -1,0 +1,95 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.soluna-ui-autotest.local/v1/run-request.schema.json",
+  "title": "Soluna Runner Request",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "runId", "planUri"],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0"
+    },
+    "runId": {
+      "$ref": "#/$defs/id"
+    },
+    "planUri": {
+      "$ref": "#/$defs/nonEmptyString"
+    },
+    "assetProject": {
+      "$ref": "#/$defs/assetProject"
+    },
+    "device": {
+      "$ref": "#/$defs/device"
+    },
+    "artifactStoreUri": {
+      "$ref": "#/$defs/nonEmptyString"
+    },
+    "reportRoot": {
+      "$ref": "#/$defs/nonEmptyString"
+    },
+    "expectedStatus": {
+      "$ref": "#/$defs/status"
+    },
+    "parameterOverrides": {
+      "$ref": "#/$defs/parameterOverrides"
+    },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": true
+    }
+  },
+  "$defs": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+    },
+    "nonEmptyString": {
+      "type": "string",
+      "minLength": 1
+    },
+    "status": {
+      "enum": ["passed", "failed", "skipped", "aborted", "error"]
+    },
+    "assetProject": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "uri": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "revision": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "root": {
+          "$ref": "#/$defs/nonEmptyString"
+        }
+      }
+    },
+    "device": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "udid": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "platform": {
+          "enum": ["android", "ios"]
+        },
+        "configUri": {
+          "$ref": "#/$defs/nonEmptyString"
+        }
+      }
+    },
+    "parameterOverrides": {
+      "type": "object",
+      "propertyNames": {
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+      },
+      "additionalProperties": true
+    }
+  }
+}

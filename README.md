@@ -10,7 +10,7 @@ v0 is closed as a runnable foundation. Next development should start from real b
 
 Primary design reference:
 
-- [docs/architecture-v0.md](docs/architecture-v0.md)
+- [docs/architecture.md](docs/architecture.md)
 
 Progress record:
 
@@ -53,11 +53,74 @@ examples/devices/00008150-001E15AA1140401C.yaml
 examples/devices/AMRF026323000807.yaml
 examples/artifacts/minio.yaml
 examples/artifacts/dingtalk-upload-alert.yaml
+AIot-Tests/soluna-project.yaml
 ```
 
 The current v0 parser validates plan YAML with JSON Schema and framework policy checks before mapping it to Kotlin models.
 
 Execution starts from a plan path. Other YAML files, including device config, parameter data, cases, element catalogs, and setup fragments, are reached through references declared by the plan directly or indirectly.
+
+## Asset Project Contract
+
+Real test assets should live outside the framework source tree as a Soluna asset project. The framework is the runner and contract package; an asset project owns business plans, cases, elements, data, fragments, devices, and artifact configs.
+
+The first project-level contract is:
+
+```text
+src/main/resources/schemas/v1/soluna-project.schema.json
+```
+
+Service and platform integration contracts are:
+
+```text
+src/main/resources/schemas/v1/run-request.schema.json
+src/main/resources/schemas/v1/run-result.schema.json
+```
+
+The CLI still starts from a single plan path. Asset project metadata is a stable contract for future project discovery, platform use-case management, and Runner service requests.
+
+The first real asset project example is under:
+
+```text
+AIot-Tests/
+```
+
+The current profile nickname cases are:
+
+```text
+AIot-Tests/apps/com.ugreen.iot/plans/profile/nickname-android.yaml
+AIot-Tests/apps/com.ugreen.iot/plans/profile/nickname-ios.yaml
+AIot-Tests/apps/com.ugreen.iot/cases/common/profile/update-and-restore-nickname-android.yaml
+AIot-Tests/apps/com.ugreen.iot/cases/common/profile/update-and-restore-nickname-ios.yaml
+```
+
+Within an app asset root, case files are organized by app module. Shared app behavior goes under `cases/common/`; model-specific behavior should use one directory per model or module under `cases/`, for example `cases/UGREEN HiTune X8/...`. Plans continue to reference concrete case files through `caseRefs`, so the runner remains independent of the business directory naming.
+
+Case-specific data may mirror the case path and logical case name. The current nickname input data is:
+
+```text
+AIot-Tests/apps/com.ugreen.iot/data/common/profile/update-and-restore-nickname.yaml
+```
+
+Element catalogs stay module-oriented instead of case-oriented. Public app elements such as login, device, and mine live in:
+
+```text
+AIot-Tests/apps/com.ugreen.iot/elements/common.yaml
+```
+
+Draft reusable app-state initialization fragments live at:
+
+```text
+AIot-Tests/apps/com.ugreen.iot/fragments/app-state.yaml
+```
+
+They use generic fragment `if` / `then` / `else` control flow with ordinary action/assertion predicates. The login and logout branches still require stable real-app flow details before being wired into executable plans.
+
+Run them the same way as any plan:
+
+```bash
+./gradlew run --args='run AIot-Tests/apps/com.ugreen.iot/plans/profile/nickname-ios.yaml'
+```
 
 ## v0 Status
 

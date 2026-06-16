@@ -4,7 +4,7 @@
 
 `soluna-ui-autotest` is a Kotlin/JVM project for iOS and Android real-device UI automation.
 
-Use [docs/architecture-v0.md](docs/architecture-v0.md) as the source of truth for framework design. If implementation choices conflict with that document, update the document in the same change or call out the mismatch.
+Use [docs/architecture.md](docs/architecture.md) as the source of truth for framework design. If implementation choices conflict with that document, update the document in the same change or call out the mismatch.
 
 `soluna` is only the author's project prefix. Do not infer product or business domain from it.
 

@@ -1,0 +1,21 @@
+schemaVersion: "1.0"
+id: aiot-tests
+name: AIoT App Tests
+framework:
+  schemaVersion: v1
+  minRunnerVersion: "0.1.0"
+paths:
+  appsRoot: apps
+  sharedRoot: shared
+  devicesRoot: devices
+  artifactsRoot: artifacts
+defaults:
+  artifactStore: artifacts/minio.local.yaml
+apps:
+  - id: com.ugreen.iot
+    name: Audio
+    root: apps/com.ugreen.iot
+    platforms:
+      - android
+      - ios
+    defaultPlan: plans/profile/nickname-ios.yaml

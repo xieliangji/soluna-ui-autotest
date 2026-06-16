@@ -209,6 +209,10 @@ class LinearExecutionEngine(
         phase: String,
         index: Int,
     ): ActionExecutionResult {
+        if (action.keyword == "if") {
+            return executeIfAction(context, stage, case, action, phase, index)
+        }
+
         var attempt = 1
         var result: ActionExecutionResult
 
@@ -262,6 +266,71 @@ class LinearExecutionEngine(
         )
         actionTraceCollector.afterAction(context, stage, case, action, phase, index, result)
         return result
+    }
+
+    private fun executeIfAction(
+        context: ExecutionContext,
+        stage: StageDefinition?,
+        case: CaseDefinition?,
+        action: ActionDefinition,
+        phase: String,
+        index: Int,
+    ): ActionExecutionResult {
+        publishActionEvent(HookEventType.ACTION_BEFORE, context, stage, case, action, ExecutionStatus.RUNNING)
+        actionTraceCollector.beforeAction(context, stage, case, action, phase, index, attempt = 1)
+
+        val condition = action.conditionAction
+        val result = if (condition == null) {
+            ActionExecutionResult.failed("If action '${action.id ?: action.keyword}' requires a condition action")
+        } else {
+            val conditionResult = runCatching {
+                actionExecutorRegistry.execute(condition, context)
+            }.getOrElse { err ->
+                ActionExecutionResult.failed(err.message ?: err::class.simpleName ?: "Condition action failed")
+            }
+            val selectedBranch = if (conditionResult.status == ExecutionStatus.PASSED) {
+                action.thenActions
+            } else {
+                action.elseActions
+            }
+            val branchResults = executeNestedActions(context, stage, case, selectedBranch, phase)
+            if (branchResults.hasFailure()) {
+                ActionExecutionResult.failed("if branch failed")
+            } else {
+                val branchName = if (conditionResult.status == ExecutionStatus.PASSED) "then" else "else"
+                ActionExecutionResult.passed("if $branchName branch completed")
+            }
+        }
+
+        publishActionEvent(
+            type = HookEventType.ACTION_AFTER,
+            context = context,
+            stage = stage,
+            case = case,
+            action = action,
+            status = result.status,
+            error = result.error,
+        )
+        actionTraceCollector.afterAction(context, stage, case, action, phase, index, result)
+        return result
+    }
+
+    private fun executeNestedActions(
+        context: ExecutionContext,
+        stage: StageDefinition?,
+        case: CaseDefinition?,
+        actions: List<ActionDefinition>,
+        phase: String,
+    ): List<ActionExecutionResult> {
+        val results = mutableListOf<ActionExecutionResult>()
+        actions.forEachIndexed { index, branchAction ->
+            val result = executeAction(context, stage, case, branchAction, phase, index + 1)
+            results += result
+            if (result.status == ExecutionStatus.FAILED) {
+                return results
+            }
+        }
+        return results
     }
 
     private fun publishPlanEvent(

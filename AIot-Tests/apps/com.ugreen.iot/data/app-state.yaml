@@ -1,0 +1,9 @@
+schemaVersion: "1.0"
+id: app-state
+values:
+  appState:
+    patterns:
+      loginPage: ".+"
+      unimplementedGuestEntryFlow: "__SOLUNA_TODO_GUEST_ENTRY_FLOW__"
+      unimplementedLoginFlow: "__SOLUNA_TODO_LOGIN_FLOW__"
+      unimplementedLogoutFlow: "__SOLUNA_TODO_LOGOUT_FLOW__"

@@ -1,0 +1,55 @@
+schemaVersion: "1.0"
+id: ugreen-common
+description: Common UGREEN app elements shared by public modules such as login, device, and mine.
+elements:
+  loginPageMarker:
+    android:
+      strategy: xpath
+      value: "//*[contains(@text,'UgreenAudio')]"
+      textLocatorPurpose: brandLogo
+    ios:
+      strategy: predicate
+      value: "label CONTAINS 'UgreenAudio' OR name CONTAINS 'UgreenAudio'"
+      textLocatorPurpose: brandLogo
+  mineTab:
+    android:
+      strategy: xpath
+      value: "(//*[@resource-id='com.ugreen.iot:id/customTabLayout']//*[@resource-id='com.ugreen.iot:id/llTabContent'])[3]"
+    ios:
+      strategy: xpath
+      value: "//XCUIElementTypeImage[starts-with(@name,'TabMine')]/parent::XCUIElementTypeButton"
+  profileEntry:
+    android:
+      strategy: id
+      value: com.ugreen.iot:id/flow_user_top
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeTable/XCUIElementTypeStaticText[number(@y) < 280])[1]"
+  nicknameRow:
+    android:
+      strategy: xpath
+      value: "(//*[@resource-id='com.ugreen.iot:id/recyclerView']/android.view.ViewGroup)[2]"
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeCell)[2]"
+  nicknameInput:
+    android:
+      strategy: class
+      value: android.widget.EditText
+    ios:
+      strategy: class
+      value: XCUIElementTypeTextField
+  confirmButton:
+    android:
+      strategy: id
+      value: com.ugreen.iot:id/btn_positive
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeTextField/following::XCUIElementTypeButton[@visible='true' and @accessible='true'])[1]"
+  nicknameValue:
+    android:
+      strategy: xpath
+      value: "(//*[@resource-id='com.ugreen.iot:id/recyclerView']//*[@resource-id='com.ugreen.iot:id/tv_right_text])[1]"
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeCell)[2]/XCUIElementTypeStaticText[1]"

@@ -1,0 +1,123 @@
+schemaVersion: "1.0"
+id: app-state
+description: Reusable app state initialization fragments for UGREEN.
+fragments:
+  loginPage:
+    name: Ensure Login Page
+    elementRefs:
+      - id: common
+        file: ../elements/common.yaml
+    actions:
+      - restartApp: restart-for-login-page
+        appId: "${app.id}"
+        desc: 重启目标应用
+      - if:
+          assertElementAttrRegexMatch: detect-login-page
+          element: common.loginPageMarker
+          attr: name/label/text
+          pattern: "${appState.patterns.loginPage}"
+          desc: 判断当前是否已在登录页
+        then: []
+        else:
+          - tap: open-mine-tab-for-login-page
+            element: common.mineTab
+            desc: 点击我的Tab
+          - tap: open-profile-entry-for-login-page
+            element: common.profileEntry
+            desc: 点击头像入口
+          - if:
+              assertElementAttrRegexMatch: detect-personal-info-page-for-login-page
+              element: common.nicknameRow
+              attr: name/label/text
+              pattern: "${appState.patterns.loginPage}"
+              desc: 判断是否已进入个人信息页
+            then:
+              - assertSourceRegexMatch: require-logout-flow-for-login-page
+                pattern: "${appState.patterns.unimplementedLogoutFlow}"
+                desc: 已登录态进入登录页需要补充退出登录流程
+            else:
+              - assertSourceRegexMatch: require-stable-go-login-flow
+                pattern: "${appState.patterns.unimplementedLoginFlow}"
+                desc: 游客态进入登录页需要补充非文本定位的去登录流程
+  guestDevicePage:
+    name: Ensure Guest Device Page
+    elementRefs:
+      - id: common
+        file: ../elements/common.yaml
+    actions:
+      - restartApp: restart-for-guest-device-page
+        appId: "${app.id}"
+        desc: 重启目标应用
+      - if:
+          assertElementAttrRegexMatch: detect-login-page-for-guest
+          element: common.loginPageMarker
+          attr: name/label/text
+          pattern: "${appState.patterns.loginPage}"
+          desc: 判断是否停留在登录页
+        then:
+          - assertSourceRegexMatch: require-stable-guest-entry-flow
+            pattern: "${appState.patterns.unimplementedGuestEntryFlow}"
+            desc: 登录页进入游客设备页需要补充非文本定位的游客入口流程
+        else: []
+      - tap: open-mine-tab-for-guest-check
+        element: common.mineTab
+        desc: 点击我的Tab校验游客态
+      - tap: open-profile-entry-for-guest-check
+        element: common.profileEntry
+        desc: 点击头像入口校验游客态
+      - if:
+          assertElementAttrRegexMatch: detect-personal-info-page-for-guest
+          element: common.nicknameRow
+          attr: name/label/text
+          pattern: "${appState.patterns.loginPage}"
+          desc: 判断是否误进入已登录个人信息页
+        then:
+          - assertSourceRegexMatch: require-logout-flow-for-guest-device-page
+            pattern: "${appState.patterns.unimplementedLogoutFlow}"
+            desc: 已登录态切换游客设备页需要补充退出登录流程
+        else:
+          - tap: dismiss-guest-login-prompt
+            xRatio: 0.5
+            yRatio: 0.25
+            desc: 点击弹窗灰色区域关闭登录询问框
+  loggedInDevicePage:
+    name: Ensure Logged-in Device Page
+    elementRefs:
+      - id: common
+        file: ../elements/common.yaml
+    actions:
+      - restartApp: restart-for-logged-in-device-page
+        appId: "${app.id}"
+        desc: 重启目标应用
+      - if:
+          assertElementAttrRegexMatch: detect-login-page-for-login
+          element: common.loginPageMarker
+          attr: name/label/text
+          pattern: "${appState.patterns.loginPage}"
+          desc: 判断是否停留在登录页
+        then:
+          - assertSourceRegexMatch: require-login-flow-from-login-page
+            pattern: "${appState.patterns.unimplementedLoginFlow}"
+            desc: 登录页进入登录设备页需要补充账号登录流程
+        else:
+          - tap: open-mine-tab-for-login-check
+            element: common.mineTab
+            desc: 点击我的Tab校验登录态
+          - tap: open-profile-entry-for-login-check
+            element: common.profileEntry
+            desc: 点击头像入口校验登录态
+          - if:
+              assertElementAttrRegexMatch: detect-personal-info-page-for-login
+              element: common.nicknameRow
+              attr: name/label/text
+              pattern: "${appState.patterns.loginPage}"
+              desc: 判断是否已进入个人信息页
+            then:
+              - tap: back-from-profile-page-after-login-check
+                xRatio: 0.08
+                yRatio: 0.06
+                desc: 已登录态从个人信息页返回
+            else:
+              - assertSourceRegexMatch: require-login-flow-from-guest-device-page
+                pattern: "${appState.patterns.unimplementedLoginFlow}"
+                desc: 游客态进入登录设备页需要补充账号登录流程

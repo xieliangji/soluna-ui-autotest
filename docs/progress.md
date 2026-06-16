@@ -17,10 +17,11 @@ Implemented capabilities:
 
 - YAML DSL with `Plan -> Stage -> Case -> Action`.
 - Plan-rooted execution: runner accepts only a plan path; other assets are referenced directly or indirectly by the plan.
-- Schema-first validation for plan, case, element catalog, fragment catalog, parameter data, device config, artifact store, notification sender, report data, and resource manifest.
+- Schema-first validation for plan, case, element catalog, fragment catalog, parameter data, device config, artifact store, notification sender, report data, resource manifest, asset project, runner request, and runner result contracts.
 - Keyword-as-field action syntax, for example `tap: open-mine-tab`.
 - Case/data/element/fragment decomposition.
 - Linear case DSL; setup/teardown fragments are separate lifecycle assets.
+- Fragment DSL supports business-neutral `if` / `then` / `else` control flow with existing action/assertion keywords as predicates.
 - Android and iOS real-device execution through Appium Java Client.
 - Managed Appium server with runtime port allocation and `/status` probing.
 - Recovering WebDriver adapter with logical session and physical session rebuild.
@@ -138,6 +139,32 @@ Verification:
 
 - Focused runner/schema/artifact parser tests passed.
 - `./gradlew test` passed.
+
+### 2026-06-16 Fragment Control Flow
+
+- Added schema/model/parser/resolver/execution support for generic fragment `if` / `then` / `else`.
+- Kept case DSL linear; case schemas and policy validation still reject logic control.
+- Added draft `com.ugreen.iot` initialization fragments for login page, guest device page, and logged-in device page under `AIot-Tests/apps/com.ugreen.iot/fragments/app-state.yaml`.
+- Recorded that unknown login/logout business flows are explicit failing placeholders until stable real-app elements and account flow are supplied.
+
+Verification:
+
+- `jq empty src/main/resources/schemas/v1/*.json` passed.
+- Focused parser/schema/reference/parameter/default/execution tests passed.
+- `./gradlew build` passed.
+
+### 2026-06-16 Case Asset Layout
+
+- Moved the current public profile nickname cases under `AIot-Tests/apps/com.ugreen.iot/cases/common/profile/`.
+- Updated profile nickname plans and schema validation tests to reference the new paths.
+- Documented the app case organization rule: shared behavior under `cases/common/...`, model-specific app behavior under `cases/<model-or-module>/...`.
+- Moved nickname case input data under `data/common/profile/update-and-restore-nickname.yaml`.
+- Consolidated public login/mine/profile locators into module catalog `elements/common.yaml`; removed case/flow-oriented element files.
+
+Verification:
+
+- `git diff --check` passed.
+- Focused schema/parser/reference/parameter tests passed.
 - Upload-enabled iOS smoke passed and asserted delivered notifications.
 
 ### 2026-06-15 v0 Closure
@@ -163,7 +190,7 @@ Verification:
 Verification:
 
 - Documentation-only iteration.
-- `wc -l README.md docs/architecture-v0.md docs/schemas.md docs/progress.md`: core docs reduced to 1225 total lines.
+- `wc -l README.md docs/architecture.md docs/schemas.md docs/progress.md`: core docs reduced to 1225 total lines.
 - Scan for stale implementation-stage wording passed with no matches.
 - `git diff --check`: passed.
 - Gradle tests were not rerun for this edit.
@@ -178,6 +205,56 @@ Verification:
 
 - `git diff --cached --check` passed.
 - Staged secret scan for the known local MinIO/DingTalk credentials passed with no matches.
+
+### 2026-06-15 v1 Visual Dependency Prep
+
+- Reintroduced `kt-visual` dependencies after the v0 commit using the GitHub Releases jar layout for `xieliangji/kt-visual`.
+- Configured a Gradle Ivy artifact pattern for `v0.3.1` release assets and mapped the Paddle OCR model jar as a classifier dependency.
+
+Verification:
+
+- `./gradlew dependencies --configuration compileClasspath` passed.
+- `./gradlew compileKotlin --rerun-tasks` passed.
+- `./gradlew test` passed.
+
+### 2026-06-15 v1 Asset Project Contracts
+
+- Added `soluna-project.schema.json`, `run-request.schema.json`, and `run-result.schema.json`.
+- Added `AIot-Tests/soluna-project.yaml` as the first asset project metadata example.
+- Updated README, schema docs, and architecture boundaries to define framework / asset project / platform separation.
+
+Verification:
+
+- `jq empty src/main/resources/schemas/v1/*.json` passed.
+- `git diff --check` passed.
+- `./gradlew test --tests com.ugreen.iot.soluna.autotest.schema.JsonSchemaDslValidatorTest` passed.
+- `./gradlew test` passed.
+- `./gradlew build` passed.
+
+### 2026-06-15 Architecture Document Rename
+
+- Renamed the legacy v0 architecture document to `docs/architecture.md` because it is now the ongoing architecture source of truth after v0 closure.
+- Updated README, AGENTS guidance, and progress references to the new path.
+
+Verification:
+
+- Legacy architecture path reference scan passed with no matches.
+- `git diff --check` passed.
+- Gradle tests were not rerun for this docs-only rename.
+
+### 2026-06-15 First Asset Project Cases
+
+- Added the first real asset-project case set under `AIot-Tests/apps/com.ugreen.iot`.
+- Migrated the verified profile nickname update/restore flow into Android and iOS asset project plans, cases, element catalog, data, fragment, and device config files.
+- Added tests that schema-validate the AIot asset files and resolve both asset project plans through case/data/element/fragment references.
+
+Verification:
+
+- `jq empty src/main/resources/schemas/v1/*.json` passed.
+- `git diff --check` passed.
+- `./gradlew test --tests com.ugreen.iot.soluna.autotest.schema.JsonSchemaDslValidatorTest --tests com.ugreen.iot.soluna.autotest.runner.PlanReferenceResolverTest` passed.
+- `./gradlew test` passed.
+- `./gradlew build` passed.
 
 ## Current Verification Baseline
 

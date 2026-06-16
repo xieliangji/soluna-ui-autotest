@@ -28,7 +28,7 @@ class PlanReferenceResolver(
         platform: String? = plan.app?.platform,
     ): PlanDefinition {
         val planBaseDir = planPath.parent ?: Path.of(".").toAbsolutePath().normalize()
-        val fragments = loadFragments(plan, planBaseDir)
+        val fragments = loadFragments(plan, planBaseDir, platform)
         return plan.copy(
             setupActions = resolveFragments(plan.setupFragments, fragments),
             teardownActions = resolveFragments(plan.teardownFragments, fragments),
@@ -115,18 +115,28 @@ class PlanReferenceResolver(
         action: ActionDefinition,
         elements: Map<String, LocatorDefinition>,
     ): ActionDefinition {
-        val elementRef = action.element ?: return action
-        require(action.locator == null) {
-            "Action '${action.id ?: action.keyword}' must not define both element and locator"
+        val elementRef = action.element
+        val locator = if (elementRef != null) {
+            require(action.locator == null) {
+                "Action '${action.id ?: action.keyword}' must not define both element and locator"
+            }
+            elements[elementRef]
+                ?: error("Element '$elementRef' is not defined for action '${action.id ?: action.keyword}'")
+        } else {
+            action.locator
         }
-        val locator = elements[elementRef]
-            ?: error("Element '$elementRef' is not defined for action '${action.id ?: action.keyword}'")
-        return action.copy(locator = locator)
+        return action.copy(
+            locator = locator,
+            conditionAction = action.conditionAction?.let { resolveActionElement(it, elements) },
+            thenActions = action.thenActions.map { resolveActionElement(it, elements) },
+            elseActions = action.elseActions.map { resolveActionElement(it, elements) },
+        )
     }
 
     private fun loadFragments(
         plan: PlanDefinition,
         planBaseDir: Path,
+        platform: String?,
     ): Map<String, FragmentDefinition> {
         val result = linkedMapOf<String, FragmentDefinition>()
         plan.fragmentRefs.forEach { ref ->
@@ -139,8 +149,13 @@ class PlanReferenceResolver(
             }
             val catalog = fragmentCatalogParser.parse(Files.readString(path))
             catalog.fragments.forEach { (fragmentId, fragment) ->
-                putUnique(result, "${ref.id}.$fragmentId", fragment, "fragment")
-                putUnique(result, "${catalog.id}.$fragmentId", fragment, "fragment")
+                val fragmentBaseDir = path.parent ?: planBaseDir
+                val elements = loadElements(fragment.elementRefs, fragmentBaseDir, platform)
+                val resolvedFragment = fragment.copy(
+                    actions = fragment.actions.map { action -> resolveActionElement(action, elements) },
+                )
+                putUnique(result, "${ref.id}.$fragmentId", resolvedFragment, "fragment")
+                putUnique(result, "${catalog.id}.$fragmentId", resolvedFragment, "fragment")
             }
         }
         return result

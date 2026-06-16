@@ -86,6 +86,10 @@ class DslActionNormalizer(
     private fun normalizeAction(action: JsonNode): ObjectNode {
         require(action.isObject) { "Action must be an object" }
 
+        if (action.has("if")) {
+            return normalizeIfAction(action)
+        }
+
         val keywordFields = action.fields().asSequence()
             .filter { (fieldName, value) ->
                 value.isTextual && keywordRegistry.normalize(fieldName) != null
@@ -128,7 +132,42 @@ class DslActionNormalizer(
             if (!args.isEmpty) {
                 normalized.set<JsonNode>("args", args)
             }
+
+            copyNormalizedBranch(action, normalized, from = "then", to = "thenActions")
+            copyNormalizedBranch(action, normalized, from = "else", to = "elseActions")
         }
+    }
+
+    private fun normalizeIfAction(action: JsonNode): ObjectNode {
+        val condition = normalizeAction(action.get("if"))
+        return objectMapper.createObjectNode().also { normalized ->
+            val explicitId = action.get("id")?.takeIf { it.isTextual }?.asText()
+            val conditionId = condition.get("id")?.takeIf { it.isTextual }?.asText()
+            normalized.put("id", explicitId ?: "if-${conditionId ?: "condition"}")
+            normalized.put("keyword", "if")
+            copyTextField(action, normalized, from = "desc", to = "name")
+            normalized.set<JsonNode>("conditionAction", condition)
+            copyNormalizedBranch(action, normalized, from = "then", to = "thenActions")
+            copyNormalizedBranch(action, normalized, from = "else", to = "elseActions")
+        }
+    }
+
+    private fun copyNormalizedBranch(
+        source: JsonNode,
+        target: ObjectNode,
+        from: String,
+        to: String,
+    ) {
+        val branch = source.get(from)
+        if (branch !is ArrayNode) {
+            return
+        }
+
+        val normalizedBranch = objectMapper.createArrayNode()
+        branch.forEach { action ->
+            normalizedBranch.add(normalizeAction(action))
+        }
+        target.set<ArrayNode>(to, normalizedBranch)
     }
 
     private fun copyTextField(

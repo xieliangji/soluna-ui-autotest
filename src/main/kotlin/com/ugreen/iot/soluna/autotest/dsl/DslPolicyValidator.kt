@@ -53,12 +53,41 @@ class DslPolicyValidator(
         pattern = """(?i)(@text|text|label|name|value)\s*(==|=)\s*['"][^'$"][^'"]*['"]""",
     )
 
+    private val textAttributeComparisonExpression = Regex(
+        pattern = """(?i)(@text|text|label|name|value)\s*(==|=)\s*['"]""",
+    )
+
     private val containsTextExpression = Regex(
         pattern = """(?i)contains\s*\(\s*(@text|text|label|name|value)\s*,\s*['"][^'$"][^'"]*['"]\s*\)""",
     )
 
+    private val containsTextAttributeExpression = Regex(
+        pattern = """(?i)contains\s*\(\s*(@text|text|label|name|value)\s*,\s*['"]""",
+    )
+
     private val uiAutomatorTextExpression = Regex(
         pattern = """(?i)\.text(?:contains|matches)?\s*\(\s*['"][^'$"][^'"]*['"]\s*\)""",
+    )
+
+    private val uiAutomatorTextAttributeExpression = Regex(
+        pattern = """(?i)\.text(?:contains|matches)?\s*\(\s*['"]""",
+    )
+
+    private val predicateTextExpression = Regex(
+        pattern = """(?i)(label|name|value|text)\s+(CONTAINS|BEGINSWITH|ENDSWITH|MATCHES)(?:\[[cd]]+)?\s*['"][^'$"][^'"]*['"]""",
+    )
+
+    private val predicateTextAttributeExpression = Regex(
+        pattern = """(?i)(label|name|value|text)\s+(CONTAINS|BEGINSWITH|ENDSWITH|MATCHES)(?:\[[cd]]+)?\s*['"]""",
+    )
+
+    private val approvedTextLocatorPurposes = setOf(
+        "brandLogo",
+        "languageTitle",
+    )
+
+    private val parameterizedTextLocatorPurposes = setOf(
+        "languageTitle",
     )
 
     fun validatePlan(planNode: JsonNode): List<DslViolation> {
@@ -83,11 +112,21 @@ class DslPolicyValidator(
         if (elements.isObject) {
             elements.fields().forEachRemaining { (name, element) ->
                 if (element.has("strategy") || element.has("value")) {
-                    validateLocator(element, "$.elements.$name", violations)
+                    validateLocator(
+                        locator = element,
+                        path = "$.elements.$name",
+                        violations = violations,
+                        inheritedTextLocatorPurpose = null,
+                    )
                 }
                 listOf("android", "ios").forEach { platform ->
                     if (element.has(platform)) {
-                        validateLocator(element.get(platform), "$.elements.$name.$platform", violations)
+                        validateLocator(
+                            locator = element.get(platform),
+                            path = "$.elements.$name.$platform",
+                            violations = violations,
+                            inheritedTextLocatorPurpose = element.textLocatorPurpose(),
+                        )
                     }
                 }
             }
@@ -107,13 +146,32 @@ class DslPolicyValidator(
             if (!actions.isArray) {
                 return@forEachRemaining
             }
-            actions.forEachIndexed { actionIndex, action ->
-                val actionPath = "$.fragments.$fragmentId.actions[$actionIndex]"
+            validateFragmentActionList(actions, "$.fragments.$fragmentId.actions", violations)
+        }
+        return violations
+    }
+
+    private fun validateFragmentActionList(
+        actions: JsonNode,
+        path: String,
+        violations: MutableList<DslViolation>,
+    ) {
+        actions.forEachIndexed { actionIndex, action ->
+            val actionPath = "$path[$actionIndex]"
+            if (action.has("if")) {
+                validateKeyword(action.get("if"), "$actionPath.if", violations)
+                validateLocators(action.get("if"), "$actionPath.if", violations)
+            } else {
                 validateKeyword(action, actionPath, violations)
                 validateLocators(action, actionPath, violations)
             }
+            listOf("then", "else").forEach { branch ->
+                val branchActions = action.path(branch)
+                if (branchActions.isArray) {
+                    validateFragmentActionList(branchActions, "$actionPath.$branch", violations)
+                }
+            }
         }
-        return violations
     }
 
     private fun validateStages(
@@ -256,21 +314,44 @@ class DslPolicyValidator(
         locator: JsonNode,
         path: String,
         violations: MutableList<DslViolation>,
+        inheritedTextLocatorPurpose: String? = null,
     ) {
         val strategy = locator.path("strategy").takeIf { it.isTextual }?.asText()?.trim().orEmpty()
         val value = locator.path("value").takeIf { it.isTextual }?.asText()?.trim().orEmpty()
-        if (strategy.isEmpty() || value.isEmpty() || parameterReference.containsMatchIn(value)) {
+        val textLocatorPurpose = locator.textLocatorPurpose() ?: inheritedTextLocatorPurpose
+        if (strategy.isEmpty() || value.isEmpty()) {
             return
         }
 
         val normalizedStrategy = strategy.lowercase()
-        val hasHardcodedText = normalizedStrategy in textStrategies ||
-            (normalizedStrategy in expressionStrategies && hasHardcodedTextExpression(value))
+        val usesTextLocator = normalizedStrategy in textStrategies ||
+            (normalizedStrategy in expressionStrategies && hasTextAttributeExpression(value))
+
+        if (!usesTextLocator) {
+            return
+        }
+
+        if (parameterReference.containsMatchIn(value)) {
+            if (textLocatorPurpose in parameterizedTextLocatorPurposes) {
+                return
+            }
+            violations += DslViolation(
+                path = "$path.value",
+                message = "Parameterized text locators are only allowed for approved stable text purposes such as languageTitle",
+            )
+            return
+        }
+
+        val hasHardcodedText = normalizedStrategy in textStrategies || hasHardcodedTextExpression(value)
+
+        if (hasHardcodedText && textLocatorPurpose in approvedTextLocatorPurposes) {
+            return
+        }
 
         if (hasHardcodedText) {
             violations += DslViolation(
                 path = "$path.value",
-                message = $$"Locator expressions must not hardcode fixed UI copy; use a parameter reference such as ${i18n.key}",
+                message = "Locator expressions must not hardcode fixed UI copy. Avoid text-based locators outside approved stable text purposes such as brandLogo or languageTitle",
             )
         }
     }
@@ -278,6 +359,20 @@ class DslPolicyValidator(
     private fun hasHardcodedTextExpression(value: String): Boolean {
         return exactTextExpression.containsMatchIn(value) ||
             containsTextExpression.containsMatchIn(value) ||
-            uiAutomatorTextExpression.containsMatchIn(value)
+            uiAutomatorTextExpression.containsMatchIn(value) ||
+            predicateTextExpression.containsMatchIn(value)
+    }
+
+    private fun hasTextAttributeExpression(value: String): Boolean {
+        return textAttributeComparisonExpression.containsMatchIn(value) ||
+            containsTextAttributeExpression.containsMatchIn(value) ||
+            uiAutomatorTextAttributeExpression.containsMatchIn(value) ||
+            predicateTextAttributeExpression.containsMatchIn(value)
+    }
+
+    private fun JsonNode.textLocatorPurpose(): String? {
+        return path("textLocatorPurpose")
+            .takeIf { it.isTextual }
+            ?.asText()
     }
 }

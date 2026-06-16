@@ -1,0 +1,158 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.soluna-ui-autotest.local/v1/run-result.schema.json",
+  "title": "Soluna Runner Result Summary",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "runId", "status", "generatedAt", "artifacts"],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0"
+    },
+    "runId": {
+      "$ref": "#/$defs/nonEmptyString"
+    },
+    "status": {
+      "$ref": "#/$defs/status"
+    },
+    "generatedAt": {
+      "$ref": "#/$defs/nonEmptyString"
+    },
+    "startedAt": {
+      "$ref": "#/$defs/nonEmptyString"
+    },
+    "finishedAt": {
+      "$ref": "#/$defs/nonEmptyString"
+    },
+    "durationMs": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "plan": {
+      "$ref": "#/$defs/plan"
+    },
+    "assetProject": {
+      "$ref": "#/$defs/assetProject"
+    },
+    "device": {
+      "$ref": "#/$defs/device"
+    },
+    "counts": {
+      "$ref": "#/$defs/counts"
+    },
+    "artifacts": {
+      "$ref": "#/$defs/artifacts"
+    },
+    "error": {
+      "$ref": "#/$defs/nullableString"
+    },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": true
+    }
+  },
+  "$defs": {
+    "nonEmptyString": {
+      "type": "string",
+      "minLength": 1
+    },
+    "nullableString": {
+      "type": ["string", "null"]
+    },
+    "status": {
+      "enum": ["running", "passed", "failed", "skipped", "aborted", "error"]
+    },
+    "plan": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "uri"],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "name": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "uri": {
+          "$ref": "#/$defs/nonEmptyString"
+        }
+      }
+    },
+    "assetProject": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "uri": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "revision": {
+          "$ref": "#/$defs/nonEmptyString"
+        }
+      }
+    },
+    "device": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "udid": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "platform": {
+          "enum": ["android", "ios"]
+        },
+        "name": {
+          "$ref": "#/$defs/nonEmptyString"
+        }
+      }
+    },
+    "counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "stageCount": {
+          "$ref": "#/$defs/nonNegativeInteger"
+        },
+        "caseCount": {
+          "$ref": "#/$defs/nonNegativeInteger"
+        },
+        "actionCount": {
+          "$ref": "#/$defs/nonNegativeInteger"
+        },
+        "passedCount": {
+          "$ref": "#/$defs/nonNegativeInteger"
+        },
+        "failedCount": {
+          "$ref": "#/$defs/nonNegativeInteger"
+        },
+        "skippedCount": {
+          "$ref": "#/$defs/nonNegativeInteger"
+        }
+      }
+    },
+    "nonNegativeInteger": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "artifacts": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "reportUrl": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "resultJsonUrl": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "resourceManifestUrl": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "artifactRootUrl": {
+          "$ref": "#/$defs/nonEmptyString"
+        }
+      }
+    }
+  }
+}

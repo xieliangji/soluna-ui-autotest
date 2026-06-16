@@ -61,4 +61,45 @@ class PlanDefaultsResolverTest {
         assertEquals(1_000, case.actions.last().wait?.timeoutMs)
         assertEquals(100, case.actions.last().wait?.intervalMs)
     }
+
+    @Test
+    fun `applies default action wait inside fragment control flow actions`() {
+        val plan = PlanDefinition(
+            schemaVersion = "1.0",
+            id = "plan-if",
+            name = "Plan If",
+            defaults = PlanDefaults(
+                actionWait = WaitDefinition(timeoutMs = 10_000, intervalMs = 500),
+            ),
+            stages = listOf(
+                StageDefinition(
+                    id = "stage-001",
+                    name = "Stage 001",
+                    setupActions = listOf(
+                        ActionDefinition(
+                            id = "ensure-state",
+                            keyword = "if",
+                            conditionAction = ActionDefinition(id = "detect-state", keyword = "assertSourceRegexMatch"),
+                            thenActions = listOf(ActionDefinition(id = "tap-then", keyword = "tap")),
+                            elseActions = listOf(
+                                ActionDefinition(
+                                    id = "tap-else",
+                                    keyword = "tap",
+                                    wait = WaitDefinition(timeoutMs = 1_000, intervalMs = 100),
+                                ),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        )
+
+        val resolved = PlanDefaultsResolver().resolve(plan)
+        val action = resolved.stages.single().setupActions.single()
+
+        assertEquals(10_000, action.wait?.timeoutMs)
+        assertEquals(10_000, action.conditionAction?.wait?.timeoutMs)
+        assertEquals(10_000, action.thenActions.single().wait?.timeoutMs)
+        assertEquals(1_000, action.elseActions.single().wait?.timeoutMs)
+    }
 }

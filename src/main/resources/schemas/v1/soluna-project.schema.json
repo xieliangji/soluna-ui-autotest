@@ -1,0 +1,140 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.soluna-ui-autotest.local/v1/soluna-project.schema.json",
+  "title": "Soluna Asset Project",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "id", "name", "framework", "apps"],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0"
+    },
+    "id": {
+      "$ref": "#/$defs/id"
+    },
+    "name": {
+      "$ref": "#/$defs/nonEmptyString"
+    },
+    "version": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "framework": {
+      "$ref": "#/$defs/framework"
+    },
+    "paths": {
+      "$ref": "#/$defs/paths"
+    },
+    "defaults": {
+      "$ref": "#/$defs/defaults"
+    },
+    "apps": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/app"
+      }
+    }
+  },
+  "$defs": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+    },
+    "nonEmptyString": {
+      "type": "string",
+      "minLength": 1
+    },
+    "relativePath": {
+      "type": "string",
+      "minLength": 1,
+      "not": {
+        "pattern": "^[a-zA-Z][a-zA-Z0-9+.-]*:"
+      }
+    },
+    "framework": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion"],
+      "properties": {
+        "schemaVersion": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "minRunnerVersion": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "compatibleRunnerVersions": {
+          "$ref": "#/$defs/nonEmptyString"
+        }
+      }
+    },
+    "paths": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "appsRoot": {
+          "$ref": "#/$defs/relativePath"
+        },
+        "sharedRoot": {
+          "$ref": "#/$defs/relativePath"
+        },
+        "devicesRoot": {
+          "$ref": "#/$defs/relativePath"
+        },
+        "artifactsRoot": {
+          "$ref": "#/$defs/relativePath"
+        }
+      }
+    },
+    "defaults": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "artifactStore": {
+          "$ref": "#/$defs/relativePath"
+        },
+        "reportRoot": {
+          "$ref": "#/$defs/relativePath"
+        }
+      }
+    },
+    "app": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "root"],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "name": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "root": {
+          "$ref": "#/$defs/relativePath"
+        },
+        "platforms": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "enum": ["android", "ios"]
+          }
+        },
+        "defaultPlan": {
+          "$ref": "#/$defs/relativePath"
+        },
+        "metadata": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      }
+    }
+  }
+}

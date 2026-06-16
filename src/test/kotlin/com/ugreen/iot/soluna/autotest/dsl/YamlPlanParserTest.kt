@@ -10,6 +10,7 @@ import kotlin.test.assertTrue
 class YamlPlanParserTest {
     private val parser = YamlPlanParser()
     private val elementCatalogParser = YamlElementCatalogParser()
+    private val fragmentCatalogParser = YamlFragmentCatalogParser()
 
     @Test
     fun `parses valid plan yaml`() {
@@ -109,6 +110,48 @@ class YamlPlanParserTest {
     }
 
     @Test
+    fun `allows explicitly approved hardcoded brand logo locator in element catalog`() {
+        val yaml = """
+            schemaVersion: "1.0"
+            id: common-elements
+            elements:
+              loginPageMarker:
+                android:
+                  strategy: xpath
+                  value: "//*[contains(@text,'UgreenAudio')]"
+                  textLocatorPurpose: brandLogo
+                ios:
+                  strategy: predicate
+                  value: "label CONTAINS 'UgreenAudio' OR name CONTAINS 'UgreenAudio'"
+                  textLocatorPurpose: brandLogo
+        """.trimIndent()
+
+        val catalog = elementCatalogParser.parse(yaml)
+
+        assertEquals(
+            "//*[contains(@text,'UgreenAudio')]",
+            catalog.elements.getValue("loginPageMarker").locatorFor("android").value,
+        )
+    }
+
+    @Test
+    fun `rejects hardcoded text inside predicate locator in element catalog`() {
+        val yaml = elementCatalogYaml(
+            locatorStrategy = "predicate",
+            locatorValue = "label CONTAINS '登录'",
+        )
+
+        val error = assertFailsWith<DslValidationException> {
+            elementCatalogParser.parse(yaml)
+        }
+
+        assertTrue(
+            error.violations.any { it.path.endsWith(".value") },
+            "Expected predicate locator violation, got ${error.violations}",
+        )
+    }
+
+    @Test
     fun `allows parameterized text inside xpath locator in element catalog`() {
         val yaml = elementCatalogYaml(
             locatorStrategy = "xpath",
@@ -147,6 +190,70 @@ class YamlPlanParserTest {
             error.violations.any { it.message.contains("logic control key 'if'") },
             "Expected linear DSL violation, got ${error.violations}",
         )
+    }
+
+    @Test
+    fun `rejects if control action in case dsl`() {
+        val yaml = """
+            schemaVersion: "1.0"
+            id: daily-smoke
+            name: Daily Smoke
+            deviceConfig: devices/android.yaml
+            stages:
+              - id: logged-out
+                name: Logged out
+                cases:
+                  - id: login-success
+                    name: Login success
+                    actions:
+                      - if:
+                          assertSourceRegexMatch: detect-login-page
+                          pattern: "Login"
+                        then:
+                          - tap: tap-login
+                            element: login.loginButton
+        """.trimIndent()
+
+        val error = assertFailsWith<DslValidationException> {
+            parser.parse(yaml)
+        }
+
+        assertTrue(
+            error.violations.any { it.message.contains("logic control key 'if'") || it.message.contains("if") },
+            "Expected case if-control violation, got ${error.violations}",
+        )
+    }
+
+    @Test
+    fun `parses generic if control in fragment dsl`() {
+        val yaml = """
+            schemaVersion: "1.0"
+            id: app-state
+            fragments:
+              ensureLoginPage:
+                elementRefs:
+                  - id: common
+                    file: ../elements/common.yaml
+                actions:
+                  - if:
+                      assertElementAttrRegexMatch: detect-login-page
+                      element: common.loginPageMarker
+                      attr: name/label/text
+                      pattern: "${'$'}{appState.loginPagePattern}"
+                    then: []
+                    else:
+                      - tap: open-mine-tab
+                        element: common.mineTab
+        """.trimIndent()
+
+        val catalog = fragmentCatalogParser.parse(yaml)
+        val action = catalog.fragments.getValue("ensureLoginPage").actions.single()
+
+        assertEquals("if", action.keyword)
+        assertEquals("assertElementAttrRegexMatch", action.conditionAction?.keyword)
+        assertEquals("detect-login-page", action.conditionAction?.id)
+        assertEquals(emptyList(), action.thenActions)
+        assertEquals(listOf("open-mine-tab"), action.elseActions.map { it.id })
     }
 
     @Test

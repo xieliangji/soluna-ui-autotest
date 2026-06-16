@@ -342,6 +342,60 @@ class LinearExecutionEngineTest {
         assertEquals(listOf("tap#1"), attempts)
     }
 
+    @Test
+    fun `fragment if action executes then branch when condition passes`() {
+        val executedKeywords = mutableListOf<String>()
+        val engine = LinearExecutionEngine(
+            actionExecutorRegistry = DefaultActionExecutorRegistry(
+                listOf(
+                    RecordingActionExecutor("assertSourceRegexMatch", executedKeywords),
+                    RecordingActionExecutor("tap", executedKeywords),
+                    RecordingActionExecutor("input", executedKeywords),
+                ),
+            ),
+            hookBus = SimpleHookBus(),
+            clock = fixedClock,
+        )
+        val plan = singleIfSetupPlan(
+            condition = ActionDefinition(id = "detect-login-page", keyword = "assertSourceRegexMatch"),
+            thenActions = listOf(ActionDefinition(id = "tap-login", keyword = "tap")),
+            elseActions = listOf(ActionDefinition(id = "input-else", keyword = "input")),
+        )
+
+        val result = engine.execute(plan, ExecutionRequest(runId = "run-if-then"))
+
+        assertEquals(ExecutionStatus.PASSED, result.status)
+        assertEquals(listOf("assertSourceRegexMatch", "tap"), executedKeywords)
+        assertEquals(ExecutionStatus.PASSED, result.stages.single().setupActions.single().status)
+    }
+
+    @Test
+    fun `fragment if action executes else branch when condition fails`() {
+        val executedKeywords = mutableListOf<String>()
+        val engine = LinearExecutionEngine(
+            actionExecutorRegistry = DefaultActionExecutorRegistry(
+                listOf(
+                    FailingActionExecutor("assertSourceRegexMatch", executedKeywords),
+                    RecordingActionExecutor("tap", executedKeywords),
+                    RecordingActionExecutor("input", executedKeywords),
+                ),
+            ),
+            hookBus = SimpleHookBus(),
+            clock = fixedClock,
+        )
+        val plan = singleIfSetupPlan(
+            condition = ActionDefinition(id = "detect-login-page", keyword = "assertSourceRegexMatch"),
+            thenActions = listOf(ActionDefinition(id = "tap-login", keyword = "tap")),
+            elseActions = listOf(ActionDefinition(id = "input-else", keyword = "input")),
+        )
+
+        val result = engine.execute(plan, ExecutionRequest(runId = "run-if-else"))
+
+        assertEquals(ExecutionStatus.PASSED, result.status)
+        assertEquals(listOf("assertSourceRegexMatch", "input"), executedKeywords)
+        assertEquals(ExecutionStatus.PASSED, result.stages.single().setupActions.single().status)
+    }
+
     private fun singleActionPlan(keyword: String): PlanDefinition {
         return PlanDefinition(
             schemaVersion = "1.0",
@@ -361,6 +415,40 @@ class LinearExecutionEngineTest {
                                     keyword = keyword,
                                 ),
                             ),
+                        ),
+                    ),
+                ),
+            ),
+        )
+    }
+
+    private fun singleIfSetupPlan(
+        condition: ActionDefinition,
+        thenActions: List<ActionDefinition>,
+        elseActions: List<ActionDefinition>,
+    ): PlanDefinition {
+        return PlanDefinition(
+            schemaVersion = "1.0",
+            id = "plan-if",
+            name = "Plan If",
+            stages = listOf(
+                StageDefinition(
+                    id = "stage-001",
+                    name = "Stage 001",
+                    setupActions = listOf(
+                        ActionDefinition(
+                            id = "ensure-state",
+                            keyword = "if",
+                            conditionAction = condition,
+                            thenActions = thenActions,
+                            elseActions = elseActions,
+                        ),
+                    ),
+                    cases = listOf(
+                        CaseDefinition(
+                            id = "case-001",
+                            name = "Case 001",
+                            actions = emptyList(),
                         ),
                     ),
                 ),

@@ -41,6 +41,13 @@
         "name": {
           "$ref": "#/$defs/nonEmptyString"
         },
+        "elementRefs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/elementFileRef"
+          },
+          "default": []
+        },
         "actions": {
           "type": "array",
           "minItems": 1,
@@ -50,7 +57,33 @@
         }
       }
     },
+    "elementFileRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "file"],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "file": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "required": {
+          "type": "boolean",
+          "default": true
+        }
+      }
+    },
     "action": {
+      "oneOf": [
+        { "$ref": "#/$defs/ifAction" },
+        { "$ref": "#/$defs/executableAction" }
+      ]
+    },
+    "conditionAction": {
+      "$ref": "#/$defs/executableAction"
+    },
+    "executableAction": {
       "oneOf": [
         { "allOf": [{ "$ref": "#/$defs/tapAction" }, { "required": ["tap"] }] },
         { "allOf": [{ "$ref": "#/$defs/tapAction" }, { "required": ["click"] }] },
@@ -95,6 +128,34 @@
         { "allOf": [{ "$ref": "#/$defs/screenshotAction" }, { "required": ["screenshot"] }] },
         { "allOf": [{ "$ref": "#/$defs/screenshotAction" }, { "required": ["截图"] }] },
         { "allOf": [{ "$ref": "#/$defs/screenshotAction" }, { "required": ["显式截图"] }] }
+      ]
+    },
+    "ifAction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["if"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "desc": { "$ref": "#/$defs/nonEmptyString" },
+        "if": { "$ref": "#/$defs/conditionAction" },
+        "then": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/action"
+          },
+          "default": []
+        },
+        "else": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/action"
+          },
+          "default": []
+        }
+      },
+      "anyOf": [
+        { "required": ["then"] },
+        { "required": ["else"] }
       ]
     },
     "tapAction": {
