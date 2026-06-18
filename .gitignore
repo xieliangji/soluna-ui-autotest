@@ -46,6 +46,7 @@ bin/
 .soluna/
 examples/artifacts/*.local.yaml
 AIot-Tests/artifacts/*.local.yaml
+AIot-Tests/apps/com.ugreen.iot/data/*.local.yaml
 selfIdentity.plist
 
 ### Mac OS ###

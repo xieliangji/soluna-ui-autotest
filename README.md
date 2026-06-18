@@ -186,6 +186,24 @@ Use debug output as locator evidence; do not encode platform-specific debug oper
 
 The project currently uses Kotlin JVM with Java 21.
 
+## Bundled Runtime Tools
+
+Screen-recording toast analysis needs FFmpeg in two places: Appium XCUITest uses a command named `ffmpeg` from the Appium server process PATH to record iOS screens, and the runner uses FFmpeg to extract frames from recorded videos before OCR.
+
+Place platform binaries under:
+
+```text
+tools/ffmpeg/macos-arm64/ffmpeg
+tools/ffmpeg/macos-x64/ffmpeg
+tools/ffmpeg/linux-arm64/ffmpeg
+tools/ffmpeg/linux-x64/ffmpeg
+tools/ffmpeg/windows-x64/ffmpeg.exe
+```
+
+`./gradlew installDist` copies `tools/` into `build/install/soluna/tools`. Managed Appium server startup prepends the resolved explicit or bundled FFmpeg directory to PATH. Override paths with `-Dsoluna.ffmpeg.path=...`, `SOLUNA_FFMPEG`, `-Dsoluna.tools.dir=...`, or `SOLUNA_TOOLS_DIR`.
+
+The checked-in binaries are from `eugeneware/ffmpeg-static` release `b6.1.1` and follow that package's `GPL-3.0-or-later` license. Upstream README and LICENSE files are kept beside each platform binary.
+
 ## Artifact Upload
 
 Upload is enabled by adding an artifact store reference to a plan:
@@ -260,8 +278,8 @@ Then run:
 SOLUNA_ANDROID_UDID=<device-udid> \
 SOLUNA_APPIUM_SERVER_URL=http://127.0.0.1:4725 \
 ./gradlew test \
-  --tests com.ugreen.iot.soluna.autotest.appium.ext.RealAndroidSolunaExtSmokeTest \
-  --tests com.ugreen.iot.soluna.autotest.appium.driver.RealAndroidAppiumSmokeTest
+  --tests com.soluna.ui.autotest.appium.ext.RealAndroidSolunaExtSmokeTest \
+  --tests com.soluna.ui.autotest.appium.driver.RealAndroidAppiumSmokeTest
 ```
 
 Without `SOLUNA_ANDROID_UDID`, these smoke tests return early and do not require a device.
@@ -272,7 +290,7 @@ Optional Android recovery smoke test:
 SOLUNA_APPIUM_RECOVERY_SMOKE=true \
 SOLUNA_ANDROID_UDID=<device-udid> \
 SOLUNA_APPIUM_EXECUTABLE=/opt/homebrew/bin/appium \
-./gradlew test --tests com.ugreen.iot.soluna.autotest.appium.driver.RealAndroidAppiumRecoverySmokeTest
+./gradlew test --tests com.soluna.ui.autotest.appium.driver.RealAndroidAppiumRecoverySmokeTest
 ```
 
 This smoke test starts a managed Appium server, creates an Android session, forcefully exits that Appium process, then validates that `RecoveringWebDriverAdapter` restarts Appium, rebuilds the physical session, and captures another screenshot through the same logical session.
@@ -282,7 +300,7 @@ Optional managed Appium server smoke test:
 ```bash
 SOLUNA_MANAGED_APPIUM_SMOKE=true \
 SOLUNA_APPIUM_EXECUTABLE=/opt/homebrew/bin/appium \
-./gradlew test --tests com.ugreen.iot.soluna.autotest.appium.server.ManagedAppiumServerSmokeTest
+./gradlew test --tests com.soluna.ui.autotest.appium.server.ManagedAppiumServerSmokeTest
 ```
 
 This smoke test starts Appium through `LocalProcessAppiumServerManager` on an available local port, waits for `/status`, asserts it is running, and stops the process.
@@ -295,7 +313,7 @@ SOLUNA_IOS_UDID=<ios-device-udid> \
 SOLUNA_APPIUM_EXECUTABLE=/opt/homebrew/bin/appium \
 SOLUNA_GO_IOS_EXECUTABLE=/opt/homebrew/bin/ios \
 SOLUNA_IOS_WDA_STARTUP_DELAY_MS=10000 \
-./gradlew test --tests com.ugreen.iot.soluna.autotest.appium.wda.RealIosWdaSmokeTest
+./gradlew test --tests com.soluna.ui.autotest.appium.wda.RealIosWdaSmokeTest
 ```
 
 This smoke test starts a managed Appium server with `soluna-ext`, resolves iOS device metadata and the installed WDA runner bundle through the plugin, starts go-ios userspace tunnel for iOS 17+, starts WDA, starts local port forwarding, probes WDA `/status`, then stops all managed processes.
@@ -304,7 +322,7 @@ Optional real Android UGREEN profile nickname YAML smoke:
 
 ```bash
 SOLUNA_UGREEN_PROFILE_SMOKE=true \
-./gradlew test --tests com.ugreen.iot.soluna.autotest.runner.RealAndroidUgreenProfilePlanTest
+./gradlew test --tests com.soluna.ui.autotest.runner.RealAndroidUgreenProfilePlanTest
 ```
 
 To run the same smoke with a local upload-enabled plan, point the test at another plan path:
@@ -314,7 +332,7 @@ SOLUNA_UGREEN_PROFILE_SMOKE=true \
 SOLUNA_UGREEN_PROFILE_PLAN_PATH=.soluna/plans/ugreen-profile-nickname-upload.yaml \
 SOLUNA_UGREEN_PROFILE_NEW_NICKNAME=SolunaFix42 \
 SOLUNA_RUN_ID=ugreen-profile-minio-20260613-005 \
-./gradlew test --tests com.ugreen.iot.soluna.autotest.runner.RealAndroidUgreenProfilePlanTest
+./gradlew test --tests com.soluna.ui.autotest.runner.RealAndroidUgreenProfilePlanTest
 ```
 
 The plan is `examples/plans/ugreen-profile-nickname.yaml`. It composes `examples/cases/ugreen-profile-nickname.yaml`, which references `examples/data/ugreen-profile.yaml` for the new nickname and `examples/elements/ugreen-profile.yaml` for stable non-copy locators. App restart is a stage setup from `examples/fragments/app-lifecycle.yaml`, and `examples/devices/AMRF026323000807.yaml` is the UDID-named real Android device config. The plan keeps repeated action waits under `defaults.actionWait`; the case captures the original nickname at runtime into `@{case.originalNickname}`, changes and verifies the new nickname in the main action flow, then restores the captured nickname from case teardown so cleanup still runs after a main-flow failure. The local report writer emits:
@@ -331,7 +349,7 @@ SOLUNA_IOS_UGREEN_PROFILE_SMOKE=true \
 SOLUNA_IOS_UGREEN_PROFILE_PLAN_PATH=examples/plans/ugreen-profile-nickname-ios.yaml \
 SOLUNA_IOS_UGREEN_PROFILE_NEW_NICKNAME=SolunaIOS \
 SOLUNA_RUN_ID=ugreen-profile-ios-local \
-./gradlew test --tests com.ugreen.iot.soluna.autotest.runner.RealIosUgreenProfilePlanTest
+./gradlew test --tests com.soluna.ui.autotest.runner.RealIosUgreenProfilePlanTest
 ```
 
 The iOS smoke uses `examples/cases/ugreen-profile-nickname-ios.yaml` and the shared element catalog with iOS locator branches selected from `examples/elements/ugreen-profile.yaml`. The iOS case includes the current app workaround for the first nickname modal after restart: it uses viewport-relative `tap` actions on the modal backdrop, then reopens the nickname dialog before editing. The connected iOS device must already be logged in to an account where the mine page exposes the profile/avatar entry; otherwise the nickname flow cannot reach the personal information page.

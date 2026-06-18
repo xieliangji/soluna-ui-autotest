@@ -3,8 +3,8 @@ plugins {
     application
 }
 
-group = "com.ugreen.iot"
-version = "1.0-SNAPSHOT"
+group = "com.soluna"
+version = "1.0.0"
 
 repositories {
     mavenCentral()
@@ -28,6 +28,8 @@ dependencies {
     implementation("com.networknt:json-schema-validator:1.5.1")
     implementation("io.appium:java-client:10.1.1")
     implementation("io.minio:minio:8.5.17")
+    implementation("org.slf4j:slf4j-api:2.0.17")
+    runtimeOnly("org.slf4j:slf4j-simple:2.0.17")
 
     implementation("com.soluna:kt-visual:0.3.1")
     implementation("com.soluna:kt-visual-ocr-paddle:0.3.1:with-models@jar")
@@ -48,5 +50,16 @@ tasks.test {
 
 application {
     applicationName = "soluna"
-    mainClass.set("com.ugreen.iot.soluna.autotest.cli.SolunaCli")
+    mainClass.set("com.soluna.ui.autotest.cli.SolunaCli")
+}
+
+distributions {
+    main {
+        contents {
+            from("tools") {
+                into("tools")
+                includeEmptyDirs = true
+            }
+        }
+    }
 }

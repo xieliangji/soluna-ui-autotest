@@ -37,16 +37,13 @@ actions:
         height: 0.12
       desc: 进入历史反馈页
   - assertElementAttrRegexMatch:
-      id: assert-feedback-history-list-visible
-      element: common.feedbackHistoryList
-      attr: enabled
-      pattern: "true"
-      desc: 校验历史反馈列表可见
-  - assertElementAttrRegexMatch:
-      id: assert-first-history-record-visible
+      id: assert-first-history-record-ready
       element: common.feedbackFirstHistoryRecord
       attr: enabled
       pattern: "true"
+      wait:
+        timeoutMs: 20000
+        intervalMs: 500
       desc: 校验至少存在一条历史反馈记录
   - tapVisualTemplate:
       id: back-to-feedback-page

@@ -93,6 +93,7 @@
     },
     "textLocatorPurpose": {
       "enum": [
+        "iconName",
         "brandLogo",
         "languageTitle"
       ]

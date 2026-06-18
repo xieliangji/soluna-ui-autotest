@@ -168,6 +168,12 @@
         { "allOf": [{ "$ref": "#/$defs/waitAction" }, { "required": ["pause"] }] },
         { "allOf": [{ "$ref": "#/$defs/waitAction" }, { "required": ["等待"] }] },
         { "allOf": [{ "$ref": "#/$defs/waitAction" }, { "required": ["暂停"] }] },
+        { "allOf": [{ "$ref": "#/$defs/assertElementExistsAction" }, { "required": ["assertElementExists"] }] },
+        { "allOf": [{ "$ref": "#/$defs/assertElementExistsAction" }, { "required": ["elementExists"] }] },
+        { "allOf": [{ "$ref": "#/$defs/assertElementExistsAction" }, { "required": ["assertElementPresent"] }] },
+        { "allOf": [{ "$ref": "#/$defs/assertElementExistsAction" }, { "required": ["elementPresent"] }] },
+        { "allOf": [{ "$ref": "#/$defs/assertElementExistsAction" }, { "required": ["断言元素存在"] }] },
+        { "allOf": [{ "$ref": "#/$defs/assertElementExistsAction" }, { "required": ["元素存在"] }] },
         { "allOf": [{ "$ref": "#/$defs/assertElementAttrEqualsAction" }, { "required": ["assertElementAttrEquals"] }] },
         { "allOf": [{ "$ref": "#/$defs/assertElementAttrEqualsAction" }, { "required": ["elementAttrEquals"] }] },
         { "allOf": [{ "$ref": "#/$defs/assertElementAttrEqualsAction" }, { "required": ["断言元素属性相等"] }] },
@@ -238,6 +244,12 @@
         "pause": { "$ref": "#/$defs/nestedActionBody" },
         "等待": { "$ref": "#/$defs/nestedActionBody" },
         "暂停": { "$ref": "#/$defs/nestedActionBody" },
+        "assertElementExists": { "$ref": "#/$defs/nestedActionBody" },
+        "elementExists": { "$ref": "#/$defs/nestedActionBody" },
+        "assertElementPresent": { "$ref": "#/$defs/nestedActionBody" },
+        "elementPresent": { "$ref": "#/$defs/nestedActionBody" },
+        "断言元素存在": { "$ref": "#/$defs/nestedActionBody" },
+        "元素存在": { "$ref": "#/$defs/nestedActionBody" },
         "assertElementAttrEquals": { "$ref": "#/$defs/nestedActionBody" },
         "elementAttrEquals": { "$ref": "#/$defs/nestedActionBody" },
         "attrEquals": { "$ref": "#/$defs/nestedActionBody" },
@@ -414,6 +426,22 @@
         { "required": ["durationMs"] },
         { "required": ["timeoutMs"] }
       ]
+    },
+    "assertElementExistsAction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["element"],
+      "properties": {
+        "assertElementExists": { "$ref": "#/$defs/id" },
+        "elementExists": { "$ref": "#/$defs/id" },
+        "assertElementPresent": { "$ref": "#/$defs/id" },
+        "elementPresent": { "$ref": "#/$defs/id" },
+        "断言元素存在": { "$ref": "#/$defs/id" },
+        "元素存在": { "$ref": "#/$defs/id" },
+        "desc": { "$ref": "#/$defs/nonEmptyString" },
+        "element": { "$ref": "#/$defs/nonEmptyString" },
+        "wait": { "$ref": "#/$defs/wait" }
+      }
     },
     "assertElementAttrEqualsAction": {
       "type": "object",

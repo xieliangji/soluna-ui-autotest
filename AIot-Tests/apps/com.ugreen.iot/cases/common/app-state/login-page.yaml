@@ -1,18 +1,13 @@
 schemaVersion: "1.0"
 id: app-state-login-page
 name: App State Login Page
-dataRefs:
-  - id: appState
-    file: ../../../data/app-state.yaml
+setupFragments:
+  - appState.loginPage
 elementRefs:
   - id: common
     file: ../../../elements/common.yaml
-setupFragments:
-  - appState.loginPage
 actions:
-  - assertElementAttrRegexMatch:
+  - assertElementExists:
       id: assert-login-page-ready
-      element: common.loginPageMarker
-      attr: name/label/text
-      pattern: "${appState.patterns.loginPage}"
+      element: common.loginAgreementCheckbox
       desc: 校验已收敛到登录页

@@ -1,13 +1,13 @@
 schemaVersion: "1.0"
 id: app-state-logged-in-device-page
 name: App State Logged-in Device Page
-dataRefs:
-  - id: appState
-    file: ../../../data/app-state.yaml
 setupFragments:
   - appState.loggedInDevicePage
+elementRefs:
+  - id: common
+    file: ../../../elements/common.yaml
 actions:
-  - assertSourceRegexMatch:
+  - assertElementExists:
       id: assert-logged-in-device-page-ready
-      pattern: "${appState.patterns.devicePage}"
+      element: common.deviceAddButton
       desc: 校验已收敛到登录态设备页

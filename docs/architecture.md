@@ -300,6 +300,8 @@ v0 当前实现：
 - `HookEvent` / `HookEventType` 定义计划、阶段、用例、动作前后事件。
 - `SimpleHookBus` 提供同步 hook 分发骨架。
 - `DefaultLoggingHook` 订阅默认日志节点：动作前、用例前后、阶段前后、计划前后。
+- `PlanRunner` 默认注册 `DefaultLoggingHook`，通过 SLF4J 输出生命周期日志；命令行运行必须携带 SLF4J backend。
+- managed Appium server 和 managed WDA/go-ios 管理器在启动、端口分配、命令构造、PATH 注入、ready probe、停止和失败清理等关键位置输出包级 debug 日志；日志不输出完整环境变量值，并对命令中的敏感参数做基础脱敏。
 - `LinearExecutionEngine` 在执行 `Plan -> Stage -> Case -> Action` 时发布完整生命周期事件。
 
 ## 6. 失败策略和重试策略
@@ -406,11 +408,11 @@ v0 状态摘要：
 - `PlanRunner` 只接收 plan 路径，按引用链解析 device、data、case、element、fragment 和 artifact 配置。
 - managed Appium server 支持自动端口、`/status` readiness probe、插件启用和进程清理；外部 server 仍可配置。
 - session 创建只绑定设备，不顺带启动目标 app；Android 默认启用 `appium:unicodeKeyboard=true` 和 `appium:resetKeyboard=true`。
-- `RecoveringWebDriverAdapter` 维护逻辑 session，可在 managed Appium server/物理 session 失效后重建底层 session。
+- `RecoveringWebDriverAdapter` 维护逻辑 session，可在 managed Appium server、managed iOS WDA 或物理 session 失效后重建底层 session；若 WDA 不健康，恢复流程会先重启 WDA，再用新的 `appium:webDriverAgentUrl` 重建 Appium session。
 - WebDriver 命令需要有有界等待。默认 adapter 在容易被 WDA/Appium 慢响应拖住的截图、source、元素查找、元素矩形、窗口尺寸、输入和 session health check 等命令外层加显式超时；命令超时属于 session 恢复信号，恢复判断不能再依赖一个可能继续卡住的无界 health check。
 - iOS WDA 由 `LocalGoIosWdaManager` 通过 go-ios 管理，iOS 17+ 使用 userspace tunnel，并保证 runwda 重启后 forward 同步重启。
 - `soluna-ext` 客户端用于设备元信息、iOS WDA runner bundle 和受控宿主机命令等设备邻近能力。
-- 默认 action executor 覆盖 tap/input/wait/restartApp/getText/screenshot/screen recording、视觉模板点击、属性/source 断言和录屏文本 OCR 断言；断言可按 `wait` 轮询。元素 tap 会重新定位当前元素、过滤屏幕外元素，并按元素可见区域计算点击点。视觉模板点击通过当前截图、data 目录模板资产、归一化 `roi` 和 kt-visual 匹配得到目标区域，再转换为视口比例点击，不暴露平台 back 这类平台敏感动作。动作级显式 `wait` 会覆盖元素查找的隐式等待预算：执行显式轮询期间临时关闭 session implicit wait，结束后恢复。`restartApp` 在返回前需要等待目标 app 进入前台，动作级 `wait` 可覆盖默认前台等待预算。
+- 默认 action executor 覆盖 tap/input/wait/restartApp/getText/screenshot/screen recording、视觉模板点击、属性/source 断言和录屏文本 OCR 断言；断言可按 `wait` 轮询。元素 tap 会重新定位当前元素、过滤屏幕外元素，并按元素可见区域计算点击点。视觉模板点击通过当前截图、data 目录模板资产、归一化 `roi` 和 kt-visual 匹配得到目标区域，再转换为视口比例点击，不暴露平台 back 这类平台敏感动作。动作级显式 `wait` 会覆盖元素查找的隐式等待预算：执行显式轮询期间临时关闭 session implicit wait，结束后恢复。`restartApp` 在返回前需要等待目标 app 进入前台，动作级 `wait` 可覆盖默认前台等待预算。FFmpeg 作为项目运行工具解析，优先使用显式配置或分发包内 `tools/ffmpeg/<os>-<arch>/ffmpeg(.exe)`，最后才回退到宿主机 PATH。
 - Android/iOS 真机 smoke 已覆盖基础 Appium、session recovery、昵称修改/恢复、MinIO 上传和钉钉通知链路。
 
 实现细节以代码和 schema 为准；本节只保留边界和能力摘要，避免后续维护两套细粒度说明。
@@ -519,7 +521,7 @@ plan-resource-manifest.json
 v0 状态摘要：
 
 - 显式截图、显式录屏和录屏文本断言命中帧由 `PlanResourceSink` 写入本地资源目录，再由 `PlanResourceManifestWriter` 生成 `plan-resource-manifest.json`。
-- `startScreenRecording` / `stopScreenRecording` 使用 Appium Java Client 的录屏能力；`assertScreenRecordingTextRegexMatch` 使用本机 `ffmpeg` 抽帧，可先按归一化 `roi` 裁剪，再用 `visual-diff` / `uniform` / `all` 候选帧策略控制 OCR 工作量，并交给 kt-visual Paddle OCR 做文本匹配。`tapVisualTemplate` 使用相同的归一化 ROI 约定约束模板匹配范围。
+- `startScreenRecording` / `stopScreenRecording` 使用 Appium Java Client 的录屏能力。Appium XCUITest driver 的 iOS 录屏会在 Appium server 进程内调用名为 `ffmpeg` 的命令；managed Appium server 启动时会把解析到的项目绑定 FFmpeg 目录 prepend 到 PATH，外部 Appium server 需要由调用方自行保证 PATH。`assertScreenRecordingTextRegexMatch` 使用同一个 FFmpeg 工具解析器抽帧，可先按归一化 `roi` 裁剪，再用 `visual-diff` / `uniform` / `all` 候选帧策略控制 OCR 工作量，并交给 kt-visual Paddle OCR 做文本匹配。`tapVisualTemplate` 使用相同的归一化 ROI 约定约束模板匹配范围。
 - manifest 只保存计划级元信息和显式资源列表；不保存 action 执行明细。
 - 启用 artifact uploader 时，manifest 中的资源包含 MinIO object key 和 URL。
 

@@ -25,6 +25,14 @@ elements:
     ios:
       strategy: xpath
       value: "//XCUIElementTypeImage[starts-with(@name,'TabHome')]/parent::XCUIElementTypeButton"
+  deviceAddButton:
+    android:
+      strategy: id
+      value: com.ugreen.iot:id/ivAddDevice
+    ios:
+      strategy: xpath
+      value: "//XCUIElementTypeButton[@visible='true' and @accessible='true' and @name='icon common add']"
+      textLocatorPurpose: iconName
   loginUsernameInput:
     android:
       strategy: xpath
@@ -46,13 +54,20 @@ elements:
     ios:
       strategy: xpath
       value: "//XCUIElementTypeButton[starts-with(@name,'icon round')]"
+  loginAgreementUncheckedCheckbox:
+    android:
+      strategy: xpath
+      value: "//*[@resource-id='com.ugreen.iot:id/cb_terms' and @checked='false']"
+    ios:
+      strategy: xpath
+      value: "//XCUIElementTypeButton[starts-with(@name,'icon round') and @visible='true' and @accessible='true' and not(@value='1')]"
   loginSubmitButton:
     android:
       strategy: id
       value: com.ugreen.iot:id/btn_terms_action
     ios:
       strategy: xpath
-      value: "(//XCUIElementTypeButton[starts-with(@name,'icon round')]/following::XCUIElementTypeButton[not(ancestor::XCUIElementTypeKeyboard) and @visible='true' and @accessible='true'])[2]"
+      value: "//XCUIElementTypeButton[starts-with(@name,'icon round')]/ancestor::XCUIElementTypeOther[1]/following-sibling::XCUIElementTypeButton[1]"
   guestEntryButton:
     android:
       strategy: id
@@ -66,7 +81,7 @@ elements:
       value: com.ugreen.iot:id/flow_user_top
     ios:
       strategy: xpath
-      value: "(//XCUIElementTypeTable/XCUIElementTypeStaticText)[1]"
+      value: "(//XCUIElementTypeTable/XCUIElementTypeStaticText[@visible='true' and @accessible='true'])[last()-1]"
   mineList:
     android:
       strategy: id
@@ -129,7 +144,7 @@ elements:
       value: com.ugreen.iot:id/btn_positive
     ios:
       strategy: xpath
-      value: "(//XCUIElementTypeTextView/following::XCUIElementTypeButton[@visible='true' and @accessible='true'])[last()]"
+      value: "(//XCUIElementTypeTextView[@visible='true']/following-sibling::XCUIElementTypeOther[1]//XCUIElementTypeButton[@visible='true' and @accessible='true'])[last()]"
   logoutConfirmButton:
     android:
       strategy: id

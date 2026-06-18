@@ -6,10 +6,5 @@ values:
     login:
       username: "__OVERRIDE_REQUIRED__"
       password: "__OVERRIDE_REQUIRED__"
-    patterns:
-      loginPage: "UgreenAudio"
-      devicePage: "(?s)(com\\.ugreen\\.iot:id/(tvDevicesName|ivAddDevice|rvDevices)|icon common add|TabHomeUnselect)"
-      personalInfoPage: "(?s)(com\\.ugreen\\.iot:id/btnLogOut|common back black)"
-      backButton: "(?s)(com\\.ugreen\\.iot:id/ll_left_slot|common back black|common back)"
 secrets:
   - appState.login.password

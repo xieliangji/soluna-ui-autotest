@@ -46,7 +46,7 @@ stages:
     setupFragments:
       - appState.loggedInDevicePage
     caseSetupFragments:
-      - appState.restartApp
+      - appState.loggedInDevicePage
     caseRefs:
       - file: ../../cases/common/TC001_MINE_ABOUT.yaml
       - file: ../../cases/common/TC003_MINE_SYSTEM_PERMISSIONS_MANAGEMENT.yaml
@@ -67,7 +67,7 @@ stages:
     setupFragments:
       - appState.guestDevicePage
     caseSetupFragments:
-      - appState.restartApp
+      - appState.guestDevicePage
     caseRefs:
       - file: ../../cases/common/TC001_MINE_ABOUT.yaml
       - file: ../../cases/common/TC003_MINE_SYSTEM_PERMISSIONS_MANAGEMENT.yaml

@@ -9,108 +9,73 @@ fragments:
           id: restart-before-case
           appId: "${app.id}"
           desc: 用例前重启应用
-      - assertSourceRegexMatch:
-          id: assert-device-page-after-case-restart
-          pattern: "${appState.patterns.devicePage}"
-          wait:
-            timeoutMs: 15000
-            intervalMs: 500
-          desc: 等待重启后恢复到当前阶段设备页
+      - wait:
+          id: wait-after-case-restart
+          durationMs: 5000
+          desc: 重启后等待启动稳定
+
   loginPage:
     name: Ensure Login Page
     elementRefs:
       - id: common
         file: ../elements/common.yaml
     actions:
-      - restartApp:
+      - 重启App:
           id: restart-for-login-page
           appId: "${app.id}"
           desc: 重启目标应用
+      - wait:
+          id: wait-after-login-page-restart
+          durationMs: 5000
+          desc: 重启后等待启动稳定
       - if:
-          assertElementAttrRegexMatch:
-            id: detect-back-button-before-login-page
-            element: common.backButton
-            attr: enabled
-            pattern: "true"
-            desc: 判断当前是否在二级页面
+          assertElementExists:
+            id: detect-device-page-for-login-page
+            element: common.deviceAddButton
+            wait:
+              timeoutMs: 2000
+              intervalMs: 500
+            desc: 判断重启后是否在设备页
         then:
           - tap:
-              id: back-to-root-before-login-page
-              element: common.backButton
-              desc: 返回一级页面
-        else: []
-      - if:
-          assertElementAttrRegexMatch:
-            id: detect-login-page
-            element: common.loginPageMarker
-            attr: name/label/text
-            pattern: "${appState.patterns.loginPage}"
-            wait:
-              timeoutMs: 3000
-              intervalMs: 500
-            desc: 判断当前是否已在登录页
-        then: []
-        else:
+              id: open-mine-tab-for-login-page
+              element: common.mineTab
+              desc: 点击我的Tab
+          - tap:
+              id: open-profile-entry-for-login-page
+              element: common.profileEntry
+              desc: 点击头像区域
           - if:
-              assertSourceRegexMatch:
-                id: detect-personal-info-page-directly
-                pattern: "${appState.patterns.personalInfoPage}"
-                desc: 判断当前是否已在个人信息页
+              assertElementExists:
+                id: detect-guest-login-prompt-for-login-page
+                element: common.dialogPositiveButton
+                wait:
+                  timeoutMs: 3000
+                  intervalMs: 500
+                desc: 未登录态会弹出去登录询问框
             then:
               - tap:
-                  id: tap-logout-button-from-profile
+                  id: go-login-after-guest-profile-entry
+                  element: common.dialogPositiveButton
+                  desc: 点击去登录
+            else:
+              - tap:
+                  id: tap-logout-button-for-login-page
                   element: common.logoutButton
                   desc: 点击退出登录按钮
               - tap:
-                  id: confirm-logout-from-profile
+                  id: confirm-logout-for-login-page
                   element: common.logoutConfirmButton
                   desc: 确认退出登录
-              - assertElementAttrRegexMatch:
-                  id: assert-login-page-after-logout
-                  element: common.loginPageMarker
-                  attr: name/label/text
-                  pattern: "${appState.patterns.loginPage}"
-                  desc: 校验已回到登录页
-            else:
-              - tap:
-                  id: open-mine-tab-for-login-page
-                  element: common.mineTab
-                  desc: 点击我的Tab
-              - tap:
-                  id: open-profile-entry-for-login-page
-                  element: common.profileEntry
-                  desc: 点击头像入口
-              - if:
-                  assertSourceRegexMatch:
-                    id: detect-personal-info-page-for-login-page
-                    pattern: "${appState.patterns.personalInfoPage}"
-                    desc: 判断是否进入已登录个人信息页
-                then:
-                  - tap:
-                      id: tap-logout-button-after-profile-open
-                      element: common.logoutButton
-                      desc: 点击退出登录按钮
-                  - tap:
-                      id: confirm-logout-after-profile-open
-                      element: common.logoutConfirmButton
-                      desc: 确认退出登录
-                  - assertElementAttrRegexMatch:
-                      id: assert-login-page-after-profile-logout
-                      element: common.loginPageMarker
-                      attr: name/label/text
-                      pattern: "${appState.patterns.loginPage}"
-                      desc: 校验已回到登录页
-                else:
-                  - tap:
-                      id: go-login-after-guest-profile-entry
-                      element: common.dialogPositiveButton
-                      desc: 点击游客提示弹窗主按钮进入登录页
-                  - assertElementAttrRegexMatch:
-                      id: assert-login-page-after-guest-profile-entry
-                      element: common.loginPageMarker
-                      attr: name/label/text
-                      pattern: "${appState.patterns.loginPage}"
-                      desc: 游客态头像入口应进入登录页
+        else: []
+      - assertElementExists:
+          id: assert-login-page-ready
+          element: common.loginAgreementCheckbox
+          wait:
+            timeoutMs: 30000
+            intervalMs: 500
+          desc: 校验已收敛到登录页
+
   guestDevicePage:
     name: Ensure Guest Device Page
     elementRefs:
@@ -121,181 +86,100 @@ fragments:
           id: restart-for-guest-device-page
           appId: "${app.id}"
           desc: 重启目标应用
+      - wait:
+          id: wait-after-guest-device-page-restart
+          durationMs: 5000
+          desc: 重启后等待启动稳定
       - if:
-          assertElementAttrRegexMatch:
-            id: detect-back-button-before-guest-device-page
-            element: common.backButton
-            attr: enabled
-            pattern: "true"
-            desc: 判断当前是否在二级页面
+          assertElementExists:
+            id: detect-device-page-for-guest-device-page
+            element: common.deviceAddButton
+            wait:
+              timeoutMs: 2000
+              intervalMs: 500
+            desc: 判断重启后是否在设备页
         then:
           - tap:
-              id: back-to-root-before-guest-device-page
-              element: common.backButton
-              desc: 返回一级页面
-        else: []
-      - if:
-          assertElementAttrRegexMatch:
-            id: detect-login-page-for-guest
-            element: common.loginPageMarker
-            attr: name/label/text
-            pattern: "${appState.patterns.loginPage}"
-            wait:
-              timeoutMs: 3000
-              intervalMs: 500
-            desc: 判断当前是否在登录页
-        then:
+              id: open-mine-tab-for-guest-state-check
+              element: common.mineTab
+              desc: 点击我的Tab
+          - tap:
+              id: open-profile-entry-for-guest-state-check
+              element: common.profileEntry
+              desc: 点击头像区域
+          - if:
+              assertElementExists:
+                id: detect-guest-login-prompt-for-guest-device-page
+                element: common.dialogPositiveButton
+                wait:
+                  timeoutMs: 3000
+                  intervalMs: 500
+                desc: 未登录态会弹出去登录询问框
+            then: []
+            else:
+              - tap:
+                  id: tap-logout-button-for-guest
+                  element: common.logoutButton
+                  desc: 点击退出登录按钮
+              - tap:
+                  id: confirm-logout-for-guest
+                  element: common.logoutConfirmButton
+                  desc: 确认退出登录
+              - if:
+                  assertElementExists:
+                    id: detect-login-agreement-unchecked-after-logout-before-guest-entry
+                    element: common.loginAgreementUncheckedCheckbox
+                    wait:
+                      timeoutMs: 2000
+                      intervalMs: 500
+                    desc: 判断登录页同意按钮是否未勾选
+                then:
+                  - tap:
+                      id: select-login-agreement-after-logout-before-guest-entry
+                      element: common.loginAgreementCheckbox
+                      desc: 勾选登录页同意按钮
+                else: []
+              - tap:
+                  id: enter-guest-device-page-after-logout
+                  element: common.guestEntryButton
+                  desc: 点击立即体验进入游客设备页
+        else:
+          - if:
+              assertElementExists:
+                id: detect-login-agreement-unchecked-before-guest-entry
+                element: common.loginAgreementUncheckedCheckbox
+                wait:
+                  timeoutMs: 2000
+                  intervalMs: 500
+                desc: 判断登录页同意按钮是否未勾选
+            then:
+              - tap:
+                  id: select-login-agreement-before-guest-entry
+                  element: common.loginAgreementCheckbox
+                  desc: 勾选登录页同意按钮
+            else: []
           - tap:
               id: enter-guest-device-page-from-login
               element: common.guestEntryButton
               desc: 点击立即体验进入游客设备页
-          - if:
-              assertElementAttrRegexMatch:
-                id: detect-agreement-confirm-after-guest-entry-from-login
-                element: common.dialogPositiveButton
-                attr: enabled
-                pattern: "true"
-                desc: 判断是否出现协议确认弹层
-            then:
-              - tap:
-                  id: confirm-agreement-after-guest-entry-from-login
-                  element: common.dialogPositiveButton
-                  desc: 确认协议并继续
-            else: []
-          - assertSourceRegexMatch:
-              id: assert-guest-device-page-from-login
-              pattern: "${appState.patterns.devicePage}"
-              wait:
-                timeoutMs: 10000
-                intervalMs: 500
-              desc: 校验已进入游客设备页
+      - if:
+          assertElementExists:
+            id: assert-guest-device-page-ready-by-device-page
+            element: common.deviceAddButton
+            wait:
+              timeoutMs: 10000
+              intervalMs: 500
+            desc: 校验已收敛到游客设备页
+        then: []
         else:
-          - if:
-              assertSourceRegexMatch:
-                id: detect-personal-info-page-for-guest-directly
-                pattern: "${appState.patterns.personalInfoPage}"
-                desc: 判断当前是否已在个人信息页
-            then:
-              - tap:
-                  id: tap-logout-button-for-direct-guest
-                  element: common.logoutButton
-                  desc: 点击退出登录按钮
-              - tap:
-                  id: confirm-logout-for-direct-guest
-                  element: common.logoutConfirmButton
-                  desc: 确认退出登录
-              - assertElementAttrRegexMatch:
-                  id: assert-login-page-before-direct-guest
-                  element: common.loginPageMarker
-                  attr: name/label/text
-                  pattern: "${appState.patterns.loginPage}"
-                  desc: 校验已回到登录页
-              - tap:
-                  id: enter-guest-device-page-after-direct-logout
-                  element: common.guestEntryButton
-                  desc: 点击立即体验进入游客设备页
-              - if:
-                  assertElementAttrRegexMatch:
-                    id: detect-agreement-confirm-after-direct-logout-guest-entry
-                    element: common.dialogPositiveButton
-                    attr: enabled
-                    pattern: "true"
-                    desc: 判断是否出现协议确认弹层
-                then:
-                  - tap:
-                      id: confirm-agreement-after-direct-logout-guest-entry
-                      element: common.dialogPositiveButton
-                      desc: 确认协议并继续
-                else: []
-              - assertSourceRegexMatch:
-                  id: assert-guest-device-page-after-direct-logout
-                  pattern: "${appState.patterns.devicePage}"
-                  wait:
-                    timeoutMs: 10000
-                    intervalMs: 500
-                  desc: 校验已进入游客设备页
-            else:
-              - tap:
-                  id: open-mine-tab-for-guest-check
-                  element: common.mineTab
-                  desc: 点击我的Tab校验登录态
-              - tap:
-                  id: open-profile-entry-for-guest-check
-                  element: common.profileEntry
-                  desc: 点击头像入口校验登录态
-              - if:
-                  assertSourceRegexMatch:
-                    id: detect-personal-info-page-for-guest
-                    pattern: "${appState.patterns.personalInfoPage}"
-                    desc: 判断是否进入已登录个人信息页
-                then:
-                  - tap:
-                      id: tap-logout-button-for-guest
-                      element: common.logoutButton
-                      desc: 点击退出登录按钮
-                  - tap:
-                      id: confirm-logout-for-guest
-                      element: common.logoutConfirmButton
-                      desc: 确认退出登录
-                  - assertElementAttrRegexMatch:
-                      id: assert-login-page-before-guest-entry
-                      element: common.loginPageMarker
-                      attr: name/label/text
-                      pattern: "${appState.patterns.loginPage}"
-                      desc: 校验已回到登录页
-                  - tap:
-                      id: enter-guest-device-page-after-logout
-                      element: common.guestEntryButton
-                      desc: 点击立即体验进入游客设备页
-                  - if:
-                      assertElementAttrRegexMatch:
-                        id: detect-agreement-confirm-after-logout-guest-entry
-                        element: common.dialogPositiveButton
-                        attr: enabled
-                        pattern: "true"
-                        desc: 判断是否出现协议确认弹层
-                    then:
-                      - tap:
-                          id: confirm-agreement-after-logout-guest-entry
-                          element: common.dialogPositiveButton
-                          desc: 确认协议并继续
-                    else: []
-                  - assertSourceRegexMatch:
-                      id: assert-guest-device-page-after-logout
-                      pattern: "${appState.patterns.devicePage}"
-                      wait:
-                        timeoutMs: 10000
-                        intervalMs: 500
-                      desc: 校验已进入游客设备页
-                else:
-                  - tap:
-                      id: go-login-after-guest-profile-entry-for-guest
-                      element: common.dialogPositiveButton
-                      desc: 点击游客提示弹窗主按钮进入登录页
-                  - tap:
-                      id: enter-guest-device-page-after-login-prompt
-                      element: common.guestEntryButton
-                      desc: 点击立即体验进入游客设备页
-                  - if:
-                      assertElementAttrRegexMatch:
-                        id: detect-agreement-confirm-after-login-prompt-guest-entry
-                        element: common.dialogPositiveButton
-                        attr: enabled
-                        pattern: "true"
-                        desc: 判断是否出现协议确认弹层
-                    then:
-                      - tap:
-                          id: confirm-agreement-after-login-prompt-guest-entry
-                          element: common.dialogPositiveButton
-                          desc: 确认协议并继续
-                    else: []
-                  - assertSourceRegexMatch:
-                      id: assert-guest-device-page-after-login-prompt
-                      pattern: "${appState.patterns.devicePage}"
-                      wait:
-                        timeoutMs: 10000
-                        intervalMs: 500
-                      desc: 校验已进入游客设备页
+          - assertElementExists:
+              id: assert-guest-device-page-ready-by-login-prompt
+              element: common.dialogPositiveButton
+              wait:
+                timeoutMs: 2000
+                intervalMs: 500
+              desc: 校验已停留在游客态去登录询问框
+
   loggedInDevicePage:
     name: Ensure Logged-in Device Page
     elementRefs:
@@ -306,169 +190,120 @@ fragments:
           id: restart-for-logged-in-device-page
           appId: "${app.id}"
           desc: 重启目标应用
+      - wait:
+          id: wait-after-logged-in-device-page-restart
+          durationMs: 5000
+          desc: 重启后等待启动稳定
       - if:
-          assertSourceRegexMatch:
-            id: detect-back-button-before-logged-in-device-page
-            pattern: "${appState.patterns.backButton}"
+          assertElementExists:
+            id: detect-device-page-for-logged-in-device-page
+            element: common.deviceAddButton
             wait:
               timeoutMs: 1000
               intervalMs: 500
-            desc: 判断当前是否在二级页面
+            desc: 判断重启后是否在设备页
         then:
           - tap:
-              id: back-to-root-before-logged-in-device-page
-              element: common.backButton
-              desc: 返回一级页面
-        else: []
-      - if:
-          assertSourceRegexMatch:
-            id: detect-login-page-for-logged-in
-            pattern: "${appState.patterns.loginPage}"
-            wait:
-              timeoutMs: 3000
-              intervalMs: 500
-            desc: 判断当前是否在登录页
-        then:
-          - input:
-              id: input-login-username-from-login-page
-              element: common.loginUsernameInput
-              value: "${appState.login.username}"
-              desc: 输入登录账号
+              id: open-mine-tab-for-login-check
+              element: common.mineTab
+              desc: 点击我的Tab
           - tap:
-              id: focus-login-password-from-login-page
-              element: common.loginPasswordInput
-              desc: 聚焦登录密码输入框
-          - input:
-              id: input-login-password-from-login-page
-              element: common.loginPasswordInput
-              value: "${appState.login.password}"
-              clearFirst: false
-              desc: 输入登录密码
-          - tap:
-              id: select-login-agreement-from-login-page
-              element: common.loginAgreementCheckbox
-              desc: 勾选登录协议
-          - tap:
-              id: submit-login-from-login-page
-              element: common.loginSubmitButton
-              desc: 提交登录
+              id: open-profile-entry-for-login-check
+              element: common.profileEntry
+              desc: 点击头像区域
           - if:
-              assertElementAttrRegexMatch:
-                id: detect-agreement-confirm-after-login-page-submit
+              assertElementExists:
+                id: detect-guest-login-prompt-for-logged-in-device-page
                 element: common.dialogPositiveButton
-                attr: enabled
-                pattern: "true"
-                desc: 判断是否出现协议确认弹层
+                wait:
+                  timeoutMs: 3000
+                  intervalMs: 500
+                desc: 未登录态会弹出去登录询问框
             then:
               - tap:
-                  id: confirm-agreement-after-login-page-submit
+                  id: go-login-after-guest-profile-entry-for-login
                   element: common.dialogPositiveButton
-                  desc: 确认协议并继续
-            else: []
-          - assertSourceRegexMatch:
-              id: assert-logged-in-device-page-after-login-page
-              pattern: "${appState.patterns.devicePage}"
-              wait:
-                timeoutMs: 10000
-                intervalMs: 500
-              desc: 校验已进入登录态设备页
-        else:
-          - if:
-              assertSourceRegexMatch:
-                id: detect-personal-info-page-for-logged-in-directly
-                pattern: "${appState.patterns.personalInfoPage}"
-                desc: 判断当前是否已在个人信息页
-            then:
+                  desc: 点击去登录
+              - input:
+                  id: input-login-username-after-guest-profile-entry
+                  element: common.loginUsernameInput
+                  value: "${appState.login.username}"
+                  desc: 输入登录账号
               - tap:
-                  id: back-from-profile-page-before-device
-                  element: common.backButton
-                  desc: 从个人信息页返回我的页
-              - tap:
-                  id: open-device-tab-from-profile-back
-                  element: common.deviceTab
-                  desc: 点击设备Tab
-              - assertSourceRegexMatch:
-                  id: assert-logged-in-device-page-from-profile
-                  pattern: "${appState.patterns.devicePage}"
-                  wait:
-                    timeoutMs: 10000
-                    intervalMs: 500
-                  desc: 校验已进入登录态设备页
-            else:
-              - tap:
-                  id: open-mine-tab-for-login-check
-                  element: common.mineTab
-                  desc: 点击我的Tab校验登录态
-              - tap:
-                  id: open-profile-entry-for-login-check
-                  element: common.profileEntry
-                  desc: 点击头像入口校验登录态
+                  id: focus-login-password-after-guest-profile-entry
+                  element: common.loginPasswordInput
+                  desc: 聚焦登录密码输入框
+              - input:
+                  id: input-login-password-after-guest-profile-entry
+                  element: common.loginPasswordInput
+                  value: "${appState.login.password}"
+                  clearFirst: true
+                  desc: 输入登录密码
               - if:
-                  assertSourceRegexMatch:
-                    id: detect-personal-info-page-for-login
-                    pattern: "${appState.patterns.personalInfoPage}"
-                    desc: 判断是否已进入个人信息页
+                  assertElementExists:
+                    id: detect-login-agreement-unchecked-after-guest-profile-entry
+                    element: common.loginAgreementUncheckedCheckbox
+                    wait:
+                      timeoutMs: 2000
+                      intervalMs: 500
+                    desc: 判断登录页同意按钮是否未勾选
                 then:
-                  - tap:
-                      id: back-from-profile-page-after-login-check
-                      element: common.backButton
-                      desc: 已登录态从个人信息页返回
-                  - tap:
-                      id: open-device-tab-after-login-check
-                      element: common.deviceTab
-                      desc: 点击设备Tab
-                  - assertSourceRegexMatch:
-                      id: assert-logged-in-device-page-after-login-check
-                      pattern: "${appState.patterns.devicePage}"
-                      wait:
-                        timeoutMs: 10000
-                        intervalMs: 500
-                      desc: 校验已进入登录态设备页
-                else:
-                  - tap:
-                      id: go-login-after-guest-profile-entry-for-login
-                      element: common.dialogPositiveButton
-                      desc: 点击游客提示弹窗主按钮进入登录页
-                  - input:
-                      id: input-login-username-after-guest-profile-entry
-                      element: common.loginUsernameInput
-                      value: "${appState.login.username}"
-                      desc: 输入登录账号
-                  - tap:
-                      id: focus-login-password-after-guest-profile-entry
-                      element: common.loginPasswordInput
-                      desc: 聚焦登录密码输入框
-                  - input:
-                      id: input-login-password-after-guest-profile-entry
-                      element: common.loginPasswordInput
-                      value: "${appState.login.password}"
-                      clearFirst: false
-                      desc: 输入登录密码
                   - tap:
                       id: select-login-agreement-after-guest-profile-entry
                       element: common.loginAgreementCheckbox
                       desc: 勾选登录协议
-                  - tap:
-                      id: submit-login-after-guest-profile-entry
-                      element: common.loginSubmitButton
-                      desc: 提交登录
-                  - if:
-                      assertElementAttrRegexMatch:
-                        id: detect-agreement-confirm-after-guest-login-submit
-                        element: common.dialogPositiveButton
-                        attr: enabled
-                        pattern: "true"
-                        desc: 判断是否出现协议确认弹层
-                    then:
-                      - tap:
-                          id: confirm-agreement-after-guest-login-submit
-                          element: common.dialogPositiveButton
-                          desc: 确认协议并继续
-                    else: []
-                  - assertSourceRegexMatch:
-                      id: assert-logged-in-device-page-after-guest-login
-                      pattern: "${appState.patterns.devicePage}"
-                      wait:
-                        timeoutMs: 10000
-                        intervalMs: 500
-                      desc: 校验已进入登录态设备页
+                else: []
+              - tap:
+                  id: submit-login-after-guest-profile-entry
+                  element: common.loginSubmitButton
+                  desc: 提交登录
+            else:
+              - tap:
+                  id: back-from-profile-page-after-login-check
+                  element: common.backButton
+                  desc: 已登录态从个人信息页返回
+              - tap:
+                  id: open-device-tab-after-login-check
+                  element: common.deviceTab
+                  desc: 点击设备Tab
+        else:
+          - input:
+              id: input-login-username
+              element: common.loginUsernameInput
+              value: "${appState.login.username}"
+              desc: 输入登录账号
+          - tap:
+              id: focus-login-password
+              element: common.loginPasswordInput
+              desc: 聚焦登录密码输入框
+          - input:
+              id: input-login-password
+              element: common.loginPasswordInput
+              value: "${appState.login.password}"
+              clearFirst: true
+              desc: 输入登录密码
+          - if:
+              assertElementExists:
+                id: detect-login-agreement-unchecked-before-login-submit
+                element: common.loginAgreementUncheckedCheckbox
+                wait:
+                  timeoutMs: 2000
+                  intervalMs: 500
+                desc: 判断登录页同意按钮是否未勾选
+            then:
+              - tap:
+                  id: select-login-agreement-before-login-submit
+                  element: common.loginAgreementCheckbox
+                  desc: 勾选登录协议
+            else: []
+          - tap:
+              id: submit-login
+              element: common.loginSubmitButton
+              desc: 提交登录
+      - assertElementExists:
+          id: assert-logged-in-device-page-ready
+          element: common.deviceAddButton
+          wait:
+            timeoutMs: 30000
+            intervalMs: 500
+          desc: 校验已收敛到登录态设备页

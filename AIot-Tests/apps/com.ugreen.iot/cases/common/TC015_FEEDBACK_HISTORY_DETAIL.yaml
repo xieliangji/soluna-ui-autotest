@@ -37,14 +37,20 @@ actions:
         height: 0.12
       desc: 进入历史反馈页
   - assertElementAttrRegexMatch:
-      id: assert-feedback-history-list-visible
-      element: common.feedbackHistoryList
+      id: assert-first-history-record-ready
+      element: common.feedbackFirstHistoryRecord
       attr: enabled
       pattern: "true"
-      desc: 校验历史反馈列表可见
+      wait:
+        timeoutMs: 20000
+        intervalMs: 500
+      desc: 轮询第一条历史反馈记录可见
   - tap:
       id: open-first-feedback-detail
       element: common.feedbackFirstHistoryRecord
+      wait:
+        timeoutMs: 20000
+        intervalMs: 500
       desc: 进入第一条反馈详情
   - assertElementAttrRegexMatch:
       id: assert-feedback-detail-content-visible
@@ -70,8 +76,11 @@ actions:
         height: 0.12
       desc: 返回历史反馈页
   - assertElementAttrRegexMatch:
-      id: assert-feedback-history-list-after-back
-      element: common.feedbackHistoryList
+      id: assert-first-history-record-after-back
+      element: common.feedbackFirstHistoryRecord
       attr: enabled
       pattern: "true"
-      desc: 校验已返回历史反馈页
+      wait:
+        timeoutMs: 20000
+        intervalMs: 500
+      desc: 校验已返回历史反馈页并看到第一条反馈记录

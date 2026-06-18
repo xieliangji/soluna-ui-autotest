@@ -9,6 +9,9 @@ metadata:
 parameters:
   - id: appState
     file: ../../data/app-state.yaml
+  - id: appStateLocal
+    file: ../../data/app-state.ios.local.yaml
+    required: false
   - id: visualTemplates
     file: ../../data/common/visual-templates.yaml
 fragmentRefs:
@@ -17,7 +20,7 @@ fragmentRefs:
 deviceConfig: ../../../../devices/ios/00008140-001805D80C93801C.yaml
 app:
   id: com.ugreen.iot
-  name: UGREEN
+  name: Audio
   platform: ios
   reset: false
 defaults:
@@ -34,8 +37,8 @@ localArtifacts:
   cleanup:
     mode: never
 stages:
-  - id: app-state
-    name: App State
+  - id: Audio-Initialization
+    name: App重启前置状态
     caseRefs:
       - file: ../../cases/common/app-state/login-page.yaml
       - file: ../../cases/common/app-state/guest-device-page.yaml

@@ -9,12 +9,15 @@ metadata:
 parameters:
   - id: appState
     file: ../../data/app-state.yaml
+  - id: appStateLocal
+    file: ../../data/app-state.android.local.yaml
+    required: false
   - id: visualTemplates
     file: ../../data/common/visual-templates.yaml
 fragmentRefs:
   - id: appState
     file: ../../fragments/app-state.yaml
-deviceConfig: ../../../../devices/android/3B6F6KE910B3QRDN.debug.yaml
+deviceConfig: ../../../../devices/android/ZT4225X3C2.yaml
 artifactStore: ../../../../artifacts/minio.local.yaml
 app:
   id: com.ugreen.iot
@@ -40,7 +43,7 @@ stages:
     setupFragments:
       - appState.loggedInDevicePage
     caseSetupFragments:
-      - appState.restartApp
+      - appState.loggedInDevicePage
     caseRefs:
       - file: ../../cases/common/TC010_FEEDBACK_SUBMIT_SUCCESS.yaml
       - file: ../../cases/common/TC011_FEEDBACK_PROBLEM_TYPE.yaml
@@ -53,6 +56,6 @@ stages:
     setupFragments:
       - appState.guestDevicePage
     caseSetupFragments:
-      - appState.restartApp
+      - appState.guestDevicePage
     caseRefs:
       - file: ../../cases/common/TC009_FEEDBACK_GUEST_ACCESS.yaml

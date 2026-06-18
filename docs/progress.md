@@ -49,6 +49,97 @@ Primary verified real-device flow:
 
 ## Recent Iterations
 
+### 2026-06-18 iOS Feedback History Polling Fix
+
+- Diagnosed `app-feedback-ios-local` failure in `TC015_FEEDBACK_HISTORY_DETAIL`: the history feedback page was open but still showing `加载中...`, while the case asserted a generic history-list locator with no explicit polling.
+- Updated feedback history list/detail cases to poll `common.feedbackFirstHistoryRecord` after entering the history page instead of asserting the generic `feedbackHistoryList` locator.
+- Added explicit polling to the first-record tap and the post-detail-back check in `TC015_FEEDBACK_HISTORY_DETAIL`; no fixed sleep was added.
+
+Verification:
+
+- `./gradlew test --tests com.soluna.ui.autotest.dsl.YamlPlanParserTest --tests com.soluna.ui.autotest.schema.JsonSchemaDslValidatorTest` passed.
+
+### 2026-06-18 WDA Runtime Health Recovery
+
+- Wired managed iOS WDA health into `RecoveringWebDriverAdapter` runtime recovery instead of only checking WDA during startup.
+- When the current WDA handle is unhealthy, recovery now restarts WDA before rebuilding the Appium server/session and refreshes `appium:webDriverAgentUrl` for the recovered session request.
+- `PlanRunner` now passes the active WDA manager/config/handle into the recovering driver and stops the latest recovered WDA handle during plan cleanup.
+
+Verification:
+
+- `./gradlew clean test --tests com.soluna.ui.autotest.appium.driver.RecoveringWebDriverAdapterTest --tests com.soluna.ui.autotest.runner.PlanRunnerTest` passed.
+
+### 2026-06-18 Appium And WDA Debug Logging
+
+- Added SLF4J debug logging to managed Appium server startup, command construction, FFmpeg PATH injection, readiness waiting, health checks, process stop, and startup failure cleanup.
+- Added SLF4J debug logging to managed WDA/go-ios startup, iOS 17+ tunnel decision, port allocation, tunnel/runwda/forward process launch, readiness waiting, health checks, stop, and startup failure cleanup.
+- Enabled package-level debug output for `com.ugreen.iot.soluna.autotest.appium.server` and `com.ugreen.iot.soluna.autotest.appium.wda` in `simplelogger.properties`; other runtime logs remain at info by default.
+- Manager debug logs print environment keys but not environment values, and command values with sensitive-looking names are redacted.
+
+Verification:
+
+- `./gradlew test --tests com.ugreen.iot.soluna.autotest.appium.server.AppiumServerManagerTest --tests com.ugreen.iot.soluna.autotest.appium.wda.LocalGoIosWdaManagerTest` passed.
+
+### 2026-06-18 Bundled FFmpeg Tool Resolution
+
+- Added a shared FFmpeg tool resolver with explicit path, environment override, bundled `tools/ffmpeg/<os>-<arch>/ffmpeg(.exe)`, installed-distribution, working-tree, and PATH fallback candidates.
+- Wired managed Appium server startup to prepend resolved explicit or bundled FFmpeg directories to PATH, which is required by Appium XCUITest screen recording on iOS.
+- Rewired screen-recording frame extraction to use the same FFmpeg resolver instead of hardcoded `/opt/homebrew/bin/ffmpeg`.
+- Added `tools/ffmpeg` platform directories and Gradle distribution packaging so `installDist` carries bundled runtime tools when binaries are supplied.
+- Downloaded bundled FFmpeg executables for `macos-arm64`, `macos-x64`, `linux-arm64`, `linux-x64`, and `windows-x64` from `eugeneware/ffmpeg-static` release `b6.1.1`; upstream README/LICENSE files are kept beside each executable. The upstream package license is `GPL-3.0-or-later`.
+- Documented FFmpeg placement and override options in README, schema notes, and architecture docs.
+- No JavaCV/Bytedeco dependency was added for this iteration because Appium XCUITest iOS recording still requires a command named `ffmpeg` in the Appium server process PATH.
+
+Verification:
+
+- `./gradlew test --tests com.ugreen.iot.soluna.autotest.tool.FfmpegToolResolverTest --tests com.ugreen.iot.soluna.autotest.appium.server.AppiumServerManagerTest --tests com.ugreen.iot.soluna.autotest.appium.action.WebDriverActionExecutorsTest installDist` passed.
+- `./gradlew installDist` passed again after adding actual FFmpeg binaries; `build/install/soluna/tools/ffmpeg` contains the five executable binaries and upstream license/readme files.
+- `tools/ffmpeg/macos-arm64/ffmpeg -version` passed on the local host.
+- `file` confirmed the bundled binaries are Mach-O arm64, Mach-O x86_64, Linux aarch64 ELF, Linux x86-64 ELF, and Windows x86-64 PE32+ executables.
+- `git diff --check` passed.
+
+### 2026-06-18 Default SLF4J Lifecycle Logging
+
+- Added `org.slf4j:slf4j-api` and `org.slf4j:slf4j-simple` so CLI/runtime execution has a concrete SLF4J backend instead of dropping logs with the no-provider warning.
+- Added `Slf4jExecutionLogger` and wired `PlanRunner`'s default hook bus to `DefaultLoggingHook`, so plan/stage/case before/after and action-before events are logged by default.
+- Added `simplelogger.properties` to emit lifecycle logs to stdout during local CLI runs.
+
+Verification:
+
+- `./gradlew test --tests com.ugreen.iot.soluna.autotest.core.execution.LinearExecutionEngineTest --tests com.ugreen.iot.soluna.autotest.runner.PlanRunnerTest installDist` passed.
+- `build/install/soluna/lib` contains `slf4j-api-2.0.17.jar` and `slf4j-simple-2.0.17.jar`.
+
+### 2026-06-18 Assertion Explicit Wait Probe Fix
+
+- Fixed assertion element lookup so explicit `wait` remains isolated from the session implicit wait for every polling probe. Previously only the first assertion probe used the explicit wait; later probes passed `wait=null` and could fall back to the plan implicit wait, making short fragment predicates much slower than configured.
+- Documented that assertion `wait.timeoutMs` is the total assertion budget and that each element probe disables implicit wait.
+
+Verification:
+
+- `./gradlew test --tests com.ugreen.iot.soluna.autotest.appium.action.WebDriverActionExecutorsTest` passed.
+
+### 2026-06-18 App-State Fragment Debug Recheck
+
+- Added `restart-app` to the debug CLI so interactive sessions can always start from a real app restart before inspecting source or tapping elements.
+- Reworked the `com.ugreen.iot` app-state fragments around the verified app flow from device page to login page: Mine tab -> avatar/profile entry -> guest login prompt or logged-in personal info logout path.
+- Tightened iOS common locators for login submit and profile entry using source-backed structure instead of broad XPath traversal.
+- Added ignored local account override files for iOS and Android app-state data, and ignored `*.local.yaml` under `AIot-Tests/apps/com.ugreen.iot/data/`.
+- Added `AIot-Tests/apps/com.ugreen.iot/docs/app-state-fragment-debug.md` with the debug-shell steps, verified iOS/Android paths, and locator notes.
+- Added a CLI unit test for `soluna debug <plan.yaml> restart-app --app-id ...`.
+
+Verification:
+
+- iOS app-state plan passed: `app-state-ios-fragments-2`; report at `build/soluna-runs/app-state-ios-fragments-2/report/index.html`.
+- Android app-state plan passed after correcting the local Android password value: `app-state-android-fragments-2`; report at `build/soluna-runs/app-state-android-fragments-2/report/index.html`.
+- The earlier Android failed trace showed `请输入正确的密码` after submit, proving the login button was tapped and the remaining issue was credential data, not locator delivery.
+- `git diff --check` passed.
+- `./gradlew test --tests com.ugreen.iot.soluna.autotest.cli.SolunaCliApplicationTest` passed.
+- `./gradlew test` passed.
+
+Next work:
+
+- Continue Android feedback-case completion using these app-state fragments as the stable preconditions.
+
 ### 2026-06-18 iOS Feedback Real-Device Debug
 
 - Tuned the iOS feedback cases and common feedback locators so the currently executable feedback suite uses module-owned elements, nested action payloads, visual-template clicks for WebView icon affordances, and ROI-cropped recording OCR for the submit-success toast.
