@@ -25,6 +25,7 @@ class FailureTraceScreenshotCollector(
     private val clock: Clock = Clock.systemUTC(),
 ) : ActionTraceCollector {
     private val retained = ArrayDeque<CapturedTraceScreenshot>()
+    private val retainedSources = ArrayDeque<CapturedTraceSource>()
     private val published = CopyOnWriteArrayList<PublishedTraceArtifact>()
     private val publishedCaptureIds = linkedSetOf<String>()
 
@@ -42,6 +43,7 @@ class FailureTraceScreenshotCollector(
         }
         val sessionId = context.driverSessionId ?: return
         val screenshot = runCatching { driver.takeScreenshot(sessionId) }.getOrNull() ?: return
+        val source = runCatching { driver.getPageSource(sessionId) }.getOrNull()
         retain(
             CapturedTraceScreenshot(
                 captureId = UUID.randomUUID().toString(),
@@ -59,6 +61,25 @@ class FailureTraceScreenshotCollector(
                 capturedAt = clock.instant().toString(),
             ),
         )
+        if (source != null) {
+            retainSource(
+                CapturedTraceSource(
+                    captureId = UUID.randomUUID().toString(),
+                    runId = context.runId,
+                    planId = context.plan.id,
+                    stageId = stage?.id,
+                    caseId = case?.id,
+                    actionId = action.id,
+                    actionKeyword = action.keyword,
+                    phase = phase,
+                    index = index,
+                    attempt = attempt,
+                    timing = "before",
+                    source = source,
+                    capturedAt = clock.instant().toString(),
+                ),
+            )
+        }
     }
 
     override fun afterAction(
@@ -85,6 +106,14 @@ class FailureTraceScreenshotCollector(
         retained.addLast(screenshot)
         while (retained.size > config.retainBeforeActionCount.coerceAtLeast(1)) {
             retained.removeFirst()
+        }
+    }
+
+    @Synchronized
+    private fun retainSource(source: CapturedTraceSource) {
+        retainedSources.addLast(source)
+        while (retainedSources.size > config.retainBeforeActionCount.coerceAtLeast(1)) {
+            retainedSources.removeFirst()
         }
     }
 
@@ -141,6 +170,57 @@ class FailureTraceScreenshotCollector(
                 )
             }
         }
+        retainedSources.forEach { source ->
+            if (!publishedCaptureIds.add(source.captureId)) {
+                return@forEach
+            }
+            val fileName = source.fileName()
+            val path = outputDirectory.resolve(fileName)
+            val bytes = source.source.toByteArray(Charsets.UTF_8)
+            Files.write(path, bytes)
+            val objectKey = artifactUploader?.objectKey(
+                runId = source.runId,
+                kind = ArtifactKind.DIAGNOSTIC,
+                fileName = fileName,
+            )
+            val artifact = PublishedTraceArtifact(
+                captureId = source.captureId,
+                runId = source.runId,
+                planId = source.planId,
+                stageId = source.stageId,
+                caseId = source.caseId,
+                actionId = source.actionId,
+                actionKeyword = source.actionKeyword,
+                phase = source.phase,
+                index = source.index,
+                attempt = source.attempt,
+                timing = source.timing,
+                localPath = path,
+                fileName = fileName,
+                objectKey = objectKey,
+                url = objectKey?.let { artifactUploader.urlFor(it) },
+                contentType = "application/xml",
+                sizeBytes = bytes.size.toLong(),
+                capturedAt = source.capturedAt,
+            )
+            published += artifact
+            if (objectKey != null) {
+                artifactUploader.enqueue(
+                    ArtifactUploadRequest(
+                        localPath = path,
+                        objectKey = objectKey,
+                        contentType = "application/xml",
+                        requiredForReport = true,
+                        compress = true,
+                        metadata = mapOf(
+                            "purpose" to "trace_page_source",
+                            "phase" to source.phase,
+                            "timing" to source.timing,
+                        ),
+                    ),
+                )
+            }
+        }
     }
 
     private fun CapturedTraceScreenshot.fileName(): String {
@@ -167,6 +247,19 @@ class FailureTraceScreenshotCollector(
             else -> "bin"
         }
     }
+
+    private fun CapturedTraceSource.fileName(): String {
+        val actionPart = actionId ?: actionKeyword
+        val base = listOf(
+            index.toString().padStart(4, '0'),
+            phase,
+            actionPart,
+            "attempt$attempt",
+            timing,
+            "source",
+        ).joinToString("-")
+        return "trace-${base.sanitizeFileName()}.xml"
+    }
 }
 
 private data class CapturedTraceScreenshot(
@@ -182,6 +275,22 @@ private data class CapturedTraceScreenshot(
     val attempt: Int,
     val timing: String,
     val data: ScreenshotData,
+    val capturedAt: String,
+)
+
+private data class CapturedTraceSource(
+    val captureId: String,
+    val runId: String,
+    val planId: String,
+    val stageId: String?,
+    val caseId: String?,
+    val actionId: String?,
+    val actionKeyword: String,
+    val phase: String,
+    val index: Int,
+    val attempt: Int,
+    val timing: String,
+    val source: String,
     val capturedAt: String,
 )
 

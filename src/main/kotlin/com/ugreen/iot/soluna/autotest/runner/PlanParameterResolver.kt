@@ -29,6 +29,7 @@ class PlanParameterResolver(
         overrides: Map<String, JsonNode> = emptyMap(),
     ): PlanDefinition {
         val baseDir = planPath.parent ?: Path.of(".").toAbsolutePath().normalize()
+        val planAssetBaseDirs = plan.parameters.resolvedDirectories(baseDir) + baseDir
         val values = objectMapper.createObjectNode()
 
         mergeParameterFiles(values, plan.parameters, baseDir)
@@ -39,9 +40,11 @@ class PlanParameterResolver(
 
         return plan.copy(
             metadata = plan.metadata.mapValues { (_, value) -> resolveNode(value, values) },
-            setupActions = plan.setupActions.map { resolveAction(it, values) },
-            teardownActions = plan.teardownActions.map { resolveAction(it, values) },
-            stages = plan.stages.map { resolveStage(it, values, baseDir, overrides) },
+            setupActions = plan.setupActions.map { resolveAction(it, values, planAssetBaseDirs) },
+            caseSetupActions = plan.caseSetupActions.map { resolveAction(it, values, planAssetBaseDirs) },
+            caseTeardownActions = plan.caseTeardownActions.map { resolveAction(it, values, planAssetBaseDirs) },
+            teardownActions = plan.teardownActions.map { resolveAction(it, values, planAssetBaseDirs) },
+            stages = plan.stages.map { resolveStage(it, values, baseDir, planAssetBaseDirs, overrides) },
         )
     }
 
@@ -49,13 +52,18 @@ class PlanParameterResolver(
         stage: StageDefinition,
         values: JsonNode,
         baseDir: Path,
+        assetBaseDirs: List<Path>,
         overrides: Map<String, JsonNode>,
     ): StageDefinition {
+        val stageValues = values.deepCopy<ObjectNode>()
+        mergeInlineParameters(stageValues, stage.parameters)
         return stage.copy(
             parameters = stage.parameters.mapValues { (_, value) -> resolveNode(value, values) },
-            setupActions = stage.setupActions.map { resolveAction(it, values) },
-            teardownActions = stage.teardownActions.map { resolveAction(it, values) },
-            cases = stage.cases.map { resolveCase(it, values, baseDir, overrides) },
+            setupActions = stage.setupActions.map { resolveAction(it, stageValues, assetBaseDirs) },
+            caseSetupActions = stage.caseSetupActions.map { resolveAction(it, stageValues, assetBaseDirs) },
+            caseTeardownActions = stage.caseTeardownActions.map { resolveAction(it, stageValues, assetBaseDirs) },
+            teardownActions = stage.teardownActions.map { resolveAction(it, stageValues, assetBaseDirs) },
+            cases = stage.cases.map { resolveCase(it, stageValues, baseDir, assetBaseDirs, overrides) },
         )
     }
 
@@ -63,25 +71,32 @@ class PlanParameterResolver(
         case: CaseDefinition,
         values: JsonNode,
         baseDir: Path,
+        inheritedAssetBaseDirs: List<Path>,
         overrides: Map<String, JsonNode>,
     ): CaseDefinition {
         val caseValues = values.deepCopy<ObjectNode>()
         mergeParameterFiles(caseValues, case.dataRefs, baseDir)
+        mergeInlineParameters(caseValues, case.parameters)
         overrides.forEach { (path, value) ->
             putPath(caseValues, path, value)
         }
+        val caseAssetBaseDirs = (case.dataRefs.resolvedDirectories(baseDir) + inheritedAssetBaseDirs + baseDir).distinct()
         return case.copy(
             parameters = case.parameters.mapValues { (_, value) -> resolveNode(value, caseValues) },
-            setupActions = case.setupActions.map { resolveAction(it, caseValues) },
-            teardownActions = case.teardownActions.map { resolveAction(it, caseValues) },
-            actions = case.actions.map { resolveAction(it, caseValues) },
+            setupActions = case.setupActions.map { resolveAction(it, caseValues, caseAssetBaseDirs) },
+            caseSetupActions = case.caseSetupActions.map { resolveAction(it, caseValues, caseAssetBaseDirs) },
+            caseTeardownActions = case.caseTeardownActions.map { resolveAction(it, caseValues, caseAssetBaseDirs) },
+            teardownActions = case.teardownActions.map { resolveAction(it, caseValues, caseAssetBaseDirs) },
+            actions = case.actions.map { resolveAction(it, caseValues, caseAssetBaseDirs) },
         )
     }
 
     private fun resolveAction(
         action: ActionDefinition,
         values: JsonNode,
+        assetBaseDirs: List<Path>,
     ): ActionDefinition {
+        val resolvedArgs = action.args.mapValues { (_, value) -> resolveNode(value, values) }
         return action.copy(
             target = action.target?.let { resolveString(it, values) },
             locator = action.locator?.let { resolveLocator(it, values) },
@@ -89,11 +104,32 @@ class PlanParameterResolver(
             wait = action.wait?.let { resolveWait(it, values) },
             assertion = action.assertion?.let { resolveAssertion(it, values) },
             resourceId = action.resourceId?.let { resolveString(it, values) },
-            args = action.args.mapValues { (_, value) -> resolveNode(value, values) },
-            conditionAction = action.conditionAction?.let { resolveAction(it, values) },
-            thenActions = action.thenActions.map { resolveAction(it, values) },
-            elseActions = action.elseActions.map { resolveAction(it, values) },
+            args = resolveVisualTemplateArg(action, resolvedArgs, assetBaseDirs),
+            conditionAction = action.conditionAction?.let { resolveAction(it, values, assetBaseDirs) },
+            thenActions = action.thenActions.map { resolveAction(it, values, assetBaseDirs) },
+            elseActions = action.elseActions.map { resolveAction(it, values, assetBaseDirs) },
         )
+    }
+
+    private fun resolveVisualTemplateArg(
+        action: ActionDefinition,
+        args: Map<String, JsonNode>,
+        assetBaseDirs: List<Path>,
+    ): Map<String, JsonNode> {
+        val template = args["template"] ?: return args
+        if (!template.isTextual) {
+            return args
+        }
+        val raw = template.asText()
+        if (raw.hasRuntimeReference()) {
+            return args
+        }
+        val resolved = resolveAssetPath(assetBaseDirs, raw)
+        require(Files.exists(resolved)) {
+            "Visual template file '$raw' for action '${action.id ?: action.keyword}' does not exist under: " +
+                assetBaseDirs.joinToString()
+        }
+        return args + ("template" to TextNode(resolved.toString()))
     }
 
     private fun resolveLocator(
@@ -192,6 +228,33 @@ class PlanParameterResolver(
         }
     }
 
+    private fun mergeInlineParameters(
+        values: ObjectNode,
+        parameters: Map<String, JsonNode>,
+    ) {
+        parameters.forEach { (name, value) ->
+            val resolved = resolveNode(value, values)
+            if (name.contains('.')) {
+                putPath(values, name, resolved)
+            } else {
+                mergeNamedParameter(values, name, resolved)
+            }
+        }
+    }
+
+    private fun mergeNamedParameter(
+        target: ObjectNode,
+        name: String,
+        value: JsonNode,
+    ) {
+        val existing = target.get(name)
+        if (existing is ObjectNode && value.isObject) {
+            mergeObject(existing, value)
+        } else {
+            target.set<JsonNode>(name, value.deepCopy())
+        }
+    }
+
     private fun seedPlanApp(
         values: ObjectNode,
         plan: PlanDefinition,
@@ -247,6 +310,32 @@ class PlanParameterResolver(
         } else {
             baseDir.resolve(path).normalize()
         }
+    }
+
+    private fun resolveAssetPath(
+        baseDirs: List<Path>,
+        file: String,
+    ): Path {
+        val path = Path.of(file)
+        if (path.isAbsolute) {
+            return path.normalize()
+        }
+        val normalizedBaseDirs = baseDirs.ifEmpty { listOf(Path.of(".").toAbsolutePath().normalize()) }
+        return normalizedBaseDirs
+            .map { it.resolve(path).normalize() }
+            .firstOrNull { Files.exists(it) }
+            ?: normalizedBaseDirs.first().resolve(path).normalize()
+    }
+
+    private fun List<ParameterFileRef>.resolvedDirectories(baseDir: Path): List<Path> {
+        return map { ref ->
+            val path = resolvePath(baseDir, ref.file)
+            path.parent ?: baseDir
+        }.distinct()
+    }
+
+    private fun String.hasRuntimeReference(): Boolean {
+        return contains("\${") || contains("@{")
     }
 
     companion object {

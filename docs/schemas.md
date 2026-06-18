@@ -35,14 +35,14 @@ Current schemas:
 Plan defaults currently include:
 
 - `implicitWaitMs`: default implicit wait budget.
-- `actionWait`: default explicit wait for actions. It is applied after case/fragment references are assembled and only fills setup, action, and teardown actions that do not already declare `wait`.
+- `actionWait`: default explicit wait for actions. It is applied after case/fragment references are assembled and only fills setup, action, and teardown actions that do not already declare `wait`. It is not a substitute for WebDriver implicit wait and should be used sparingly for known slow action groups. When an action declares `wait`, element lookup for that action temporarily disables the session implicit wait, polls with the explicit action timeout, and then restores the configured implicit wait. This lets fragments use shorter state probes or longer slow-page probes without changing the session default.
 - `failureStrategy`: named failure strategy selection.
 - `retryStrategy`: named retry strategy selection.
 
 Plan diagnostics and local artifact handling currently include:
 
 - `trace.screenshots.enabled`: enables before-action trace screenshots.
-- `trace.screenshots.beforeAction`: currently `never` or `onFailure`; `onFailure` retains before-action screenshots in memory and publishes them only if an action fails.
+- `trace.screenshots.beforeAction`: currently `never` or `onFailure`; `onFailure` retains before-action screenshots and page source snapshots in memory and publishes them only if an action fails.
 - `trace.screenshots.retainBeforeActionCount`: number of recent before-action screenshots retained for a failure.
 - `trace.screenshots.upload`: currently `never` or `onFailure`.
 - `localArtifacts.cleanup.mode`: `never` or `after-upload-success`. The latter deletes local run artifacts only after all queued upload tasks complete successfully.
@@ -58,15 +58,40 @@ Plan diagnostics and local artifact handling currently include:
 
 `fragment-catalog.schema.json` is the only current DSL schema that accepts generic control flow. The supported control structure is `if` / `then` / `else`; the `if` value must be one existing executable action or assertion keyword, and branch arrays contain normal action objects. Control keys are intentionally business-neutral. Business predicates such as page state, login state, or element visibility must be expressed through ordinary action/assertion keywords like `assertElementAttrRegexMatch` or `assertSourceRegexMatch`.
 
-Action DSL now uses a single keyword field whose value is the action id, for example `tap: open-mine-tab`. `case.schema.json`, `plan.schema.json`, and `fragment-catalog.schema.json` explicitly enumerate the currently supported action keywords and aliases: `tap`, `input`, `restartApp`, `getText`, `wait`, `assertElementAttrEquals`, `assertElementAttrRegexMatch`, `assertSourceRegexMatch`, and `screenshot`. Unsupported action types fail schema/policy validation before execution.
+Action DSL now uses a single keyword field. New assets should use the nested object form, for example:
+
+```yaml
+- tap:
+    id: open-mine-tab
+    element: common.mineTab
+    desc: 打开我的页
+```
+
+The older `tap: open-mine-tab` form with sibling fields remains accepted for compatibility. `case.schema.json`, `plan.schema.json`, and `fragment-catalog.schema.json` explicitly enumerate the currently supported action keywords and aliases: `tap`, `tapVisualTemplate`, `tapImage`, `tapTemplate`, `input`, `restartApp`, `getText`, `wait`, `assertElementAttrEquals`, `assertElementAttrRegexMatch`, `assertSourceRegexMatch`, `screenshot`, `startScreenRecording`, `stopScreenRecording`, and `assertScreenRecordingTextRegexMatch`. Unsupported action types fail schema/policy validation before execution.
 
 Element attribute assertions use an explicit `attr` field instead of encoding the attribute in the keyword. `attr` may contain slash-separated fallback candidates such as `name/label/text`. Regex assertions use contains-style matching by default through the regex engine; cases that need full-string matching should use anchors such as `^...$`. Assertion actions poll until matched or timed out when they have a `wait` value; plan-level `defaults.actionWait` supplies that wait unless the action overrides it.
 
-Action-specific fields are declared directly on the action object instead of through open `args`. For `tap`, an action should normally use `element: alias.name`; when the UI surface has no stable element identity, such as an app modal backdrop, `tap` can use viewport-relative coordinates through top-level `xRatio` and `yRatio`. Coordinate taps are action parameters, not locator definitions. The parser normalizes this external DSL into the compact internal `ActionDefinition` model consumed by executors.
+Action-specific fields are declared directly on the action object instead of through open `args`. For `tap`, an action should normally use `element: alias.name`; runtime tap resolves the current element, requires it to intersect the screen viewport, and clicks the center of the element's visible area by default. `elementXRatio` and `elementYRatio` can override the element-relative click point. When the UI surface has no stable element identity, such as an app modal backdrop, `tap` can use viewport-relative coordinates through top-level `xRatio` and `yRatio`. Coordinate taps are action parameters, not locator definitions. `tap` waits 800ms after execution by default; `settleMs` can override that delay or disable it with `0`. The parser normalizes this external DSL into the compact internal `ActionDefinition` model consumed by executors.
+
+`tapVisualTemplate` / `tapImage` / `tapTemplate` click a non-text visual affordance by matching a template image against the current screenshot with kt-visual, then tapping a configurable percentage point inside the matched region. Supported fields are `template`, `threshold`, `scales`, `roi`, `targetXRatio`, `targetYRatio`, and `settleMs`. `roi` uses normalized screenshot coordinates (`x`, `y`, `width`, `height`) and should be supplied for repeated or small controls to reduce false matches. Template assets belong under the project data tree, typically `data/<module>/templates/`; case and fragment DSL should reference the path through parameter data, for example `template: "${mine.visualTemplates.feedbackBackIcon}"`, instead of hardcoding an asset path in the case. During reference and parameter resolution, non-dynamic relative template paths are resolved relative to the data file directory, then inherited plan/case asset directories.
+
+`restartApp` terminates and activates the target app, then waits until Appium reports the target app is running in the foreground. Its action-level `wait` overrides the default foreground wait budget.
+
+Toast-like transient text should be checked with screen recording analysis instead of page source polling. `startScreenRecording` starts an Appium recording with optional `timeLimitMs`; `stopScreenRecording` writes a video resource and can save its local path with `saveAs`; `assertScreenRecordingTextRegexMatch` extracts frames from that video with `ffmpeg`, optionally crops each frame by normalized `roi`, selects candidate frames through `candidateStrategy`, runs kt-visual OCR on those candidates, and stores the matched frame as a manifest resource when the regex matches. Candidate strategies are `visual-diff` for transient visual changes, `uniform` for evenly sampled videos, `visual-diff-uniform` for choosing visually changed frames and then spreading OCR candidates across that set, and `all` for short ROI-cropped recordings where every extracted frame should be OCRed. `candidateMaxFrames` bounds OCR work for `visual-diff`, `visual-diff-uniform`, and `uniform`; `visualDifferenceThreshold` controls visual-diff sensitivity.
 
 Plan and stage schemas expose the same lifecycle pattern through `setupFragments` / `setupActions` and `teardownFragments` / `teardownActions`. Teardown results are recorded separately from main action results.
 
+Case lifecycle fields support scoped setup/teardown around every case:
+
+- Plan-level `caseSetupFragments` / `caseSetupActions` and `caseTeardownFragments` / `caseTeardownActions` apply to all cases in the plan.
+- Stage-level `caseSetupFragments` / `caseSetupActions` and `caseTeardownFragments` / `caseTeardownActions` apply to all cases in that stage.
+- Case-level `caseSetupFragments` / `caseSetupActions` and `caseTeardownFragments` / `caseTeardownActions` apply only to that case.
+
+Setup order is plan, then stage, then case. Teardown order is case, then stage, then plan.
+
 `element-catalog.schema.json` is the only v1 DSL input schema that stores locator definitions. Parameter syntax remains `${...}`; element syntax is a distinct `element: alias.name` field on actions. An element can define common `strategy` / `value`, or platform-specific `android` and `ios` locators.
+
+Stage and case inline `parameters` are merged into the parameter context used to resolve later lifecycle actions, case actions, and element locators. Nested objects merge recursively; dotted inline parameter names such as `appState.mine.entryIndex` are also supported.
 
 Asset projects should keep case-specific data close to the case naming convention, while element catalogs stay module-oriented. For example, public profile case data can live under `data/common/profile/update-and-restore-nickname.yaml`, but shared login/device/mine locators should live in `elements/common.yaml` rather than a case-named element file.
 
@@ -79,7 +104,7 @@ Runtime variables are not parameter data. Actions can write/read `@{plan.name}` 
 - plan: `setupActions`, `teardownActions`
 - stage: `setupActions`, `teardownActions`
 - case: `setupActions`, `actions`, `teardownActions`
-- top level: `traceArtifacts`, containing failed-action diagnostic screenshot links when trace screenshots were published.
+- top level: `traceArtifacts`, containing failed-action diagnostic screenshot and page-source links when trace screenshots were published.
 
 `device-config.schema.json` currently covers:
 
@@ -120,7 +145,7 @@ This keeps Android text input stable across real devices with different system k
 - optional DingTalk at-list settings.
 - upload-failure alert window, threshold, and suppression interval.
 
-`plan-resource-manifest.schema.json` stores plan-level metadata and explicit screenshot resources. It is written as `plan-resource-manifest.json` beside report files and is not a step execution-detail file.
+`plan-resource-manifest.schema.json` stores plan-level metadata and explicit DSL resources, including screenshots, screen recordings, and screen-recording text match frames. It is written as `plan-resource-manifest.json` beside report files and is not a step execution-detail file.
 
 Example files:
 

@@ -63,7 +63,7 @@ class RecoveringWebDriverAdapter(
         wait: DriverWaitOptions?,
     ): DriverElement {
         val session = requireSession(sessionId)
-        val physicalElement = withSessionRecovery(session) {
+        withSessionRecovery(session) {
             delegate.findElement(session.physicalSessionId, locator, wait)
         }
         val logicalElementId = "$sessionId:${UUID.randomUUID()}"
@@ -72,7 +72,6 @@ class RecoveringWebDriverAdapter(
             logicalSessionId = sessionId,
             locator = locator,
             wait = wait,
-            physicalElement = physicalElement,
         )
         return DriverElement(logicalElementId)
     }
@@ -80,11 +79,13 @@ class RecoveringWebDriverAdapter(
     override fun tap(
         sessionId: String,
         element: DriverElement,
+        xRatio: Double,
+        yRatio: Double,
     ) {
         val session = requireSession(sessionId)
         val recoveringElement = requireElement(sessionId, element)
         withElementRecovery(session, recoveringElement) { physicalElement ->
-            delegate.tap(session.physicalSessionId, physicalElement)
+            delegate.tap(session.physicalSessionId, physicalElement, xRatio, yRatio)
         }
     }
 
@@ -154,20 +155,39 @@ class RecoveringWebDriverAdapter(
     override fun restartApp(
         sessionId: String,
         appId: String,
+        wait: DriverWaitOptions?,
     ) {
         val session = requireSession(sessionId)
         withSessionRecovery(session) {
-            delegate.restartApp(session.physicalSessionId, appId)
+            delegate.restartApp(
+                sessionId = session.physicalSessionId,
+                appId = appId,
+                wait = wait,
+            )
         }
-        elements.values
-            .filter { it.logicalSessionId == sessionId }
-            .forEach { it.physicalElement = null }
     }
 
     override fun takeScreenshot(sessionId: String): ScreenshotData {
         val session = requireSession(sessionId)
         return withSessionRecovery(session) {
             delegate.takeScreenshot(session.physicalSessionId)
+        }
+    }
+
+    override fun startScreenRecording(
+        sessionId: String,
+        options: ScreenRecordingOptions,
+    ) {
+        val session = requireSession(sessionId)
+        withSessionRecovery(session) {
+            delegate.startScreenRecording(session.physicalSessionId, options)
+        }
+    }
+
+    override fun stopScreenRecording(sessionId: String): ScreenRecordingData {
+        val session = requireSession(sessionId)
+        return withSessionRecovery(session) {
+            delegate.stopScreenRecording(session.physicalSessionId)
         }
     }
 
@@ -184,7 +204,7 @@ class RecoveringWebDriverAdapter(
         return try {
             operation()
         } catch (err: RuntimeException) {
-            if (!shouldRecover(session)) {
+            if (!shouldRecover(session, err)) {
                 throw err
             }
             recoverSession(session, err)
@@ -198,15 +218,17 @@ class RecoveringWebDriverAdapter(
         operation: (DriverElement) -> Unit,
     ) {
         ensureActivePhysicalSession(session)
-        val physicalElement = ensurePhysicalElement(session, element)
+        val physicalElement = delegate.findElement(
+            sessionId = session.physicalSessionId,
+            locator = element.locator,
+            wait = element.wait,
+        )
         try {
             operation(physicalElement)
         } catch (err: RuntimeException) {
-            if (shouldRecover(session)) {
+            if (shouldRecover(session, err)) {
                 recoverSession(session, err)
-            } else if (isStaleElementReference(err)) {
-                element.physicalElement = null
-            } else {
+            } else if (!isStaleElementReference(err)) {
                 throw err
             }
             val refreshedElement = delegate.findElement(
@@ -214,7 +236,6 @@ class RecoveringWebDriverAdapter(
                 locator = element.locator,
                 wait = element.wait,
             )
-            element.physicalElement = refreshedElement
             operation(refreshedElement)
         }
     }
@@ -222,6 +243,7 @@ class RecoveringWebDriverAdapter(
     private fun isStaleElementReference(err: RuntimeException): Boolean {
         return err::class.simpleName == "StaleElementReferenceException" ||
             err.message?.contains("staleelementreference", ignoreCase = true) == true ||
+            err.message?.contains("stale element reference", ignoreCase = true) == true ||
             err.message?.contains("not linked to the same object", ignoreCase = true) == true
     }
 
@@ -239,6 +261,19 @@ class RecoveringWebDriverAdapter(
     private fun shouldRecover(session: RecoveringSession): Boolean {
         return !appiumServerManager.isRunning(currentServerHandle) ||
             !delegate.isSessionHealthy(session.physicalSessionId)
+    }
+
+    private fun shouldRecover(
+        session: RecoveringSession,
+        cause: RuntimeException,
+    ): Boolean {
+        return isWebDriverCommandTimeout(cause) || shouldRecover(session)
+    }
+
+    private fun isWebDriverCommandTimeout(err: RuntimeException): Boolean {
+        return err is WebDriverCommandTimeoutException ||
+            err.message?.contains("WebDriver command", ignoreCase = true) == true &&
+            err.message?.contains("timed out", ignoreCase = true) == true
     }
 
     private fun recoverSession(
@@ -267,26 +302,6 @@ class RecoveringWebDriverAdapter(
             session.originalRequest.copy(serverUrl = currentServerHandle.url),
         )
         session.physicalSessionId = physicalSession.sessionId
-        elements.values
-            .filter { it.logicalSessionId == session.logicalSessionId }
-            .forEach { it.physicalElement = null }
-    }
-
-    private fun ensurePhysicalElement(
-        session: RecoveringSession,
-        element: RecoveringElement,
-    ): DriverElement {
-        val existing = element.physicalElement
-        if (existing != null) {
-            return existing
-        }
-        return delegate.findElement(
-            sessionId = session.physicalSessionId,
-            locator = element.locator,
-            wait = element.wait,
-        ).also {
-            element.physicalElement = it
-        }
     }
 
     private fun requireSession(sessionId: String): RecoveringSession {
@@ -331,5 +346,4 @@ private data class RecoveringElement(
     val logicalSessionId: String,
     val locator: LocatorDefinition,
     val wait: DriverWaitOptions?,
-    var physicalElement: DriverElement?,
 )

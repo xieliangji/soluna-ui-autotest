@@ -1,0 +1,13 @@
+schemaVersion: "1.0"
+id: app-state-guest-device-page
+name: App State Guest Device Page
+dataRefs:
+  - id: appState
+    file: ../../../data/app-state.yaml
+setupFragments:
+  - appState.guestDevicePage
+actions:
+  - assertSourceRegexMatch:
+      id: assert-guest-device-page-ready
+      pattern: "${appState.patterns.devicePage}"
+      desc: 校验已收敛到游客设备页

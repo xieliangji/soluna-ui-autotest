@@ -1,0 +1,79 @@
+schemaVersion: "1.0"
+id: ugreen-common-android
+name: UGREEN Common Android
+version: "0.1.0"
+metadata:
+  owner: qa
+  suite: common
+  intent: 验证我的页公共功能和个人信息保护入口
+parameters:
+  - id: appState
+    file: ../../data/app-state.yaml
+  - id: visualTemplates
+    file: ../../data/common/visual-templates.yaml
+fragmentRefs:
+  - id: appState
+    file: ../../fragments/app-state.yaml
+deviceConfig: ../../../../devices/android/ZT4225X3C2.yaml
+artifactStore: ../../../../artifacts/minio.local.yaml
+app:
+  id: com.ugreen.iot
+  name: UGREEN
+  platform: android
+  reset: false
+defaults:
+  implicitWaitMs: 8000
+  failureStrategy: stop-case
+  retryStrategy: no-retry
+trace:
+  screenshots:
+    enabled: true
+    beforeAction: onFailure
+    retainBeforeActionCount: 5
+    upload: onFailure
+localArtifacts:
+  cleanup:
+    mode: after-upload-success
+stages:
+  - id: login-page
+    name: Login Page
+    setupFragments:
+      - appState.loginPage
+    caseRefs:
+      - file: ../../cases/common/app-state/login-page.yaml
+  - id: logged-in-device-page
+    name: Logged-in Device Page
+    setupFragments:
+      - appState.loggedInDevicePage
+    caseSetupFragments:
+      - appState.restartApp
+    caseRefs:
+      - file: ../../cases/common/TC001_MINE_ABOUT.yaml
+      - file: ../../cases/common/TC003_MINE_SYSTEM_PERMISSIONS_MANAGEMENT.yaml
+      - file: ../../cases/common/TC010_FEEDBACK_SUBMIT_SUCCESS.yaml
+      - file: ../../cases/common/TC011_FEEDBACK_PROBLEM_TYPE.yaml
+      - file: ../../cases/common/TC012_FEEDBACK_DEVICE.yaml
+      - file: ../../cases/common/TC013_FEEDBACK_DESCRIPTION.yaml
+      - file: ../../cases/common/TC014_FEEDBACK_HISTORY_LIST.yaml
+      - file: ../../cases/common/TC015_FEEDBACK_HISTORY_DETAIL.yaml
+      - file: ../../cases/common/TC004_PERSONAL_INFO_PROTECTION_AGREENMENT.yaml
+      - file: ../../cases/common/TC005_PERSONAL_INFO_PROTECTION_PRIVACY.yaml
+      - file: ../../cases/common/TC006_PERSONAL_INFO_PROTECTION_COLLECTION_LIST.yaml
+      - file: ../../cases/common/TC007_PERSONAL_INFO_PROTECTION_SHARED_LIST.yaml
+      - file: ../../cases/common/TC008_PERSONAL_INFO_PROTECTION_WITHDRAW_CONTENT.yaml
+      - file: ../../cases/common/TC002_MINE_LANGUAGE_SETTINGS.yaml
+  - id: guest-device-page
+    name: Guest Device Page
+    setupFragments:
+      - appState.guestDevicePage
+    caseSetupFragments:
+      - appState.restartApp
+    caseRefs:
+      - file: ../../cases/common/TC001_MINE_ABOUT.yaml
+      - file: ../../cases/common/TC003_MINE_SYSTEM_PERMISSIONS_MANAGEMENT.yaml
+      - file: ../../cases/common/TC009_FEEDBACK_GUEST_ACCESS.yaml
+      - file: ../../cases/common/TC004_PERSONAL_INFO_PROTECTION_AGREENMENT.yaml
+      - file: ../../cases/common/TC005_PERSONAL_INFO_PROTECTION_PRIVACY.yaml
+      - file: ../../cases/common/TC006_PERSONAL_INFO_PROTECTION_COLLECTION_LIST.yaml
+      - file: ../../cases/common/TC007_PERSONAL_INFO_PROTECTION_SHARED_LIST.yaml
+      - file: ../../cases/common/TC002_MINE_LANGUAGE_SETTINGS.yaml

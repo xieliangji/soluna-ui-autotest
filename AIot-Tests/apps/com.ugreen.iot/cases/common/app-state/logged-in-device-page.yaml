@@ -1,0 +1,13 @@
+schemaVersion: "1.0"
+id: app-state-logged-in-device-page
+name: App State Logged-in Device Page
+dataRefs:
+  - id: appState
+    file: ../../../data/app-state.yaml
+setupFragments:
+  - appState.loggedInDevicePage
+actions:
+  - assertSourceRegexMatch:
+      id: assert-logged-in-device-page-ready
+      pattern: "${appState.patterns.devicePage}"
+      desc: 校验已收敛到登录态设备页

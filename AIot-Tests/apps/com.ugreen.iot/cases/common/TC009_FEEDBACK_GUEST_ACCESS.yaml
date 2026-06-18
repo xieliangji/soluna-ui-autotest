@@ -1,0 +1,36 @@
+schemaVersion: "1.0"
+id: TC009_FEEDBACK_GUEST_ACCESS
+name: 我的-意见反馈-访客模式访问
+elementRefs:
+  - id: common
+    file: ../../elements/common.yaml
+actions:
+  - tap:
+      id: open-mine-tab
+      element: common.mineTab
+      desc: 进入我的页
+  - assertElementAttrRegexMatch:
+      id: assert-mine-list-visible
+      element: common.mineList
+      attr: enabled
+      pattern: "true"
+      desc: 校验我的页列表可见
+  - assertElementAttrRegexMatch:
+      id: assert-feedback-entry-visible
+      element: common.mineFeedbackEntry
+      attr: enabled
+      pattern: "true"
+      desc: 校验意见反馈入口可见
+  - tap:
+      id: open-feedback-page
+      element: common.mineFeedbackEntry
+      desc: 进入意见反馈页
+  - assertElementAttrRegexMatch:
+      id: assert-feedback-page-visible
+      element: common.feedbackPageRoot
+      attr: enabled
+      pattern: "true"
+      wait:
+        timeoutMs: 20000
+        intervalMs: 500
+      desc: 校验意见反馈页可见

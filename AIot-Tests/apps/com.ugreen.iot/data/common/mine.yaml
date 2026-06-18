@@ -1,0 +1,22 @@
+schemaVersion: "1.0"
+id: common-mine
+description: Common mine-module fixture parameters.
+values:
+  mine:
+    language:
+      firstTitle: "简体中文"
+      secondTitle: "English"
+      simplifiedChineseValue: "简体中文"
+      englishValue: "English"
+    about:
+      versionPattern: "^\\d+\\.\\d+\\.\\d+(?:\\.\\d+)?$"
+    withdraw:
+      countdownPattern: "^\\d+s$"
+    feedback:
+      submitDescription: "反馈自动化提交内容测试"
+      shortDescription: "少于十字"
+      minDescription: "aaaaaaaaaa"
+      maxDescription: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      overflowDescription: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      successToastPattern: "提交成功"
+      maxCounterPattern: "(?s)(200/200|200)"

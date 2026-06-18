@@ -18,7 +18,7 @@ Implemented capabilities:
 - YAML DSL with `Plan -> Stage -> Case -> Action`.
 - Plan-rooted execution: runner accepts only a plan path; other assets are referenced directly or indirectly by the plan.
 - Schema-first validation for plan, case, element catalog, fragment catalog, parameter data, device config, artifact store, notification sender, report data, resource manifest, asset project, runner request, and runner result contracts.
-- Keyword-as-field action syntax, for example `tap: open-mine-tab`.
+- Keyword-as-field action syntax with nested action payloads preferred, for example `tap: { id, element, desc }`; legacy `tap: open-mine-tab` remains compatible.
 - Case/data/element/fragment decomposition.
 - Linear case DSL; setup/teardown fragments are separate lifecycle assets.
 - Fragment DSL supports business-neutral `if` / `then` / `else` control flow with existing action/assertion keywords as predicates.
@@ -27,12 +27,13 @@ Implemented capabilities:
 - Recovering WebDriver adapter with logical session and physical session rebuild.
 - Managed iOS WDA through go-ios, including iOS 17+ userspace tunnel handling.
 - `soluna-ext` client for device metadata, WDA bundle lookup, commands, and logs.
-- Default actions: `tap`, `input`, `wait`, `restartApp`, `getText`, `screenshot`, `assertElementAttrEquals`, `assertElementAttrRegexMatch`, `assertSourceRegexMatch`.
+- Default actions: `tap`, `input`, `wait`, `restartApp`, `getText`, `screenshot`, `startScreenRecording`, `stopScreenRecording`, `assertElementAttrEquals`, `assertElementAttrRegexMatch`, `assertSourceRegexMatch`, `assertScreenRecordingTextRegexMatch`.
+- `tap` resolves the current viewport-visible element, clicks the element-visible-area center by default, supports element-relative click ratios, and settles for 800ms by default.
 - Assertion actions poll by resolved `wait`.
 - Runtime variables via `@{plan.name}` and `@{case.name}`.
 - Parameter references via `${...}`.
 - Local JSON/HTML report writer.
-- Explicit screenshot resource manifest.
+- Explicit resource manifest for screenshots, screen recordings, and retained analysis frames.
 - Failure trace screenshots uploaded only on failure.
 - Async MinIO uploads with compression, retry, bounded drain, and local cleanup after successful upload.
 - DingTalk lifecycle notifications: plan started, test finished, report published.
@@ -42,7 +43,84 @@ Implemented capabilities:
 Primary verified real-device flow:
 
 - `com.ugreen.iot` profile nickname edit/restore on Android and iOS.
+- `com.ugreen.iot` app-state fragments for login page, guest device page, and logged-in device page on Android and iOS.
+- `com.ugreen.iot` iOS feedback flows for guest access, submit success with toast OCR, problem type, description boundary, history list, and history detail.
 - iOS upload-enabled run verified MinIO upload, report/resource links, local cleanup, DingTalk notifications, and assertion polling without fixed post-confirm sleeps.
+
+## Recent Iterations
+
+### 2026-06-18 iOS Feedback Real-Device Debug
+
+- Tuned the iOS feedback cases and common feedback locators so the currently executable feedback suite uses module-owned elements, nested action payloads, visual-template clicks for WebView icon affordances, and ROI-cropped recording OCR for the submit-success toast.
+- Kept the feedback history icon template under `AIot-Tests/apps/com.ugreen.iot/data/common/templates/` and referenced it through parameter data instead of hardcoding template paths in cases.
+- Added `visual-diff-uniform` as a screen-recording candidate strategy, while TC010 uses ROI + `all` candidates because the success toast is visible for only a few frames.
+- Extended the debug CLI with shell mode, `tap-element`, and `input` so real-device exploration can proceed step by step inside one temporary Appium/WDA session.
+- Hardened WebDriver command handling by adding bounded timeouts to health checks and treating WebDriver command timeout as a session recovery signal.
+- TC012 feedback device selection remains excluded from the iOS debug pack because the current iOS account did not expose the device field after selecting the relevant problem types; this is tracked as test-data/precondition missing rather than a passed automation path.
+
+Verification:
+
+- iOS real device single-case runs passed: `common-ios-feedback-tc009-2`, `common-ios-feedback-tc010-2`, `common-ios-feedback-tc011-2`, `common-ios-feedback-tc013-3`, `common-ios-feedback-tc014-2`, and `common-ios-feedback-tc015-2`.
+- iOS TC012 was rerun separately as `common-ios-feedback-tc012-2` with expected failure; it failed at `assert-device-field-visible` after tapping the device-related type because the device selection field was not present in the current app state. Failure trace artifacts were uploaded with `uploaded=13, failed=0`.
+- iOS feedback aggregate debug plan passed: `common-ios-feedback-pack-18`; report generated at `build/soluna-runs/common-ios-feedback-pack-18/report/index.html`; MinIO upload completed with `uploaded=5, failed=0`.
+- `./gradlew test --tests com.ugreen.iot.soluna.autotest.appium.action.WebDriverActionExecutorsTest --tests com.ugreen.iot.soluna.autotest.appium.driver.AppiumJavaClientWebDriverAdapterTest --tests com.ugreen.iot.soluna.autotest.appium.driver.RecoveringWebDriverAdapterTest --tests com.ugreen.iot.soluna.autotest.cli.SolunaCliApplicationTest --tests com.ugreen.iot.soluna.autotest.schema.JsonSchemaDslValidatorTest installDist` passed.
+
+Follow-up:
+
+- Removed feedback WebView recovery checks from the shared `app-state` fragments because feedback page recovery is business-module-specific and does not belong in generic login/device-page state convergence.
+- iOS feedback aggregate debug plan was rerun after that cleanup as `common-ios-feedback-pack-19`; all six included cases passed and MinIO upload completed with `uploaded=5, failed=0`.
+- Added `docs/handoff.md` with the current iOS verification record, Android feedback status, safe debug commands, and next recommended work for a new session.
+
+### 2026-06-17 Visual Template Tap Resolver
+
+- Added `tapVisualTemplate` with `tapImage` / `tapTemplate` aliases for non-text visual affordance clicks using current screenshots, kt-visual template matching, normalized `roi`, match thresholds, scale options, target-region click ratios, and the standard 800ms tap settle.
+- Added two-stage template asset resolution: literal template paths are checked during reference assembly, while parameterized `template: "${...}"` values resolve after data merge and are interpreted relative to the owning data file directory.
+- Added feedback back-icon template data under `AIot-Tests/apps/com.ugreen.iot/data/common/templates/` and updated feedback cases to pass the template through `mine.visualTemplates.feedbackBackIcon`.
+- Added `soluna debug <plan.yaml> source|screenshot|tap|tap-template`, a temporary Appium/WDA debug manager that reuses plan device/app configuration without executing cases, reports, uploads, or notifications.
+- Extended failure trace diagnostics to retain page source XML beside before-action screenshots, making locator fixes auditable from source evidence.
+- Used the debug source command on the iOS feedback page and corrected feedback problem-type locators from unsupported table-cell assumptions to WebView-scoped visible static-text order.
+- Updated schema files, schema docs, architecture notes, and focused tests for the visual template action and data-relative template path resolution.
+
+Verification:
+
+- `jq empty src/main/resources/schemas/v1/*.json` passed.
+- `./gradlew test --tests com.ugreen.iot.soluna.autotest.appium.action.WebDriverActionExecutorsTest --tests com.ugreen.iot.soluna.autotest.runner.PlanParameterResolverTest --tests com.ugreen.iot.soluna.autotest.runner.PlanReferenceResolverTest --tests com.ugreen.iot.soluna.autotest.dsl.YamlPlanParserTest --tests com.ugreen.iot.soluna.autotest.schema.JsonSchemaDslValidatorTest` passed.
+- `./gradlew test --tests com.ugreen.iot.soluna.autotest.runner.PlanRunnerTest --tests com.ugreen.iot.soluna.autotest.schema.JsonSchemaDslValidatorTest --tests com.ugreen.iot.soluna.autotest.appium.action.WebDriverActionExecutorsTest --tests com.ugreen.iot.soluna.autotest.runner.PlanReferenceResolverTest` passed after adding debug source trace.
+- `build/install/soluna/bin/soluna debug AIot-Tests/apps/com.ugreen.iot/plans/common/ios-feedback-debug.yaml source --out build/soluna-debug/ios-feedback-source.xml` passed on the iOS real device and produced feedback page XML evidence.
+- iOS and Android feedback real-device plans still need rerun after the source-backed locator correction.
+
+### 2026-06-17 Screen Recording Toast Analysis
+
+- Added first-class DSL actions for Appium screen recording start/stop and screen-recording text regex assertions.
+- Generalized explicit screenshot resource handling into a plan resource sink so screenshots, videos, and screen-recording matched frames share the same MinIO manifest/upload path.
+- Implemented recording frame extraction through a replaceable `VideoFrameExtractor`; the default uses host `ffmpeg` and kt-visual Paddle OCR for text recognition.
+- Updated `TC010_FEEDBACK_SUBMIT_SUCCESS.yaml` to validate the submit-success toast by recording around the submit action, extracting frames, OCR matching `提交成功`, and retaining the recording plus matched frame as explicit resources.
+- Updated action schemas, schema docs, architecture notes, and focused tests for the new recording DSL keywords.
+
+Verification:
+
+- `jq empty src/main/resources/schemas/v1/*.json` passed.
+- `./gradlew test --tests com.ugreen.iot.soluna.autotest.appium.action.WebDriverActionExecutorsTest --tests com.ugreen.iot.soluna.autotest.dsl.YamlPlanParserTest --tests 'com.ugreen.iot.soluna.autotest.schema.JsonSchemaDslValidatorTest.validates screen recording text assertion action schemas' --tests com.ugreen.iot.soluna.autotest.artifact.PlanResourceManifestWriterTest` passed.
+- Full `./gradlew test` is still blocked by pre-existing missing profile/nickname asset files referenced by schema/reference tests.
+
+### 2026-06-16 App-State Fragments And Tap Semantics
+
+- Converted the app-state fragments to the nested action payload style and added app-state cases/plans for login page, guest device page, and logged-in device page.
+- Kept common public-module elements in `elements/common.yaml`; removed coordinate-like and hardcoded-copy app-state patterns, with `UgreenAudio` retained only as the stable brand logo marker.
+- Fixed iOS login submit locator to use the agreement checkbox as a structural anchor and select the following page submit button, avoiding keyboard-dependent button ordering.
+- Changed element tap execution to re-resolve the current element instead of using cached WebElements, require viewport intersection, click the element visible-area center by default, and support `elementXRatio` / `elementYRatio`.
+- Added default `tap` settle of 800ms with per-action `settleMs` override.
+- Removed global `defaults.actionWait` from app-state plans; final page convergence assertions now carry explicit waits instead of making every action wait 10s.
+- Fixed parameter/reference handling so numeric scalar inputs such as phone-like usernames are treated as text and resolved element references do not re-resolve as both `element` and `locator`.
+- Improved fragment branch failure messages to report the failed branch child action id.
+
+Verification:
+
+- Focused Gradle tests passed for action executors, recovering/Appium adapters, parser, schema validation, and plan reference resolution.
+- `jq empty` passed for updated action schemas.
+- `./gradlew installDist` passed.
+- Real-device app-state plan passed on iOS: `build/install/soluna/bin/soluna run AIot-Tests/apps/com.ugreen.iot/plans/app-state/ios.yaml --run-id app-state-ios-local ...`
+- Real-device app-state plan passed on Android: `build/install/soluna/bin/soluna run AIot-Tests/apps/com.ugreen.iot/plans/app-state/android.yaml --run-id app-state-android-local ...`
 
 ## Milestone Summary
 
@@ -255,6 +333,51 @@ Verification:
 - `./gradlew test --tests com.ugreen.iot.soluna.autotest.schema.JsonSchemaDslValidatorTest --tests com.ugreen.iot.soluna.autotest.runner.PlanReferenceResolverTest` passed.
 - `./gradlew test` passed.
 - `./gradlew build` passed.
+
+### 2026-06-17 Common Mine Cases
+
+- Filled the eight common mine-module case files under `AIot-Tests/apps/com.ugreen.iot/cases/common`.
+- Added common mine fixture data for language title/value and withdraw-verification countdown assertions.
+- Extended `elements/common.yaml` with module-level mine, language, about, personal-information-protection, WebView, and withdraw-verification elements instead of case-owned element definitions.
+- Added Android and iOS common plans with login-page, logged-in-device-page, and guest-device-page stages. TC001-TC007 are planned for both logged-in and guest device stages; TC008 is planned only for logged-in device state.
+- Adjusted TC003 to enter the app system-permissions management page and verify the Bluetooth, location, microphone, album, and camera permission rows are present, without jumping into OS settings pages.
+- Added common artifact templates under `AIot-Tests/artifacts/`; the common plans reference ignored `minio.local.yaml` so report upload and DingTalk lifecycle notifications are part of the full plan configuration without committing local secrets.
+- Moved TC002 language-settings to the end of each common-plan device-page stage so no other case runs after a language-switching case in that stage.
+- TC002 switches to English, returns to Mine and verifies the page source contains the expected language value, then switches back to Simplified Chinese and verifies the restored value. The success assertion avoids the unstable iOS right-side-value element subtree.
+- Added a dedicated logout confirmation element for logout action sheets; protocol confirmations and guest-login prompts still use the generic dialog-positive element.
+- Added scoped `caseSetupFragments` / `caseSetupActions` lifecycle support at plan, stage, and case levels. The common logged-in and guest device stages use stage-level `caseSetupFragments` to restart the app before each case while the stage state fragment still runs only once.
+- Wired `defaults.implicitWaitMs` into Appium session `timeouts.implicit` and set current common/app-state plans to 8000ms.
+- Changed explicit action element lookup to temporarily disable the session implicit wait while polling with the action's own `wait`, then restore the session implicit wait.
+- Changed `restartApp` to wait for the target app to report foreground state before returning; an action-level `wait` can override the default foreground wait.
+- Fixed stage/case inline `parameters` so they merge into the parameter context used by later lifecycle actions, case actions, and element locators.
+- Fixed the iOS logout confirmation locator to select the right-side confirmation button in the logout sheet; the prior `last()-1` locator selected cancel.
+- Broadened the iOS common back-button locator to match visible icon buttons whose `name` or `label` contains `common back`, covering WebView agreement pages where the icon name is not prefixed by `common back`.
+- Added a dedicated `common.webBackButton` and updated TC004-TC007 to use it when returning from WebView agreement/privacy/list pages, leaving `common.backButton` for native page returns and state probes.
+
+Current status:
+
+- Android common plan previously passed on real device before the final TC002 language-switch ordering; TC002-only Android real-device verification passed after the final language changes.
+- iOS WDA is restored. TC002-only iOS real-device verification passed after the final language changes.
+- Common logged-in and guest device stages now run their app-state setup once at stage start, then restart the app before each case through stage-level `caseSetupFragments`; the login-page stage remains unchanged because its app-state case already has its own setup.
+- Full upload-enabled common plans require a local ignored `AIot-Tests/artifacts/minio.local.yaml` copied from the template with real MinIO and DingTalk credentials.
+- Local `minio.local.yaml` was updated to reference ignored `dingtalk.local.yaml` for upload-failure and lifecycle notifications.
+
+Verification:
+
+- `git diff --check` passed.
+- Focused Gradle tests passed for Appium session timeout injection and case setup scope resolution.
+- Android real-device common plan passed after changing Android WebView content locator to the WebView under `lyWebView`.
+- iOS TC002-only debug plan passed: `common-ios-tc002-local-2`.
+- Android TC002-only debug plan passed: `common-android-tc002-local-1`.
+- Android upload-enabled common plan `common-android-full-local-1` ran with `minio.local.yaml`; upload completed with `uploaded=8, failed=0`, DingTalk lifecycle config was present, and local cleanup deleted the local run after upload. The plan failed in TC002 because TC008 left the app on the withdraw-verification page; this led to the stage-level `caseSetupFragments` fix above.
+- Android upload-enabled common plan `common-android-full-local-3` ran with `minio.local.yaml`; upload completed with `uploaded=8, failed=0`, DingTalk lifecycle config was present, and local cleanup deleted the local run after upload. The logged-in stage passed completely, then guest TC005 failed because `restartApp` returned while the device was still on the Android launcher/activation transition, allowing the next action to run against stale app state. The `restartApp` foreground wait fix addresses this failure mode.
+- Android upload-enabled common plan `common-android-full-local-4` passed with `minio.local.yaml`; upload completed with `uploaded=3, failed=0`, and local cleanup deleted the local run after upload.
+- iOS upload-enabled common plan `common-ios-full-local-1` failed in login-page stage setup because the logout confirmation locator tapped cancel instead of confirm. Upload completed with `uploaded=8, failed=0`, and local cleanup deleted the local run after upload.
+- iOS upload-enabled common plan `common-ios-full-local-2` passed login-page setup and TC001/TC003 in the logged-in stage, then failed in logged-in TC004 returning from the agreement WebView because the common back-button locator was too narrow for the WebView page icon.
+- iOS upload-enabled common plan `common-ios-full-local-3` confirmed that the WebView back icon does not expose `common back`; the WebView return action now uses the dedicated `common.webBackButton` instead of widening the native back-button locator further.
+- iOS upload-enabled common plan `common-ios-full-local-4` passed with `minio.local.yaml`; upload completed with `uploaded=3, failed=0`, and local cleanup deleted the local run after upload.
+- Focused Gradle tests passed for parameter resolution, WebDriver action executors, Appium session timeout injection, and Appium locator mapping.
+- Full `./gradlew test` is currently blocked by pre-existing deleted profile asset files referenced by older tests.
 
 ## Current Verification Baseline
 

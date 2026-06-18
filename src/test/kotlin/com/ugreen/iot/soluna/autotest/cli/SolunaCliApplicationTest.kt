@@ -151,6 +151,83 @@ class SolunaCliApplicationTest {
         assertEquals("", stderr.toString())
     }
 
+    @Test
+    fun `debug input command passes locator and text to debug manager`() {
+        var capturedRequest: AppiumDebugRequest? = null
+        val stdout = StringBuilder()
+        val stderr = StringBuilder()
+        val cli = SolunaCliApplication(
+            runDebug = { request ->
+                capturedRequest = request
+                AppiumDebugResult(
+                    action = request.action.name,
+                    serverUrl = "http://127.0.0.1:4723",
+                    wdaUrl = null,
+                    sessionId = "session-debug",
+                    output = "ok",
+                )
+            },
+        )
+
+        val exitCode = cli.run(
+            arrayOf(
+                "debug",
+                "plans/ios.yaml",
+                "input",
+                "--strategy",
+                "class chain",
+                "--locator",
+                "**/XCUIElementTypeTextView",
+                "--text",
+                "少于十字",
+                "--clear-first",
+                "false",
+            ),
+            stdout,
+            stderr,
+        )
+
+        val request = assertNotNull(capturedRequest)
+        val action = assertIs<AppiumDebugAction.Input>(request.action)
+        assertEquals(0, exitCode)
+        assertEquals(Path.of("plans/ios.yaml"), request.planPath)
+        assertEquals("class chain", action.locator.strategy)
+        assertEquals("**/XCUIElementTypeTextView", action.locator.value)
+        assertEquals("少于十字", action.text)
+        assertEquals(false, action.clearFirst)
+        assertTrue(stdout.toString().contains("action: input"))
+        assertEquals("", stderr.toString())
+    }
+
+    @Test
+    fun `debug shell command delegates to shell runner`() {
+        var capturedRequest: AppiumDebugShellRequest? = null
+        val stdout = StringBuilder()
+        val stderr = StringBuilder()
+        val cli = SolunaCliApplication(
+            runDebugShell = { request, out ->
+                capturedRequest = request
+                out.appendLine("shell body")
+                AppiumDebugShellResult(
+                    serverUrl = "http://127.0.0.1:4723",
+                    wdaUrl = "http://127.0.0.1:8100",
+                    sessionId = "session-shell",
+                    commandCount = 2,
+                )
+            },
+        )
+
+        val exitCode = cli.run(arrayOf("debug", "plans/ios.yaml", "shell", "--keep-infra"), stdout, stderr)
+
+        val request = assertNotNull(capturedRequest)
+        assertEquals(0, exitCode)
+        assertEquals(Path.of("plans/ios.yaml"), request.planPath)
+        assertEquals(true, request.keepInfrastructure)
+        assertTrue(stdout.toString().contains("shell body"))
+        assertTrue(stdout.toString().contains("commands: 2"))
+        assertEquals("", stderr.toString())
+    }
+
     private fun planRunResult(
         request: PlanRunRequest,
         status: ExecutionStatus,

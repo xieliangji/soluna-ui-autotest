@@ -12,6 +12,7 @@ appium:
   capabilities:
     platformName: iOS
     automationName: XCUITest
+    newCommandTimeout: 300
 ios:
   wda:
     enabled: true

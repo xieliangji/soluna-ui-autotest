@@ -136,10 +136,11 @@ class RecoveringWebDriverAdapterTest {
             listOf(
                 FindElementCall("physical-1", LocatorDefinition("id", "login_button")),
                 FindElementCall("physical-1", LocatorDefinition("id", "login_button")),
+                FindElementCall("physical-1", LocatorDefinition("id", "login_button")),
             ),
             delegate.findElementCalls,
         )
-        assertEquals(listOf(TapCall("physical-1", "physical-1:element-2")), delegate.tapCalls)
+        assertEquals(listOf(TapCall("physical-1", "physical-1:element-3")), delegate.tapCalls)
     }
 
     @Test
@@ -256,11 +257,13 @@ class RecoveringWebDriverAdapterTest {
         override fun tap(
             sessionId: String,
             element: DriverElement,
+            xRatio: Double,
+            yRatio: Double,
         ) {
             if (tapFailures.isNotEmpty()) {
                 throw tapFailures.removeFirst()
             }
-            tapCalls += TapCall(sessionId, element.elementId)
+            tapCalls += TapCall(sessionId, element.elementId, xRatio, yRatio)
         }
 
         override fun tapViewport(
@@ -297,6 +300,8 @@ private data class FindElementCall(
 private data class TapCall(
     val sessionId: String,
     val elementId: String,
+    val xRatio: Double = 0.5,
+    val yRatio: Double = 0.5,
 )
 
 private data class ViewportTapCall(

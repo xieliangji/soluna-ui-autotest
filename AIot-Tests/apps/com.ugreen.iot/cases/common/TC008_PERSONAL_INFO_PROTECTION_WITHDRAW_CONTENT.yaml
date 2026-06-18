@@ -1,0 +1,60 @@
+schemaVersion: "1.0"
+id: TC008_PERSONAL_INFO_PROTECTION_WITHDRAW_CONTENT
+name: 个人信息保护-撤回同意发送验证码
+dataRefs:
+  - id: mine
+    file: ../../data/common/mine.yaml
+elementRefs:
+  - id: common
+    file: ../../elements/common.yaml
+actions:
+  - tap:
+      id: open-mine-tab
+      element: common.mineTab
+      desc: 进入我的页
+  - tap:
+      id: open-personal-info-protection-page
+      element: common.minePersonalInfoProtectionEntry
+      desc: 进入个人信息保护页
+  - assertElementAttrRegexMatch:
+      id: assert-personal-info-list-visible
+      element: common.personalInfoProtectionList
+      attr: enabled
+      pattern: "true"
+      desc: 校验个人信息保护列表可见
+  - tap:
+      id: open-withdraw-consent-page
+      element: common.personalInfoWithdrawConsentEntry
+      desc: 进入撤回同意页
+  - assertElementAttrRegexMatch:
+      id: assert-withdraw-warning-visible
+      element: common.withdrawWarning
+      attr: enabled
+      pattern: "true"
+      desc: 校验撤回说明可见
+  - tap:
+      id: confirm-withdraw-to-verification-page
+      element: common.withdrawConfirmButton
+      desc: 点击确认撤回进入验证码页
+  - assertElementAttrRegexMatch:
+      id: assert-verification-target-visible
+      element: common.withdrawVerificationTarget
+      attr: enabled
+      pattern: "true"
+      desc: 校验验证码发送目标可见
+  - assertElementAttrRegexMatch:
+      id: assert-verification-code-input-visible
+      element: common.withdrawVerificationCodeInput
+      attr: enabled
+      pattern: "true"
+      desc: 校验验证码输入框可见
+  - tap:
+      id: send-withdraw-verification-code
+      element: common.withdrawSendCodeButton
+      desc: 点击发送验证码
+  - assertElementAttrRegexMatch:
+      id: assert-send-code-countdown
+      element: common.withdrawSendCodeButton
+      attr: name/label/text
+      pattern: "${mine.withdraw.countdownPattern}"
+      desc: 校验发送按钮进入倒计时

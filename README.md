@@ -163,6 +163,20 @@ soluna run <plan.yaml> \
 
 Device config, artifact store config, cases, elements, data, and fragments are not CLI arguments. They must be referenced by the plan directly or indirectly.
 
+For temporary real-device inspection, the installed distribution also exposes a debug command. It starts a managed Appium/WDA session from the plan device/app config, runs one low-level action, and exits without executing cases, reports, uploads, or notifications:
+
+```bash
+soluna debug <plan.yaml> source --out build/soluna-debug/source.xml
+soluna debug <plan.yaml> screenshot --out build/soluna-debug/screen.png
+soluna debug <plan.yaml> tap --x-ratio 0.50 --y-ratio 0.50
+soluna debug <plan.yaml> tap-element --strategy xpath --locator "//XCUIElementTypeButton[1]" --element-x-ratio 0.50 --element-y-ratio 0.50
+soluna debug <plan.yaml> input --strategy class --locator XCUIElementTypeTextView --text "debug text" --clear-first true
+soluna debug <plan.yaml> tap-template --template AIot-Tests/apps/com.ugreen.iot/data/common/templates/feedback-back-icon.png --roi 0,0.04,0.2,0.12
+soluna debug <plan.yaml> shell
+```
+
+Use debug output as locator evidence; do not encode platform-specific debug operations into business cases.
+
 ## Local Commands
 
 ```bash

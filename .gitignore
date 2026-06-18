@@ -45,6 +45,7 @@ bin/
 ### Soluna local runtime/secrets ###
 .soluna/
 examples/artifacts/*.local.yaml
+AIot-Tests/artifacts/*.local.yaml
 selfIdentity.plist
 
 ### Mac OS ###

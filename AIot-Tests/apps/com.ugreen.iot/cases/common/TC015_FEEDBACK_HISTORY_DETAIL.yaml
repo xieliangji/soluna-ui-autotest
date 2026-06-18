@@ -1,0 +1,77 @@
+schemaVersion: "1.0"
+id: TC015_FEEDBACK_HISTORY_DETAIL
+name: 我的-意见反馈-历史反馈-反馈详情
+dataRefs:
+  - id: mine
+    file: ../../data/common/mine.yaml
+elementRefs:
+  - id: common
+    file: ../../elements/common.yaml
+actions:
+  - tap:
+      id: open-mine-tab
+      element: common.mineTab
+      desc: 进入我的页
+  - tap:
+      id: open-feedback-page
+      element: common.mineFeedbackEntry
+      desc: 进入意见反馈页
+  - assertElementAttrRegexMatch:
+      id: assert-feedback-page-visible
+      element: common.feedbackPageRoot
+      attr: enabled
+      pattern: "true"
+      wait:
+        timeoutMs: 20000
+        intervalMs: 500
+      desc: 校验意见反馈页可见
+  - tapVisualTemplate:
+      id: open-feedback-history-page
+      template: "${mine.visualTemplates.feedbackHistoryIcon}"
+      threshold: 0.70
+      scales: [0.8, 1.0, 1.2, 1.4]
+      roi:
+        x: 0.82
+        y: 0.06
+        width: 0.16
+        height: 0.12
+      desc: 进入历史反馈页
+  - assertElementAttrRegexMatch:
+      id: assert-feedback-history-list-visible
+      element: common.feedbackHistoryList
+      attr: enabled
+      pattern: "true"
+      desc: 校验历史反馈列表可见
+  - tap:
+      id: open-first-feedback-detail
+      element: common.feedbackFirstHistoryRecord
+      desc: 进入第一条反馈详情
+  - assertElementAttrRegexMatch:
+      id: assert-feedback-detail-content-visible
+      element: common.feedbackDetailContent
+      attr: enabled
+      pattern: "true"
+      desc: 校验反馈详情内容可见
+  - assertElementAttrRegexMatch:
+      id: assert-feedback-detail-reply-visible
+      element: common.feedbackDetailReply
+      attr: enabled
+      pattern: "true"
+      desc: 校验反馈详情回复区域可见
+  - tapVisualTemplate:
+      id: back-to-feedback-history-page
+      template: "${mine.visualTemplates.feedbackBackIcon}"
+      threshold: 0.72
+      scales: [0.8, 1.0, 1.2, 1.4]
+      roi:
+        x: 0.00
+        y: 0.04
+        width: 0.20
+        height: 0.12
+      desc: 返回历史反馈页
+  - assertElementAttrRegexMatch:
+      id: assert-feedback-history-list-after-back
+      element: common.feedbackHistoryList
+      attr: enabled
+      pattern: "true"
+      desc: 校验已返回历史反馈页

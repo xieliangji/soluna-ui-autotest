@@ -32,6 +32,8 @@ dependencies {
     implementation("com.soluna:kt-visual:0.3.1")
     implementation("com.soluna:kt-visual-ocr-paddle:0.3.1:with-models@jar")
     implementation("com.soluna:kt-visual-ocr-multimodal:0.3.1")
+    implementation("com.microsoft.onnxruntime:onnxruntime:1.20.0")
+    implementation("org.openpnp:opencv:4.9.0-0")
 
     testImplementation(kotlin("test"))
 }

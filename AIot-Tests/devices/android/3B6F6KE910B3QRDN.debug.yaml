@@ -1,0 +1,14 @@
+schemaVersion: "1.0"
+id: 3B6F6KE910B3QRDN
+device:
+  udid: 3B6F6KE910B3QRDN
+appium:
+  server:
+    managed: true
+    executable: /opt/homebrew/bin/appium
+    usePlugins:
+      - soluna-ext
+    startupTimeoutMs: 20000
+  capabilities:
+    automationName: UiAutomator2
+    newCommandTimeout: 300

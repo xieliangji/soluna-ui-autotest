@@ -616,6 +616,8 @@ ${serverConfig.prependIndent("                ")}
         override fun tap(
             sessionId: String,
             element: DriverElement,
+            xRatio: Double,
+            yRatio: Double,
         ) {
             error("not used")
         }

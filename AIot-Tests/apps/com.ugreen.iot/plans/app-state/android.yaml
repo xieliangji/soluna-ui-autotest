@@ -1,0 +1,42 @@
+schemaVersion: "1.0"
+id: ugreen-app-state-android
+name: UGREEN App State Android
+version: "0.1.0"
+metadata:
+  owner: qa
+  suite: app-state
+  intent: 验证登录页、游客设备页、登录态设备页初始化片段
+parameters:
+  - id: appState
+    file: ../../data/app-state.yaml
+  - id: visualTemplates
+    file: ../../data/common/visual-templates.yaml
+fragmentRefs:
+  - id: appState
+    file: ../../fragments/app-state.yaml
+deviceConfig: ../../../../devices/android/ZT4225X3C2.yaml
+app:
+  id: com.ugreen.iot
+  name: UGREEN
+  platform: android
+  reset: false
+defaults:
+  implicitWaitMs: 8000
+  failureStrategy: stop-case
+  retryStrategy: no-retry
+trace:
+  screenshots:
+    enabled: true
+    beforeAction: onFailure
+    retainBeforeActionCount: 5
+    upload: onFailure
+localArtifacts:
+  cleanup:
+    mode: never
+stages:
+  - id: app-state
+    name: App State
+    caseRefs:
+      - file: ../../cases/common/app-state/login-page.yaml
+      - file: ../../cases/common/app-state/guest-device-page.yaml
+      - file: ../../cases/common/app-state/logged-in-device-page.yaml

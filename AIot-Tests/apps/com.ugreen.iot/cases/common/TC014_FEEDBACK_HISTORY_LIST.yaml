@@ -1,0 +1,70 @@
+schemaVersion: "1.0"
+id: TC014_FEEDBACK_HISTORY_LIST
+name: 我的-意见反馈-历史反馈-有反馈记录
+dataRefs:
+  - id: mine
+    file: ../../data/common/mine.yaml
+elementRefs:
+  - id: common
+    file: ../../elements/common.yaml
+actions:
+  - tap:
+      id: open-mine-tab
+      element: common.mineTab
+      desc: 进入我的页
+  - tap:
+      id: open-feedback-page
+      element: common.mineFeedbackEntry
+      desc: 进入意见反馈页
+  - assertElementAttrRegexMatch:
+      id: assert-feedback-page-visible
+      element: common.feedbackPageRoot
+      attr: enabled
+      pattern: "true"
+      wait:
+        timeoutMs: 20000
+        intervalMs: 500
+      desc: 校验意见反馈页可见
+  - tapVisualTemplate:
+      id: open-feedback-history-page
+      template: "${mine.visualTemplates.feedbackHistoryIcon}"
+      threshold: 0.70
+      scales: [0.8, 1.0, 1.2, 1.4]
+      roi:
+        x: 0.82
+        y: 0.06
+        width: 0.16
+        height: 0.12
+      desc: 进入历史反馈页
+  - assertElementAttrRegexMatch:
+      id: assert-feedback-history-list-visible
+      element: common.feedbackHistoryList
+      attr: enabled
+      pattern: "true"
+      desc: 校验历史反馈列表可见
+  - assertElementAttrRegexMatch:
+      id: assert-first-history-record-visible
+      element: common.feedbackFirstHistoryRecord
+      attr: enabled
+      pattern: "true"
+      desc: 校验至少存在一条历史反馈记录
+  - tapVisualTemplate:
+      id: back-to-feedback-page
+      template: "${mine.visualTemplates.feedbackBackIcon}"
+      threshold: 0.72
+      scales: [0.8, 1.0, 1.2, 1.4]
+      roi:
+        x: 0.00
+        y: 0.04
+        width: 0.20
+        height: 0.12
+      desc: 返回意见反馈页
+  - assertElementAttrRegexMatch:
+      id: assert-feedback-page-after-history-back
+      element: common.feedbackPageRoot
+      attr: enabled
+      pattern: "true"
+      wait:
+        timeoutMs: 20000
+        intervalMs: 500
+      desc: 校验已返回意见反馈页

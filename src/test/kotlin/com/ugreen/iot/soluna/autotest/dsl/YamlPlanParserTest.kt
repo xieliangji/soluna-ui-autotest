@@ -47,6 +47,91 @@ class YamlPlanParserTest {
     }
 
     @Test
+    fun `parses nested action keyword payload`() {
+        val yaml = """
+            schemaVersion: "1.0"
+            id: nested-actions
+            name: Nested Actions
+            deviceConfig: devices/android.yaml
+            stages:
+              - id: main
+                name: Main
+                cases:
+                  - id: login-success
+                    name: Login success
+                    actions:
+                      - input:
+                          id: input-username
+                          element: login.usernameInput
+                          value: "${'$'}{account.username}"
+                          clearFirst: true
+                          desc: 输入账号
+                      - assertElementAttrRegexMatch:
+                          id: assert-login-marker
+                          element: login.logo
+                          attr: name/label/text
+                          pattern: "${'$'}{appState.patterns.loginPage}"
+                          wait:
+                            timeoutMs: 3000
+                            intervalMs: 500
+        """.trimIndent()
+
+        val plan = parser.parse(yaml)
+        val actions = plan.stages.single().cases.single().actions
+
+        assertEquals("input", actions[0].keyword)
+        assertEquals("input-username", actions[0].id)
+        assertEquals("login.usernameInput", actions[0].element)
+        assertEquals("${'$'}{account.username}", actions[0].value?.asText())
+        assertEquals(true, actions[0].args["clearFirst"]?.asBoolean())
+        assertEquals("assertElementAttrRegexMatch", actions[1].keyword)
+        assertEquals(3_000, actions[1].wait?.timeoutMs)
+    }
+
+    @Test
+    fun `parses screen recording action payloads`() {
+        val yaml = """
+            schemaVersion: "1.0"
+            id: recording-actions
+            name: Recording Actions
+            deviceConfig: devices/android.yaml
+            stages:
+              - id: main
+                name: Main
+                cases:
+                  - id: toast-check
+                    name: Toast Check
+                    actions:
+                      - startScreenRecording:
+                          id: start-toast-recording
+                          timeLimitMs: 6000
+                      - stopScreenRecording:
+                          id: stop-toast-recording
+                          resourceId: toast-recording
+                          saveAs: toastVideo
+                      - assertScreenRecordingTextRegexMatch:
+                          id: assert-toast
+                          source: "@{case.toastVideo}"
+                          pattern: "提交成功"
+                          framesPerSecond: 8
+                          maxFrames: 60
+                          resourceId: toast-frame
+        """.trimIndent()
+
+        val actions = parser.parse(yaml).stages.single().cases.single().actions
+
+        assertEquals("startScreenRecording", actions[0].keyword)
+        assertEquals(6000, actions[0].args["timeLimitMs"]?.asInt())
+        assertEquals("stopScreenRecording", actions[1].keyword)
+        assertEquals("toast-recording", actions[1].resourceId)
+        assertEquals("toastVideo", actions[1].args["saveAs"]?.asText())
+        assertEquals("assertScreenRecordingTextRegexMatch", actions[2].keyword)
+        assertEquals("提交成功", actions[2].value?.asText())
+        assertEquals("@{case.toastVideo}", actions[2].args["source"]?.asText())
+        assertEquals("toast-frame", actions[2].resourceId)
+    }
+
+    @Test
     fun `rejects hardcoded text locator in element catalog`() {
         val yaml = elementCatalogYaml(
             locatorValue = "登录",
@@ -152,15 +237,37 @@ class YamlPlanParserTest {
     }
 
     @Test
-    fun `allows parameterized text inside xpath locator in element catalog`() {
+    fun `allows parameterized text inside approved language title locator`() {
+        val yaml = """
+            schemaVersion: "1.0"
+            id: language-elements
+            elements:
+              languageTitle:
+                strategy: xpath
+                value: "//*[@text='${'$'}{i18n.languageTitle}']"
+                textLocatorPurpose: languageTitle
+        """.trimIndent()
+
+        val catalog = elementCatalogParser.parse(yaml)
+
+        assertEquals("xpath", catalog.elements.getValue("languageTitle").locatorFor("android").strategy)
+    }
+
+    @Test
+    fun `rejects parameterized text inside ordinary xpath locator`() {
         val yaml = elementCatalogYaml(
             locatorStrategy = "xpath",
             locatorValue = "//*[@text='\${i18n.loginButtonText}']",
         )
 
-        val catalog = elementCatalogParser.parse(yaml)
+        val error = assertFailsWith<DslValidationException> {
+            elementCatalogParser.parse(yaml)
+        }
 
-        assertEquals("xpath", catalog.elements.getValue("loginButton").locatorFor("android").strategy)
+        assertTrue(
+            error.violations.any { it.message.contains("Parameterized text locators are only allowed") },
+            "Expected parameterized text locator violation, got ${error.violations}",
+        )
     }
 
     @Test

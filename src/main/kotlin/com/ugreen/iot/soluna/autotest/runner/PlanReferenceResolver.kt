@@ -14,6 +14,7 @@ import com.ugreen.iot.soluna.autotest.dsl.DslParser
 import com.ugreen.iot.soluna.autotest.dsl.YamlCaseParser
 import com.ugreen.iot.soluna.autotest.dsl.YamlElementCatalogParser
 import com.ugreen.iot.soluna.autotest.dsl.YamlFragmentCatalogParser
+import com.fasterxml.jackson.databind.node.TextNode
 import java.nio.file.Files
 import java.nio.file.Path
 
@@ -28,16 +29,34 @@ class PlanReferenceResolver(
         platform: String? = plan.app?.platform,
     ): PlanDefinition {
         val planBaseDir = planPath.parent ?: Path.of(".").toAbsolutePath().normalize()
-        val fragments = loadFragments(plan, planBaseDir, platform)
+        val planAssetBaseDirs = plan.parameters.resolvedDirectories(planBaseDir) + planBaseDir
+        val fragments = loadFragments(plan, planBaseDir, platform, planAssetBaseDirs)
+        val planCaseSetupActions =
+            resolveFragments(plan.caseSetupFragments, fragments) + plan.caseSetupActions.map { action ->
+                resolveAction(action, emptyMap(), planAssetBaseDirs)
+            }
+        val planCaseTeardownActions =
+            resolveFragments(plan.caseTeardownFragments, fragments) + plan.caseTeardownActions.map { action ->
+                resolveAction(action, emptyMap(), planAssetBaseDirs)
+            }
         return plan.copy(
-            setupActions = resolveFragments(plan.setupFragments, fragments),
-            teardownActions = resolveFragments(plan.teardownFragments, fragments),
+            setupActions = resolveFragments(plan.setupFragments, fragments) + plan.setupActions.map { action ->
+                resolveAction(action, emptyMap(), planAssetBaseDirs)
+            },
+            caseSetupActions = planCaseSetupActions,
+            caseTeardownActions = planCaseTeardownActions,
+            teardownActions = resolveFragments(plan.teardownFragments, fragments) + plan.teardownActions.map { action ->
+                resolveAction(action, emptyMap(), planAssetBaseDirs)
+            },
             stages = plan.stages.map { stage ->
                 resolveStage(
                     stage = stage,
                     planBaseDir = planBaseDir,
                     platform = platform,
                     fragments = fragments,
+                    planAssetBaseDirs = planAssetBaseDirs,
+                    inheritedCaseSetupActions = planCaseSetupActions,
+                    inheritedCaseTeardownActions = planCaseTeardownActions,
                 )
             },
         )
@@ -48,13 +67,27 @@ class PlanReferenceResolver(
         planBaseDir: Path,
         platform: String?,
         fragments: Map<String, FragmentDefinition>,
+        planAssetBaseDirs: List<Path>,
+        inheritedCaseSetupActions: List<ActionDefinition>,
+        inheritedCaseTeardownActions: List<ActionDefinition>,
     ): StageDefinition {
+        val stageCaseSetupActions =
+            resolveFragments(stage.caseSetupFragments, fragments) + stage.caseSetupActions.map { action ->
+                resolveAction(action, emptyMap(), planAssetBaseDirs)
+            }
+        val stageCaseTeardownActions =
+            resolveFragments(stage.caseTeardownFragments, fragments) + stage.caseTeardownActions.map { action ->
+                resolveAction(action, emptyMap(), planAssetBaseDirs)
+            }
         val inlineCases = stage.cases.map { case ->
             resolveCase(
                 case = case,
                 caseBaseDir = planBaseDir,
                 platform = platform,
                 fragments = fragments,
+                planAssetBaseDirs = planAssetBaseDirs,
+                inheritedCaseSetupActions = inheritedCaseSetupActions + stageCaseSetupActions,
+                inheritedCaseTeardownActions = stageCaseTeardownActions + inheritedCaseTeardownActions,
             )
         }
         val referencedCases = stage.caseRefs.flatMap { ref ->
@@ -66,23 +99,33 @@ class PlanReferenceResolver(
                 return@flatMap emptyList()
             }
             val parsedCase = caseParser.parse(Files.readString(casePath))
-            val case = ref.id?.let { parsedCase.copy(id = it) } ?: parsedCase
+            val resolvedDataRefs = parsedCase.dataRefs.map { it.withResolvedPath(casePath.parent ?: planBaseDir) }
+            val parsedWithResolvedData = parsedCase.copy(dataRefs = resolvedDataRefs)
+            val case = ref.id?.let { parsedWithResolvedData.copy(id = it) } ?: parsedWithResolvedData
             listOf(
                 resolveCase(
-                    case = case.copy(
-                        dataRefs = case.dataRefs.map { it.withResolvedPath(casePath.parent ?: planBaseDir) },
-                    ),
+                    case = case,
                     caseBaseDir = casePath.parent ?: planBaseDir,
                     platform = platform,
                     fragments = fragments,
+                    planAssetBaseDirs = planAssetBaseDirs,
+                    inheritedCaseSetupActions = inheritedCaseSetupActions + stageCaseSetupActions,
+                    inheritedCaseTeardownActions = stageCaseTeardownActions + inheritedCaseTeardownActions,
                 ),
             )
         }
 
+        val cases = inlineCases + referencedCases
         return stage.copy(
-            setupActions = resolveFragments(stage.setupFragments, fragments),
-            teardownActions = resolveFragments(stage.teardownFragments, fragments),
-            cases = inlineCases + referencedCases,
+            setupActions = resolveFragments(stage.setupFragments, fragments) + stage.setupActions.map { action ->
+                resolveAction(action, emptyMap(), planAssetBaseDirs)
+            },
+            caseSetupActions = stageCaseSetupActions,
+            caseTeardownActions = stageCaseTeardownActions,
+            teardownActions = resolveFragments(stage.teardownFragments, fragments) + stage.teardownActions.map { action ->
+                resolveAction(action, emptyMap(), planAssetBaseDirs)
+            },
+            cases = cases,
         )
     }
 
@@ -91,29 +134,52 @@ class PlanReferenceResolver(
         caseBaseDir: Path,
         platform: String?,
         fragments: Map<String, FragmentDefinition>,
+        planAssetBaseDirs: List<Path>,
+        inheritedCaseSetupActions: List<ActionDefinition> = emptyList(),
+        inheritedCaseTeardownActions: List<ActionDefinition> = emptyList(),
     ): CaseDefinition {
         val elements = loadElements(case.elementRefs, caseBaseDir, platform)
+        val resolvedDataRefs = case.dataRefs.map { ref ->
+            if (Path.of(ref.file).isAbsolute) ref else ref.withResolvedPath(caseBaseDir)
+        }
+        val caseAssetBaseDirs = (resolvedDataRefs.resolvedDirectories(caseBaseDir) + planAssetBaseDirs + caseBaseDir).distinct()
         val setupActions = resolveFragments(case.setupFragments, fragments).map { action ->
-            resolveActionElement(action, elements)
+            resolveAction(action, elements, caseAssetBaseDirs)
+        }
+        val caseSetupActions = resolveFragments(case.caseSetupFragments, fragments).map { action ->
+            resolveAction(action, elements, caseAssetBaseDirs)
+        } + case.caseSetupActions.map { action ->
+            resolveAction(action, elements, caseAssetBaseDirs)
         }
         val teardownActions = resolveFragments(case.teardownFragments, fragments).map { action ->
-            resolveActionElement(action, elements)
+            resolveAction(action, elements, caseAssetBaseDirs)
+        }
+        val caseTeardownActions = resolveFragments(case.caseTeardownFragments, fragments).map { action ->
+            resolveAction(action, elements, caseAssetBaseDirs)
+        } + case.caseTeardownActions.map { action ->
+            resolveAction(action, elements, caseAssetBaseDirs)
         }
         val actions = case.actions.map { action ->
-            resolveActionElement(action, elements)
+            resolveAction(action, elements, caseAssetBaseDirs)
         }
         return case.copy(
-            setupActions = setupActions,
-            teardownActions = teardownActions + case.teardownActions.map { action ->
-                resolveActionElement(action, elements)
+            dataRefs = resolvedDataRefs,
+            caseSetupActions = caseSetupActions,
+            caseTeardownActions = caseTeardownActions,
+            setupActions = inheritedCaseSetupActions + caseSetupActions + setupActions + case.setupActions.map { action ->
+                resolveAction(action, elements, caseAssetBaseDirs)
             },
+            teardownActions = teardownActions + case.teardownActions.map { action ->
+                resolveAction(action, elements, caseAssetBaseDirs)
+            } + caseTeardownActions + inheritedCaseTeardownActions,
             actions = actions,
         )
     }
 
-    private fun resolveActionElement(
+    private fun resolveAction(
         action: ActionDefinition,
         elements: Map<String, LocatorDefinition>,
+        assetBaseDirs: List<Path>,
     ): ActionDefinition {
         val elementRef = action.element
         val locator = if (elementRef != null) {
@@ -125,18 +191,42 @@ class PlanReferenceResolver(
         } else {
             action.locator
         }
+        val resolvedArgs = resolveActionAssetArgs(action, assetBaseDirs)
         return action.copy(
             locator = locator,
-            conditionAction = action.conditionAction?.let { resolveActionElement(it, elements) },
-            thenActions = action.thenActions.map { resolveActionElement(it, elements) },
-            elseActions = action.elseActions.map { resolveActionElement(it, elements) },
+            element = if (locator != null) null else action.element,
+            args = resolvedArgs,
+            conditionAction = action.conditionAction?.let { resolveAction(it, elements, assetBaseDirs) },
+            thenActions = action.thenActions.map { resolveAction(it, elements, assetBaseDirs) },
+            elseActions = action.elseActions.map { resolveAction(it, elements, assetBaseDirs) },
         )
+    }
+
+    private fun resolveActionAssetArgs(
+        action: ActionDefinition,
+        assetBaseDirs: List<Path>,
+    ): Map<String, com.fasterxml.jackson.databind.JsonNode> {
+        val template = action.args["template"] ?: return action.args
+        if (!template.isTextual) {
+            return action.args
+        }
+        val raw = template.asText()
+        if (raw.hasRuntimeReference()) {
+            return action.args
+        }
+        val resolved = resolveAssetPath(assetBaseDirs, raw)
+        require(Files.exists(resolved)) {
+            "Visual template file '$raw' for action '${action.id ?: action.keyword}' does not exist under: " +
+                assetBaseDirs.joinToString()
+        }
+        return action.args + ("template" to TextNode(resolved.toString()))
     }
 
     private fun loadFragments(
         plan: PlanDefinition,
         planBaseDir: Path,
         platform: String?,
+        planAssetBaseDirs: List<Path>,
     ): Map<String, FragmentDefinition> {
         val result = linkedMapOf<String, FragmentDefinition>()
         plan.fragmentRefs.forEach { ref ->
@@ -151,8 +241,9 @@ class PlanReferenceResolver(
             catalog.fragments.forEach { (fragmentId, fragment) ->
                 val fragmentBaseDir = path.parent ?: planBaseDir
                 val elements = loadElements(fragment.elementRefs, fragmentBaseDir, platform)
+                val fragmentAssetBaseDirs = (planAssetBaseDirs + fragmentBaseDir).distinct()
                 val resolvedFragment = fragment.copy(
-                    actions = fragment.actions.map { action -> resolveActionElement(action, elements) },
+                    actions = fragment.actions.map { action -> resolveAction(action, elements, fragmentAssetBaseDirs) },
                 )
                 putUnique(result, "${ref.id}.$fragmentId", resolvedFragment, "fragment")
                 putUnique(result, "${catalog.id}.$fragmentId", resolvedFragment, "fragment")
@@ -198,6 +289,13 @@ class PlanReferenceResolver(
         return copy(file = resolvePath(baseDir, file).toString())
     }
 
+    private fun List<ParameterFileRef>.resolvedDirectories(baseDir: Path): List<Path> {
+        return map { ref ->
+            val path = resolvePath(baseDir, ref.file)
+            path.parent ?: baseDir
+        }.distinct()
+    }
+
     private fun resolvePath(
         baseDir: Path,
         file: String,
@@ -208,6 +306,25 @@ class PlanReferenceResolver(
         } else {
             baseDir.resolve(path).normalize()
         }
+    }
+
+    private fun resolveAssetPath(
+        baseDirs: List<Path>,
+        file: String,
+    ): Path {
+        val path = Path.of(file)
+        if (path.isAbsolute) {
+            return path.normalize()
+        }
+        val normalizedBaseDirs = baseDirs.ifEmpty { listOf(Path.of(".").toAbsolutePath().normalize()) }
+        return normalizedBaseDirs
+            .map { it.resolve(path).normalize() }
+            .firstOrNull { Files.exists(it) }
+            ?: normalizedBaseDirs.first().resolve(path).normalize()
+    }
+
+    private fun String.hasRuntimeReference(): Boolean {
+        return contains("\${") || contains("@{")
     }
 
     private fun <T> putUnique(

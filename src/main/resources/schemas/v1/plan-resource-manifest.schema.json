@@ -76,10 +76,10 @@
           "$ref": "#/$defs/nonEmptyString"
         },
         "type": {
-          "enum": ["image"]
+          "enum": ["image", "video"]
         },
         "purpose": {
-          "enum": ["explicit_screenshot"]
+          "enum": ["explicit_screenshot", "explicit_screen_recording", "screen_recording_text_match_frame"]
         },
         "name": {
           "$ref": "#/$defs/nullableString"

@@ -16,6 +16,7 @@ import com.ugreen.iot.soluna.autotest.appium.wda.WdaBundleResolveRequest
 import com.ugreen.iot.soluna.autotest.appium.wda.WdaBundleResolver
 import com.ugreen.iot.soluna.autotest.appium.wda.WdaHandle
 import com.ugreen.iot.soluna.autotest.appium.wda.WdaManager
+import com.ugreen.iot.soluna.autotest.appium.action.PlanResourceSink
 import com.ugreen.iot.soluna.autotest.artifact.ArtifactContentTypes
 import com.ugreen.iot.soluna.autotest.artifact.ArtifactKind
 import com.ugreen.iot.soluna.autotest.artifact.ArtifactStoreConfigDefinition
@@ -91,8 +92,8 @@ class PlanRunner(
     private val artifactUploaderFactory: (ArtifactStoreConfigDefinition, ArtifactUploadFailureNotifier) -> ArtifactUploader = { config, notifier ->
         DefaultArtifactUploaderFactory.create(config, notifier)
     },
-    private val actionExecutorFactory: (WebDriverAdapter, com.ugreen.iot.soluna.autotest.appium.action.ScreenshotSink) -> List<ActionExecutor> = { driver, screenshotSink ->
-        defaultWebDriverActionExecutors(driver, screenshotSink)
+    private val actionExecutorFactory: (WebDriverAdapter, PlanResourceSink) -> List<ActionExecutor> = { driver, resourceSink ->
+        defaultWebDriverActionExecutors(driver, resourceSink)
     },
 ) {
     fun run(request: PlanRunRequest): PlanRunResult {

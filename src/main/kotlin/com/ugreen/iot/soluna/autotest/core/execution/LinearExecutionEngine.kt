@@ -295,7 +295,12 @@ class LinearExecutionEngine(
             }
             val branchResults = executeNestedActions(context, stage, case, selectedBranch, phase)
             if (branchResults.hasFailure()) {
-                ActionExecutionResult.failed("if branch failed")
+                val branchName = if (conditionResult.status == ExecutionStatus.PASSED) "then" else "else"
+                val failedAction = selectedBranch.zip(branchResults)
+                    .firstOrNull { (_, branchResult) -> branchResult.status == ExecutionStatus.FAILED }
+                val failedActionId = failedAction?.first?.id ?: failedAction?.first?.keyword ?: "unknown"
+                val failedReason = failedAction?.second?.error ?: failedAction?.second?.message ?: "branch action failed"
+                ActionExecutionResult.failed("if $branchName branch failed at $failedActionId: $failedReason")
             } else {
                 val branchName = if (conditionResult.status == ExecutionStatus.PASSED) "then" else "else"
                 ActionExecutionResult.passed("if $branchName branch completed")

@@ -1,0 +1,79 @@
+schemaVersion: "1.0"
+id: TC010_FEEDBACK_SUBMIT_SUCCESS
+name: 我的-意见反馈-提交成功
+dataRefs:
+  - id: mine
+    file: ../../data/common/mine.yaml
+elementRefs:
+  - id: common
+    file: ../../elements/common.yaml
+actions:
+  - tap:
+      id: open-mine-tab
+      element: common.mineTab
+      desc: 进入我的页
+  - tap:
+      id: open-feedback-page
+      element: common.mineFeedbackEntry
+      desc: 进入意见反馈页
+  - assertElementAttrRegexMatch:
+      id: assert-feedback-page-visible
+      element: common.feedbackPageRoot
+      attr: enabled
+      pattern: "true"
+      wait:
+        timeoutMs: 20000
+        intervalMs: 500
+      desc: 校验意见反馈页可见
+  - tap:
+      id: select-feedback-type
+      element: common.feedbackTypeOption3
+      desc: 选择问题类型
+  - input:
+      id: input-feedback-description
+      element: common.feedbackDescriptionInput
+      value: "${mine.feedback.submitDescription}"
+      desc: 输入反馈内容
+  - tap:
+      id: blur-feedback-description-before-submit
+      element: common.feedbackTypeOption3
+      desc: 收起问题描述输入焦点
+  - startScreenRecording:
+      id: start-submit-success-recording
+      timeLimitMs: 10000
+      desc: 开始录制提交反馈结果
+  - tap:
+      id: submit-feedback
+      element: common.feedbackSubmitButton
+      desc: 提交反馈
+  - wait:
+      id: wait-submit-toast-recording-window
+      durationMs: 3000
+      desc: 等待提交结果提示完成录制
+  - stopScreenRecording:
+      id: stop-submit-success-recording
+      resourceId: feedback-submit-success-recording
+      saveAs: submitSuccessRecording
+      desc: 停止录制提交反馈结果
+  - assertScreenRecordingTextRegexMatch:
+      id: assert-submit-success-toast
+      source: "@{case.submitSuccessRecording}"
+      pattern: "${mine.feedback.successToastPattern}"
+      framesPerSecond: 10
+      maxFrames: 50
+      candidateMaxFrames: 50
+      candidateStrategy: all
+      visualDifferenceThreshold: 0.01
+      roi:
+        x: 0.25
+        y: 0.40
+        width: 0.50
+        height: 0.22
+      resourceId: feedback-submit-success-toast
+      desc: 校验提交成功提示
+  - assertElementAttrRegexMatch:
+      id: assert-back-to-mine-page-after-submit
+      element: common.mineList
+      attr: enabled
+      pattern: "true"
+      desc: 校验提交成功后返回我的页

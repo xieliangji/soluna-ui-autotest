@@ -18,13 +18,125 @@ elements:
     ios:
       strategy: xpath
       value: "//XCUIElementTypeImage[starts-with(@name,'TabMine')]/parent::XCUIElementTypeButton"
+  deviceTab:
+    android:
+      strategy: xpath
+      value: "(//*[@resource-id='com.ugreen.iot:id/customTabLayout']//*[@resource-id='com.ugreen.iot:id/llTabContent'])[1]"
+    ios:
+      strategy: xpath
+      value: "//XCUIElementTypeImage[starts-with(@name,'TabHome')]/parent::XCUIElementTypeButton"
+  loginUsernameInput:
+    android:
+      strategy: xpath
+      value: "//*[contains(@resource-id,'phoneInputLayout')]//*[@class='android.widget.EditText' and @password='false']"
+    ios:
+      strategy: class
+      value: XCUIElementTypeTextField
+  loginPasswordInput:
+    android:
+      strategy: xpath
+      value: "//*[contains(@resource-id,'passwordInputLayout')]//*[@class='android.widget.EditText' and @password='true']"
+    ios:
+      strategy: class
+      value: XCUIElementTypeSecureTextField
+  loginAgreementCheckbox:
+    android:
+      strategy: id
+      value: com.ugreen.iot:id/cb_terms
+    ios:
+      strategy: xpath
+      value: "//XCUIElementTypeButton[starts-with(@name,'icon round')]"
+  loginSubmitButton:
+    android:
+      strategy: id
+      value: com.ugreen.iot:id/btn_terms_action
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeButton[starts-with(@name,'icon round')]/following::XCUIElementTypeButton[not(ancestor::XCUIElementTypeKeyboard) and @visible='true' and @accessible='true'])[2]"
+  guestEntryButton:
+    android:
+      strategy: id
+      value: com.ugreen.iot:id/tvTry
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeOther[count(XCUIElementTypeButton)=3]/XCUIElementTypeButton)[2]"
   profileEntry:
     android:
       strategy: id
       value: com.ugreen.iot:id/flow_user_top
     ios:
       strategy: xpath
-      value: "(//XCUIElementTypeTable/XCUIElementTypeStaticText[number(@y) < 280])[1]"
+      value: "(//XCUIElementTypeTable/XCUIElementTypeStaticText)[1]"
+  mineList:
+    android:
+      strategy: id
+      value: com.ugreen.iot:id/recy
+    ios:
+      strategy: class chain
+      value: "**/XCUIElementTypeTable"
+  mineLanguageSettingsEntry:
+    android:
+      strategy: xpath
+      value: "(//*[@resource-id='com.ugreen.iot:id/recy']/android.view.ViewGroup)[3]"
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeTable/XCUIElementTypeCell)[3]"
+  mineSystemPermissionsEntry:
+    android:
+      strategy: xpath
+      value: "(//*[@resource-id='com.ugreen.iot:id/recy']/android.view.ViewGroup)[4]"
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeTable/XCUIElementTypeCell)[4]"
+  minePersonalInfoProtectionEntry:
+    android:
+      strategy: xpath
+      value: "(//*[@resource-id='com.ugreen.iot:id/recy']/android.view.ViewGroup)[5]"
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeTable/XCUIElementTypeCell)[5]"
+  mineFeedbackEntry:
+    android:
+      strategy: xpath
+      value: "(//*[@resource-id='com.ugreen.iot:id/recy']/android.view.ViewGroup)[6]"
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeTable/XCUIElementTypeCell)[6]"
+  mineAboutEntry:
+    android:
+      strategy: xpath
+      value: "(//*[@resource-id='com.ugreen.iot:id/recy']/android.view.ViewGroup)[7]"
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeTable/XCUIElementTypeCell)[7]"
+  backButton:
+    android:
+      strategy: id
+      value: com.ugreen.iot:id/ll_left_slot
+    ios:
+      strategy: xpath
+      value: "//XCUIElementTypeButton[@visible='true' and (contains(@name,'common back') or contains(@label,'common back'))]"
+  logoutButton:
+    android:
+      strategy: id
+      value: com.ugreen.iot:id/btnLogOut
+    ios:
+      strategy: xpath
+      value: "//XCUIElementTypeTable/following-sibling::XCUIElementTypeButton[1]"
+  dialogPositiveButton:
+    android:
+      strategy: id
+      value: com.ugreen.iot:id/btn_positive
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeTextView/following::XCUIElementTypeButton[@visible='true' and @accessible='true'])[last()]"
+  logoutConfirmButton:
+    android:
+      strategy: id
+      value: com.ugreen.iot:id/btn_positive
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeButton[@visible='true' and @accessible='true' and not(starts-with(@name,'common back'))])[last()]"
   nicknameRow:
     android:
       strategy: xpath
@@ -53,3 +165,353 @@ elements:
     ios:
       strategy: xpath
       value: "(//XCUIElementTypeCell)[2]/XCUIElementTypeStaticText[1]"
+  pageLargeTitle:
+    android:
+      strategy: id
+      value: com.ugreen.iot:id/tv_large_title
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeNavigationBar | //XCUIElementTypeStaticText)[1]"
+  languageList:
+    android:
+      strategy: id
+      value: com.ugreen.iot:id/rv_language
+    ios:
+      strategy: class chain
+      value: "**/XCUIElementTypeTable"
+  languageFirstTitle:
+    android:
+      strategy: xpath
+      value: "(//*[@resource-id='com.ugreen.iot:id/rv_language']/android.view.ViewGroup)[1]//*[@resource-id='com.ugreen.iot:id/tv_title']"
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeTable/XCUIElementTypeCell)[1]/XCUIElementTypeStaticText[1]"
+  languageSecondTitle:
+    android:
+      strategy: xpath
+      value: "(//*[@resource-id='com.ugreen.iot:id/rv_language']/android.view.ViewGroup)[2]//*[@resource-id='com.ugreen.iot:id/tv_title']"
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeTable/XCUIElementTypeCell)[2]/XCUIElementTypeStaticText[1]"
+  languageFirstRow:
+    android:
+      strategy: xpath
+      value: "(//*[@resource-id='com.ugreen.iot:id/rv_language']/android.view.ViewGroup)[1]"
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeTable/XCUIElementTypeCell)[1]"
+  languageSecondRow:
+    android:
+      strategy: xpath
+      value: "(//*[@resource-id='com.ugreen.iot:id/rv_language']/android.view.ViewGroup)[2]"
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeTable/XCUIElementTypeCell)[2]"
+  languageConfirmButton:
+    android:
+      strategy: id
+      value: com.ugreen.iot:id/tvBottom
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeButton)[last()]"
+  systemPermissionList:
+    android:
+      strategy: id
+      value: com.ugreen.iot:id/recyclerView
+    ios:
+      strategy: class chain
+      value: "**/XCUIElementTypeTable"
+  systemPermissionBluetoothRow:
+    android:
+      strategy: xpath
+      value: "(//*[@resource-id='com.ugreen.iot:id/uLvPermission'])[1]"
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeTable/XCUIElementTypeCell)[1]"
+  systemPermissionLocationRow:
+    android:
+      strategy: xpath
+      value: "(//*[@resource-id='com.ugreen.iot:id/uLvPermission'])[2]"
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeTable/XCUIElementTypeCell)[2]"
+  systemPermissionMicrophoneRow:
+    android:
+      strategy: xpath
+      value: "(//*[@resource-id='com.ugreen.iot:id/uLvPermission'])[3]"
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeTable/XCUIElementTypeCell)[3]"
+  systemPermissionAlbumRow:
+    android:
+      strategy: xpath
+      value: "(//*[@resource-id='com.ugreen.iot:id/uLvPermission'])[4]"
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeTable/XCUIElementTypeCell)[4]"
+  systemPermissionCameraRow:
+    android:
+      strategy: xpath
+      value: "(//*[@resource-id='com.ugreen.iot:id/uLvPermission'])[5]"
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeTable/XCUIElementTypeCell)[5]"
+  aboutPageRoot:
+    android:
+      strategy: id
+      value: com.ugreen.iot:id/about_layout
+    ios:
+      strategy: class chain
+      value: "**/XCUIElementTypeTable"
+  aboutAppIcon:
+    android:
+      strategy: id
+      value: com.ugreen.iot:id/ivAppIcon
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeImage)[1]"
+  aboutVersionValue:
+    android:
+      strategy: xpath
+      value: "//*[@resource-id='com.ugreen.iot:id/about_layout']//*[@resource-id='com.ugreen.iot:id/tv_right_text'][1]"
+    ios:
+      strategy: xpath
+      value: "((//XCUIElementTypeTable/XCUIElementTypeCell)[1]//XCUIElementTypeStaticText)[2]"
+  personalInfoProtectionList:
+    android:
+      strategy: id
+      value: com.ugreen.iot:id/recyclerView
+    ios:
+      strategy: class chain
+      value: "**/XCUIElementTypeTable"
+  personalInfoAgreementEntry:
+    android:
+      strategy: xpath
+      value: "(//*[@resource-id='com.ugreen.iot:id/uLvInformationProtection'])[1]"
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeTable/XCUIElementTypeCell)[1]"
+  personalInfoPrivacyEntry:
+    android:
+      strategy: xpath
+      value: "(//*[@resource-id='com.ugreen.iot:id/uLvInformationProtection'])[2]"
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeTable/XCUIElementTypeCell)[2]"
+  personalInfoCollectionListEntry:
+    android:
+      strategy: xpath
+      value: "(//*[@resource-id='com.ugreen.iot:id/uLvInformationProtection'])[3]"
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeTable/XCUIElementTypeCell)[3]"
+  personalInfoSharedListEntry:
+    android:
+      strategy: xpath
+      value: "(//*[@resource-id='com.ugreen.iot:id/uLvInformationProtection'])[4]"
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeTable/XCUIElementTypeCell)[4]"
+  personalInfoWithdrawConsentEntry:
+    android:
+      strategy: xpath
+      value: "(//*[@resource-id='com.ugreen.iot:id/uLvInformationProtection'])[5]"
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeTable/XCUIElementTypeCell)[5]"
+  webPageRoot:
+    android:
+      strategy: id
+      value: com.ugreen.iot:id/lyWebView
+    ios:
+      strategy: xpath
+      value: "//XCUIElementTypeWebView/ancestor-or-self::*[1]"
+  webContent:
+    android:
+      strategy: xpath
+      value: "//*[@resource-id='com.ugreen.iot:id/lyWebView']//android.webkit.WebView"
+    ios:
+      strategy: class chain
+      value: "**/XCUIElementTypeWebView"
+  webBackButton:
+    android:
+      strategy: id
+      value: com.ugreen.iot:id/ll_left_slot
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeButton[@visible='true' and @accessible='true'])[1]"
+  feedbackPageRoot:
+    android:
+      strategy: xpath
+      value: "//android.webkit.WebView//android.widget.EditText[1]"
+    ios:
+      strategy: class chain
+      value: "**/XCUIElementTypeTextView"
+  feedbackBackButton:
+    android:
+      strategy: xpath
+      value: "(//android.webkit.WebView//android.widget.Image)[1]"
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeButton[@visible='true' and @accessible='true'])[1]"
+  feedbackHistoryButton:
+    android:
+      strategy: xpath
+      value: "(//android.webkit.WebView//android.widget.Image)[2]"
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeButton[@visible='true' and @accessible='true'])[last()]"
+  feedbackTypeOption1:
+    android:
+      strategy: xpath
+      value: "(//android.webkit.WebView//android.widget.TextView)[3]"
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeTextView/preceding-sibling::XCUIElementTypeStaticText[@visible='true' and @accessible='true'])[1]"
+  feedbackTypeOption2:
+    android:
+      strategy: xpath
+      value: "(//android.webkit.WebView//android.widget.TextView)[4]"
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeTextView/preceding-sibling::XCUIElementTypeStaticText[@visible='true' and @accessible='true'])[2]"
+  feedbackTypeOption3:
+    android:
+      strategy: xpath
+      value: "(//android.webkit.WebView//android.widget.TextView)[5]"
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeTextView/preceding-sibling::XCUIElementTypeStaticText[@visible='true' and @accessible='true'])[3]"
+  feedbackTypeOption4:
+    android:
+      strategy: xpath
+      value: "(//android.webkit.WebView//android.widget.TextView)[6]"
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeTextView/preceding-sibling::XCUIElementTypeStaticText[@visible='true' and @accessible='true'])[4]"
+  feedbackTypeOption5:
+    android:
+      strategy: xpath
+      value: "(//android.webkit.WebView//android.widget.TextView)[7]"
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeTextView/preceding-sibling::XCUIElementTypeStaticText[@visible='true' and @accessible='true'])[5]"
+  feedbackDeviceField:
+    android:
+      strategy: xpath
+      value: "//android.webkit.WebView//*[@clickable='true' and count(preceding::android.widget.TextView) >= 7 and following::android.widget.EditText]"
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeTable/XCUIElementTypeCell)[6]"
+  feedbackDescriptionInput:
+    android:
+      strategy: class
+      value: android.widget.EditText
+    ios:
+      strategy: class chain
+      value: "**/XCUIElementTypeTextView"
+  feedbackDescriptionCounter:
+    android:
+      strategy: xpath
+      value: "(//android.webkit.WebView//android.widget.TextView)[9]"
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeTextView/following-sibling::XCUIElementTypeStaticText[@visible='true' and @accessible='true'])[1]"
+  feedbackSubmitButton:
+    android:
+      strategy: xpath
+      value: "(//*[@clickable='true' and (@class='android.widget.Button' or @class='android.widget.TextView')])[last()]"
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeButton[@visible='true' and @accessible='true'])[last()]"
+  feedbackDeviceList:
+    android:
+      strategy: xpath
+      value: "//android.webkit.WebView"
+    ios:
+      strategy: class chain
+      value: "**/XCUIElementTypeTable"
+  feedbackFirstDeviceRow:
+    android:
+      strategy: xpath
+      value: "(//android.webkit.WebView//android.widget.TextView)[1]"
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeTable/XCUIElementTypeCell)[1]"
+  feedbackFirstDeviceName:
+    android:
+      strategy: xpath
+      value: "(//android.webkit.WebView//android.widget.TextView)[1]"
+    ios:
+      strategy: xpath
+      value: "((//XCUIElementTypeTable/XCUIElementTypeCell)[1]//XCUIElementTypeStaticText)[1]"
+  feedbackDeviceDoneButton:
+    android:
+      strategy: xpath
+      value: "(//*[@clickable='true' and (@class='android.widget.Button' or @class='android.widget.TextView')])[last()]"
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeButton[@visible='true' and @accessible='true'])[last()]"
+  feedbackHistoryList:
+    android:
+      strategy: xpath
+      value: "//android.webkit.WebView"
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeWebView//XCUIElementTypeStaticText[@visible='true' and @accessible='true'])[2]"
+  feedbackFirstHistoryRecord:
+    android:
+      strategy: xpath
+      value: "(//android.webkit.WebView//android.view.View)[4]"
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeWebView//XCUIElementTypeStaticText[@visible='true' and @accessible='true'])[5]"
+  feedbackDetailContent:
+    android:
+      strategy: xpath
+      value: "(//android.webkit.WebView//android.widget.TextView)[1]"
+    ios:
+      strategy: xpath
+      value: "((//XCUIElementTypeWebView//XCUIElementTypeOther[count(XCUIElementTypeStaticText) >= 4 and XCUIElementTypeOther/XCUIElementTypeStaticText])[1]/XCUIElementTypeOther[1]/XCUIElementTypeStaticText[@visible='true' and @accessible='true'])[1]"
+  feedbackDetailReply:
+    android:
+      strategy: xpath
+      value: "(//android.webkit.WebView//android.widget.TextView)[last()]"
+    ios:
+      strategy: xpath
+      value: "((//XCUIElementTypeWebView//XCUIElementTypeOther[count(XCUIElementTypeStaticText) >= 4 and XCUIElementTypeOther/XCUIElementTypeStaticText])[1]/XCUIElementTypeOther[last()]/XCUIElementTypeStaticText[@visible='true' and @accessible='true'])[1]"
+  withdrawWarning:
+    android:
+      strategy: id
+      value: com.ugreen.iot:id/tvWarnTip
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeStaticText)[2]"
+  withdrawConfirmButton:
+    android:
+      strategy: id
+      value: com.ugreen.iot:id/tvCancelAccount
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeButton)[last()]"
+  withdrawVerificationTarget:
+    android:
+      strategy: id
+      value: com.ugreen.iot:id/tvPhoneEmail
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeStaticText)[2]"
+  withdrawVerificationCodeInput:
+    android:
+      strategy: xpath
+      value: "//*[@resource-id='com.ugreen.iot:id/usiVerificationCode']//android.widget.EditText"
+    ios:
+      strategy: class chain
+      value: "**/XCUIElementTypeTextField"
+  withdrawSendCodeButton:
+    android:
+      strategy: xpath
+      value: "//*[@resource-id='com.ugreen.iot:id/usiVerificationCode']//android.widget.TextView[@clickable='true']"
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeTextField/following::XCUIElementTypeButton | //XCUIElementTypeTextField/following::XCUIElementTypeStaticText)[1]"

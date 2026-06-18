@@ -73,7 +73,6 @@ class JsonSchemaDslValidatorTest {
             Path.of("examples/data/default.yaml"),
             Path.of("examples/data/ugreen-profile.yaml"),
             Path.of("AIot-Tests/apps/com.ugreen.iot/data/app-state.yaml"),
-            Path.of("AIot-Tests/apps/com.ugreen.iot/data/common/profile/update-and-restore-nickname.yaml"),
         ).forEach { path ->
             val node = yamlMapper.readTree(Files.readString(path))
 
@@ -143,8 +142,10 @@ class JsonSchemaDslValidatorTest {
     @Test
     fun `validates AIot asset project plan schemas`() {
         listOf(
-            Path.of("AIot-Tests/apps/com.ugreen.iot/plans/profile/nickname-android.yaml"),
-            Path.of("AIot-Tests/apps/com.ugreen.iot/plans/profile/nickname-ios.yaml"),
+            Path.of("AIot-Tests/apps/com.ugreen.iot/plans/app-state/android.yaml"),
+            Path.of("AIot-Tests/apps/com.ugreen.iot/plans/app-state/ios.yaml"),
+            Path.of("AIot-Tests/apps/com.ugreen.iot/plans/common/android.yaml"),
+            Path.of("AIot-Tests/apps/com.ugreen.iot/plans/common/ios.yaml"),
         ).forEach { path ->
             val node = yamlMapper.readTree(Files.readString(path))
 
@@ -341,8 +342,9 @@ class JsonSchemaDslValidatorTest {
             "/schemas/v1/case.schema.json" to listOf(
                 Path.of("examples/cases/ugreen-profile-nickname.yaml"),
                 Path.of("examples/cases/ugreen-profile-nickname-ios.yaml"),
-                Path.of("AIot-Tests/apps/com.ugreen.iot/cases/common/profile/update-and-restore-nickname-android.yaml"),
-                Path.of("AIot-Tests/apps/com.ugreen.iot/cases/common/profile/update-and-restore-nickname-ios.yaml"),
+                Path.of("AIot-Tests/apps/com.ugreen.iot/cases/common/app-state/login-page.yaml"),
+                Path.of("AIot-Tests/apps/com.ugreen.iot/cases/common/app-state/guest-device-page.yaml"),
+                Path.of("AIot-Tests/apps/com.ugreen.iot/cases/common/app-state/logged-in-device-page.yaml"),
             ),
             "/schemas/v1/element-catalog.schema.json" to listOf(
                 Path.of("examples/elements/daily-smoke.yaml"),
@@ -387,6 +389,40 @@ class JsonSchemaDslValidatorTest {
                 pattern: "Soluna"
               - assertSourceRegexMatch: assert-source
                 pattern: "XCUIElementType.*Soluna"
+            """.trimIndent(),
+        )
+
+        assertEquals(
+            emptyList(),
+            validator.validate("/schemas/v1/case.schema.json", node),
+        )
+    }
+
+    @Test
+    fun `validates screen recording text assertion action schemas`() {
+        val node = yamlMapper.readTree(
+            """
+            schemaVersion: "1.0"
+            id: recording-toast-actions
+            name: Recording Toast Actions
+            actions:
+              - startScreenRecording:
+                  id: start-toast-recording
+                  timeLimitMs: 6000
+              - tap:
+                  id: submit-form
+                  element: feedback.submit
+              - stopScreenRecording:
+                  id: stop-toast-recording
+                  resourceId: toast-recording
+                  saveAs: toastVideo
+              - assertScreenRecordingTextRegexMatch:
+                  id: assert-toast
+                  source: "@{case.toastVideo}"
+                  pattern: "提交成功"
+                  framesPerSecond: 8
+                  maxFrames: 60
+                  resourceId: toast-frame
             """.trimIndent(),
         )
 

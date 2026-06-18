@@ -1,0 +1,96 @@
+schemaVersion: "1.0"
+id: TC012_FEEDBACK_DEVICE
+name: 我的-意见反馈-设备
+dataRefs:
+  - id: mine
+    file: ../../data/common/mine.yaml
+elementRefs:
+  - id: common
+    file: ../../elements/common.yaml
+actions:
+  - tap:
+      id: open-mine-tab
+      element: common.mineTab
+      desc: 进入我的页
+  - tap:
+      id: open-feedback-page
+      element: common.mineFeedbackEntry
+      desc: 进入意见反馈页
+  - assertElementAttrRegexMatch:
+      id: assert-feedback-page-visible
+      element: common.feedbackPageRoot
+      attr: enabled
+      pattern: "true"
+      wait:
+        timeoutMs: 20000
+        intervalMs: 500
+      desc: 校验意见反馈页可见
+  - tap:
+      id: select-device-related-feedback-type
+      element: common.feedbackTypeOption1
+      desc: 选择设备相关问题类型
+  - assertElementAttrRegexMatch:
+      id: assert-device-field-visible
+      element: common.feedbackDeviceField
+      attr: enabled
+      pattern: "true"
+      desc: 校验设备选择栏可见
+  - tap:
+      id: open-device-selection-page-first-time
+      element: common.feedbackDeviceField
+      desc: 进入设备选择页
+  - assertElementAttrRegexMatch:
+      id: assert-device-list-visible
+      element: common.feedbackDeviceList
+      attr: enabled
+      pattern: "true"
+      desc: 校验设备列表可见
+  - assertElementAttrRegexMatch:
+      id: assert-first-device-visible
+      element: common.feedbackFirstDeviceRow
+      attr: enabled
+      pattern: "true"
+      desc: 校验至少存在一个可选设备
+  - tapVisualTemplate:
+      id: back-from-device-selection-page
+      template: "${mine.visualTemplates.feedbackBackIcon}"
+      threshold: 0.72
+      scales: [0.8, 1.0, 1.2, 1.4]
+      roi:
+        x: 0.00
+        y: 0.04
+        width: 0.20
+        height: 0.12
+      desc: 返回意见反馈页
+  - assertElementAttrRegexMatch:
+      id: assert-feedback-page-after-device-back
+      element: common.feedbackPageRoot
+      attr: enabled
+      pattern: "true"
+      wait:
+        timeoutMs: 20000
+        intervalMs: 500
+      desc: 校验已返回意见反馈页
+  - tap:
+      id: reopen-device-selection-page
+      element: common.feedbackDeviceField
+      desc: 再次进入设备选择页
+  - getText:
+      id: save-first-device-name
+      element: common.feedbackFirstDeviceName
+      saveAs: selectedDeviceName
+      desc: 记录第一个设备名称
+  - tap:
+      id: select-first-device
+      element: common.feedbackFirstDeviceRow
+      desc: 选择第一个设备
+  - tap:
+      id: confirm-device-selection
+      element: common.feedbackDeviceDoneButton
+      desc: 确认设备选择
+  - assertElementAttrEquals:
+      id: assert-selected-device-shown
+      element: common.feedbackDeviceField
+      attr: name/label/text
+      expected: "@{case.selectedDeviceName}"
+      desc: 校验设备栏显示已选设备

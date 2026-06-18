@@ -190,7 +190,7 @@ class LocalReportWriter(
             <h2>Trace Artifacts</h2>
             <table>
               <thead>
-                <tr><th>Stage</th><th>Case</th><th>Phase</th><th>#</th><th>Action</th><th>Timing</th><th>Screenshot</th></tr>
+                <tr><th>Stage</th><th>Case</th><th>Phase</th><th>#</th><th>Action</th><th>Timing</th><th>Artifact</th></tr>
               </thead>
               <tbody>
                 $rows

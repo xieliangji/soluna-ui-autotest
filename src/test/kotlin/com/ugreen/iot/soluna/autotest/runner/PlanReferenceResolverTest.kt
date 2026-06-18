@@ -251,57 +251,76 @@ class PlanReferenceResolverTest {
 
         assertEquals("if", ifAction.keyword)
         assertEquals("com.example:id/login_marker", ifAction.conditionAction?.locator?.value)
+        assertEquals(null, ifAction.conditionAction?.element)
         assertEquals("com.example:id/mine_tab", ifAction.elseActions.single().locator?.value)
+        assertEquals(null, ifAction.elseActions.single().element)
     }
 
     @Test
-    fun `resolves AIot asset project profile plans`() {
-        val plans = listOf(
-            Path.of("AIot-Tests/apps/com.ugreen.iot/plans/profile/nickname-android.yaml")
-                .toAbsolutePath()
-                .normalize() to "android",
-            Path.of("AIot-Tests/apps/com.ugreen.iot/plans/profile/nickname-ios.yaml")
-                .toAbsolutePath()
-                .normalize() to "ios",
+    fun `prepends scoped case setup actions to case setup`() {
+        val root = Files.createTempDirectory("soluna-case-setup-scope-test")
+        write(
+            root.resolve("plans/common.yaml"),
+            """
+            schemaVersion: "1.0"
+            id: common-plan
+            name: Common Plan
+            deviceConfig: ../devices/android.yaml
+            fragmentRefs:
+              - id: app
+                file: ../fragments/app.yaml
+            caseSetupActions:
+              - wait:
+                  id: plan-case-setup
+                  durationMs: 0
+            stages:
+              - id: logged-in
+                name: Logged In
+                setupFragments:
+                  - app.loggedIn
+                caseSetupActions:
+                  - wait:
+                      id: stage-case-setup
+                      durationMs: 0
+                cases:
+                  - id: first
+                    name: First
+                    caseSetupActions:
+                      - wait:
+                          id: case-case-setup
+                          durationMs: 0
+                    actions:
+                      - wait:
+                          id: first-noop
+                          durationMs: 0
+            """.trimIndent(),
+        )
+        write(
+            root.resolve("fragments/app.yaml"),
+            """
+            schemaVersion: "1.0"
+            id: app-fragments
+            fragments:
+              loggedIn:
+                actions:
+                  - restartApp: restart-to-stage
+                    appId: com.example
+            """.trimIndent(),
         )
 
-        plans.forEach { (planPath, platform) ->
-            val parsed = YamlPlanParser().parse(Files.readString(planPath))
-            val assembled = PlanReferenceResolver().resolve(parsed, planPath)
-            val resolved = PlanParameterResolver().resolve(assembled, planPath)
-            val stage = resolved.stages.single()
-            val case = stage.cases.single()
+        val planPath = root.resolve("plans/common.yaml")
+        val parsed = YamlPlanParser().parse(Files.readString(planPath))
+        val assembled = PlanReferenceResolver().resolve(parsed, planPath)
+        val stage = assembled.stages.single()
 
-            assertEquals("app.restart", stage.setupFragments.single())
-            assertEquals(listOf("restart-app"), stage.setupActions.map { it.id })
-            assertEquals("com.ugreen.iot", stage.setupActions.single().args["appId"]?.asText())
-            assertEquals("SolunaTester", case.actions.first { it.id == "input-new-nickname" }.value?.asText())
-            assertEquals(platform, resolved.app?.platform)
-            assertEquals(
-                expectedProfileEntryLocator(platform),
-                case.actions.first { it.id == "open-profile-page" }.locator?.value,
-            )
-            assertEquals(
-                expectedNicknameValueAttr(platform),
-                case.actions.first { it.id == "assert-new-nickname" }.args["attr"]?.asText(),
-            )
-        }
-    }
-
-    private fun expectedProfileEntryLocator(platform: String): String {
-        return when (platform) {
-            "android" -> "com.ugreen.iot:id/flow_user_top"
-            "ios" -> "(//XCUIElementTypeTable/XCUIElementTypeStaticText[number(@y) < 280])[1]"
-            else -> error("Unsupported platform $platform")
-        }
-    }
-
-    private fun expectedNicknameValueAttr(platform: String): String {
-        return when (platform) {
-            "android" -> "text"
-            "ios" -> "name/label"
-            else -> error("Unsupported platform $platform")
-        }
+        assertEquals(listOf("restart-to-stage"), stage.setupActions.map { it.id })
+        assertEquals(listOf("plan-case-setup"), assembled.caseSetupActions.map { it.id })
+        assertEquals(listOf("stage-case-setup"), stage.caseSetupActions.map { it.id })
+        assertEquals(listOf("case-case-setup"), stage.cases.single().caseSetupActions.map { it.id })
+        assertEquals(
+            listOf("plan-case-setup", "stage-case-setup", "case-case-setup"),
+            stage.cases.single().setupActions.map { it.id },
+        )
     }
 
     private fun write(

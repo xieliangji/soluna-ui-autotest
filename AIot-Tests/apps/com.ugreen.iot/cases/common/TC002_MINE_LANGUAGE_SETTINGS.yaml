@@ -1,0 +1,90 @@
+schemaVersion: "1.0"
+id: TC002_MINE_LANGUAGE_SETTINGS
+name: 我的-语言设置
+dataRefs:
+  - id: mine
+    file: ../../data/common/mine.yaml
+elementRefs:
+  - id: common
+    file: ../../elements/common.yaml
+actions:
+  - tap:
+      id: open-mine-tab
+      element: common.mineTab
+      desc: 进入我的页
+  - assertElementAttrRegexMatch:
+      id: assert-mine-list-visible
+      element: common.mineList
+      attr: enabled
+      pattern: "true"
+      desc: 校验我的页列表可见
+  - tap:
+      id: open-language-settings-page
+      element: common.mineLanguageSettingsEntry
+      desc: 进入语言设置页
+  - assertElementAttrRegexMatch:
+      id: assert-language-list-visible
+      element: common.languageList
+      attr: enabled
+      pattern: "true"
+      desc: 校验语言列表可见
+  - assertElementAttrRegexMatch:
+      id: assert-first-language-title
+      element: common.languageFirstTitle
+      attr: name/label/text
+      pattern: "${mine.language.firstTitle}"
+      desc: 校验第一个语言标题
+  - assertElementAttrRegexMatch:
+      id: assert-second-language-title
+      element: common.languageSecondTitle
+      attr: name/label/text
+      pattern: "${mine.language.secondTitle}"
+      desc: 校验第二个语言标题
+  - tap:
+      id: select-english-language
+      element: common.languageSecondRow
+      desc: 选择 English
+  - tap:
+      id: confirm-english-language
+      element: common.languageConfirmButton
+      settleMs: 2000
+      desc: 确认切换到 English
+  - assertElementAttrRegexMatch:
+      id: assert-mine-list-after-english-switch
+      element: common.mineList
+      attr: enabled
+      pattern: "true"
+      desc: 校验切换后返回我的页
+  - assertSourceRegexMatch:
+      id: assert-mine-language-is-english
+      pattern: "${mine.language.englishValue}"
+      desc: 校验我的页语言已切换为 English
+  - tap:
+      id: reopen-language-settings-page
+      element: common.mineLanguageSettingsEntry
+      desc: 再次进入语言设置页
+  - assertElementAttrRegexMatch:
+      id: assert-language-list-visible-before-restore
+      element: common.languageList
+      attr: enabled
+      pattern: "true"
+      desc: 校验语言列表可见
+  - tap:
+      id: restore-simplified-chinese-language
+      element: common.languageFirstRow
+      desc: 选择简体中文
+  - tap:
+      id: confirm-simplified-chinese-language
+      element: common.languageConfirmButton
+      settleMs: 2000
+      desc: 确认恢复简体中文
+  - assertElementAttrRegexMatch:
+      id: assert-mine-list-after-language-restore
+      element: common.mineList
+      attr: enabled
+      pattern: "true"
+      desc: 校验恢复语言后返回我的页
+  - assertSourceRegexMatch:
+      id: assert-mine-language-is-simplified-chinese
+      pattern: "${mine.language.simplifiedChineseValue}"
+      desc: 校验我的页语言已恢复为简体中文

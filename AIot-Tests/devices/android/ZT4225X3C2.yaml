@@ -1,0 +1,14 @@
+schemaVersion: "1.0"
+id: ZT4225X3C2
+device:
+  udid: ZT4225X3C2
+appium:
+  server:
+    managed: true
+    executable: /opt/homebrew/bin/appium
+    usePlugins:
+      - soluna-ext
+    startupTimeoutMs: 20000
+  capabilities:
+    automationName: UiAutomator2
+    newCommandTimeout: 300

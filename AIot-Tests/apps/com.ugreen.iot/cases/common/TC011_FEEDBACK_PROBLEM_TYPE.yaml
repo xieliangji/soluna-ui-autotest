@@ -1,0 +1,68 @@
+schemaVersion: "1.0"
+id: TC011_FEEDBACK_PROBLEM_TYPE
+name: 我的-意见反馈-问题类型
+elementRefs:
+  - id: common
+    file: ../../elements/common.yaml
+actions:
+  - tap:
+      id: open-mine-tab
+      element: common.mineTab
+      desc: 进入我的页
+  - tap:
+      id: open-feedback-page
+      element: common.mineFeedbackEntry
+      desc: 进入意见反馈页
+  - assertElementAttrRegexMatch:
+      id: assert-feedback-page-visible
+      element: common.feedbackPageRoot
+      attr: enabled
+      pattern: "true"
+      wait:
+        timeoutMs: 20000
+        intervalMs: 500
+      desc: 校验意见反馈页可见
+  - assertElementAttrRegexMatch:
+      id: assert-feedback-type-option-1-visible
+      element: common.feedbackTypeOption1
+      attr: enabled
+      pattern: "true"
+      desc: 校验第一个问题类型可见
+  - assertElementAttrRegexMatch:
+      id: assert-feedback-type-option-2-visible
+      element: common.feedbackTypeOption2
+      attr: enabled
+      pattern: "true"
+      desc: 校验第二个问题类型可见
+  - assertElementAttrRegexMatch:
+      id: assert-feedback-type-option-3-visible
+      element: common.feedbackTypeOption3
+      attr: enabled
+      pattern: "true"
+      desc: 校验第三个问题类型可见
+  - assertElementAttrRegexMatch:
+      id: assert-feedback-type-option-4-visible
+      element: common.feedbackTypeOption4
+      attr: enabled
+      pattern: "true"
+      desc: 校验第四个问题类型可见
+  - assertElementAttrRegexMatch:
+      id: assert-feedback-type-option-5-visible
+      element: common.feedbackTypeOption5
+      attr: enabled
+      pattern: "true"
+      desc: 校验第五个问题类型可见
+  - tap:
+      id: select-first-feedback-type
+      element: common.feedbackTypeOption1
+      desc: 选择第一个问题类型
+  - tap:
+      id: select-second-feedback-type
+      element: common.feedbackTypeOption2
+      desc: 再选择第二个问题类型
+  - assertElementAttrRegexMatch:
+      id: assert-second-feedback-type-still-visible
+      element: common.feedbackTypeOption2
+      attr: enabled
+      pattern: "true"
+      desc: 校验问题类型切换后页面仍保持单选类型列表

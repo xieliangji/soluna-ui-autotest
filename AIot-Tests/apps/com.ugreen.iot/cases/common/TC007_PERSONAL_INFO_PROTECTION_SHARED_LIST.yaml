@@ -1,0 +1,47 @@
+schemaVersion: "1.0"
+id: TC007_PERSONAL_INFO_PROTECTION_SHARED_LIST
+name: 个人信息保护-个人信息共享清单
+elementRefs:
+  - id: common
+    file: ../../elements/common.yaml
+actions:
+  - tap:
+      id: open-mine-tab
+      element: common.mineTab
+      desc: 进入我的页
+  - tap:
+      id: open-personal-info-protection-page
+      element: common.minePersonalInfoProtectionEntry
+      desc: 进入个人信息保护页
+  - assertElementAttrRegexMatch:
+      id: assert-personal-info-list-visible
+      element: common.personalInfoProtectionList
+      attr: enabled
+      pattern: "true"
+      desc: 校验个人信息保护列表可见
+  - tap:
+      id: open-shared-list-web-page
+      element: common.personalInfoSharedListEntry
+      desc: 打开个人信息共享清单页
+  - assertElementAttrRegexMatch:
+      id: assert-web-page-root-visible
+      element: common.webPageRoot
+      attr: enabled
+      pattern: "true"
+      desc: 校验共享清单页面容器可见
+  - assertElementAttrRegexMatch:
+      id: assert-web-content-visible
+      element: common.webContent
+      attr: enabled
+      pattern: "true"
+      desc: 校验共享清单 WebView 可见
+  - tap:
+      id: back-to-personal-info-protection-page
+      element: common.webBackButton
+      desc: 返回个人信息保护页
+  - assertElementAttrRegexMatch:
+      id: assert-personal-info-list-after-back
+      element: common.personalInfoProtectionList
+      attr: enabled
+      pattern: "true"
+      desc: 校验已返回个人信息保护页

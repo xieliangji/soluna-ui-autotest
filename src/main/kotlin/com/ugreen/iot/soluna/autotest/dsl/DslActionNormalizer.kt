@@ -14,9 +14,25 @@ class DslActionNormalizer(
         "attr",
         "clearFirst",
         "durationMs",
+        "elementXRatio",
+        "elementYRatio",
         "pattern",
+        "roi",
         "saveAs",
         "scope",
+        "scales",
+        "settleMs",
+        "source",
+        "targetXRatio",
+        "targetYRatio",
+        "template",
+        "threshold",
+        "framesPerSecond",
+        "maxFrames",
+        "candidateMaxFrames",
+        "candidateStrategy",
+        "visualDifferenceThreshold",
+        "timeLimitMs",
         "timeoutMs",
         "xRatio",
         "yRatio",
@@ -25,12 +41,16 @@ class DslActionNormalizer(
     fun normalizePlan(planNode: JsonNode): JsonNode {
         val normalized = planNode.deepCopy<ObjectNode>()
         normalizeActionList(normalized, "setupActions")
+        normalizeActionList(normalized, "caseSetupActions")
+        normalizeActionList(normalized, "caseTeardownActions")
         normalizeActionList(normalized, "teardownActions")
         normalized.path("stages")
             .takeIf { it.isArray }
             ?.forEach { stage ->
                 if (stage is ObjectNode) {
                     normalizeActionList(stage, "setupActions")
+                    normalizeActionList(stage, "caseSetupActions")
+                    normalizeActionList(stage, "caseTeardownActions")
                     normalizeActionList(stage, "teardownActions")
                     stage.path("cases")
                         .takeIf { it.isArray }
@@ -63,6 +83,8 @@ class DslActionNormalizer(
 
     private fun normalizeCaseNode(caseNode: ObjectNode) {
         normalizeActionList(caseNode, "setupActions")
+        normalizeActionList(caseNode, "caseSetupActions")
+        normalizeActionList(caseNode, "caseTeardownActions")
         normalizeActionList(caseNode, "actions")
         normalizeActionList(caseNode, "teardownActions")
     }
@@ -92,7 +114,7 @@ class DslActionNormalizer(
 
         val keywordFields = action.fields().asSequence()
             .filter { (fieldName, value) ->
-                value.isTextual && keywordRegistry.normalize(fieldName) != null
+                isKeywordValue(value) && keywordRegistry.normalize(fieldName) != null
             }
             .toList()
 
@@ -100,34 +122,35 @@ class DslActionNormalizer(
             "Action must declare exactly one supported keyword field"
         }
 
-        val (keywordField, idNode) = keywordFields.single()
+        val (keywordField, keywordValue) = keywordFields.single()
         val canonicalKeyword = keywordRegistry.normalize(keywordField)
             ?: error("Unsupported action keyword '$keywordField'")
+        val payload = keywordPayload(keywordField, keywordValue, action)
 
         return objectMapper.createObjectNode().also { normalized ->
-            normalized.put("id", idNode.asText())
+            normalized.put("id", payload.id)
             normalized.put("keyword", canonicalKeyword)
-            copyTextField(action, normalized, from = "desc", to = "name")
-            copyField(action, normalized, "element")
-            copyField(action, normalized, "target")
-            copyField(action, normalized, "resourceId")
+            copyTextField(payload.node, normalized, from = "desc", to = "name")
+            copyField(payload.node, normalized, "element")
+            copyField(payload.node, normalized, "target")
+            copyField(payload.node, normalized, "resourceId")
 
-            if (action.has("expected")) {
-                normalized.set<JsonNode>("value", action.get("expected"))
-            } else if (action.has("pattern")) {
-                normalized.set<JsonNode>("value", action.get("pattern"))
+            if (payload.node.has("expected")) {
+                normalized.set<JsonNode>("value", payload.node.get("expected"))
+            } else if (payload.node.has("pattern")) {
+                normalized.set<JsonNode>("value", payload.node.get("pattern"))
             } else {
-                copyField(action, normalized, "value")
+                copyField(payload.node, normalized, "value")
             }
 
-            val wait = action.get("wait")
-            if (keywordField != "wait" && wait != null && wait.isObject) {
+            val wait = payload.node.get("wait")
+            if (canonicalKeyword != "wait" && wait != null && wait.isObject) {
                 normalized.set<JsonNode>("wait", wait)
             }
 
             val args = objectMapper.createObjectNode()
             actionArgumentFields.forEach { field ->
-                copyField(action, args, field)
+                copyField(payload.node, args, field)
             }
             if (!args.isEmpty) {
                 normalized.set<JsonNode>("args", args)
@@ -137,6 +160,41 @@ class DslActionNormalizer(
             copyNormalizedBranch(action, normalized, from = "else", to = "elseActions")
         }
     }
+
+    private fun isKeywordValue(value: JsonNode): Boolean {
+        return value.isTextual || value.isObject
+    }
+
+    private fun keywordPayload(
+        keywordField: String,
+        keywordValue: JsonNode,
+        action: JsonNode,
+    ): KeywordPayload {
+        if (keywordValue.isTextual) {
+            return KeywordPayload(
+                id = keywordValue.asText(),
+                node = action,
+            )
+        }
+
+        require(keywordValue.isObject) {
+            "Action keyword '$keywordField' must be a string id or an object payload"
+        }
+
+        val id = keywordValue.get("id")
+        require(id != null && id.isTextual && id.asText().isNotBlank()) {
+            "Nested action keyword '$keywordField' must declare a non-empty id"
+        }
+        return KeywordPayload(
+            id = id.asText(),
+            node = keywordValue,
+        )
+    }
+
+    private data class KeywordPayload(
+        val id: String,
+        val node: JsonNode,
+    )
 
     private fun normalizeIfAction(action: JsonNode): ObjectNode {
         val condition = normalizeAction(action.get("if"))

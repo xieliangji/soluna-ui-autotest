@@ -6,6 +6,7 @@ import com.ugreen.iot.soluna.autotest.config.DeviceAppiumServerDefinition
 import com.ugreen.iot.soluna.autotest.config.DeviceConfigDefinition
 import com.ugreen.iot.soluna.autotest.config.DeviceDefinition
 import com.ugreen.iot.soluna.autotest.core.model.AppDefinition
+import com.ugreen.iot.soluna.autotest.core.model.PlanDefaults
 import com.ugreen.iot.soluna.autotest.core.model.PlanDefinition
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -36,9 +37,37 @@ class AppiumSessionRequestFactoryTest {
         assertEquals(true, request.capabilities["appium:unicodeKeyboard"])
         assertEquals(true, request.capabilities["appium:resetKeyboard"])
         assertEquals(90, request.capabilities["appium:newCommandTimeout"])
+        assertEquals(mapOf("implicit" to 5_000L), request.capabilities["timeouts"])
         assertFalse(request.capabilities.containsKey("appium:appPackage"))
         assertFalse(request.capabilities.containsKey("appium:appActivity"))
         assertFalse(request.capabilities.containsKey("appium:noReset"))
+    }
+
+    @Test
+    fun `uses plan implicit wait as session timeout`() {
+        val request = factory.create(
+            serverUrl = "http://127.0.0.1:4725",
+            deviceConfig = androidDeviceConfig(),
+            plan = plan(platform = "android", implicitWaitMs = 8_000),
+        )
+
+        assertEquals(mapOf("implicit" to 8_000L), request.capabilities["timeouts"])
+    }
+
+    @Test
+    fun `device config can override session timeouts`() {
+        val configuredTimeouts = mapOf("implicit" to 12_000)
+        val request = factory.create(
+            serverUrl = "http://127.0.0.1:4725",
+            deviceConfig = androidDeviceConfig(
+                capabilities = mapOf(
+                    "timeouts" to JsonNodeFactory.instance.objectNode().put("implicit", 12_000),
+                ),
+            ),
+            plan = plan(platform = "android", implicitWaitMs = 8_000),
+        )
+
+        assertEquals(configuredTimeouts, request.capabilities["timeouts"])
     }
 
     @Test
@@ -150,11 +179,15 @@ class AppiumSessionRequestFactoryTest {
     private fun plan(
         platform: String,
         reset: Boolean? = null,
+        implicitWaitMs: Long = 5_000,
     ): PlanDefinition {
         return PlanDefinition(
             schemaVersion = "1.0",
             id = "plan-001",
             name = "Plan 001",
+            defaults = PlanDefaults(
+                implicitWaitMs = implicitWaitMs,
+            ),
             app = AppDefinition(
                 platform = platform,
                 reset = reset,

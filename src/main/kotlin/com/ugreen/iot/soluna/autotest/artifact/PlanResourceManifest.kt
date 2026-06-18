@@ -4,8 +4,11 @@ import com.fasterxml.jackson.annotation.JsonInclude
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.SerializationFeature
 import com.fasterxml.jackson.module.kotlin.KotlinModule
+import com.ugreen.iot.soluna.autotest.appium.action.ExplicitPlanResource
 import com.ugreen.iot.soluna.autotest.appium.action.ExplicitScreenshot
+import com.ugreen.iot.soluna.autotest.appium.action.PlanResourceSink
 import com.ugreen.iot.soluna.autotest.appium.action.ScreenshotSink
+import com.ugreen.iot.soluna.autotest.appium.action.toPlanResource
 import com.ugreen.iot.soluna.autotest.runner.PlanRunResult
 import java.nio.file.Files
 import java.nio.file.Path
@@ -17,51 +20,63 @@ import java.util.concurrent.atomic.AtomicInteger
 class LocalExplicitScreenshotSink(
     private val outputDirectory: Path,
     private val clock: Clock = Clock.systemUTC(),
-) : ScreenshotSink {
+) : ScreenshotSink, PlanResourceSink {
     private val counter = AtomicInteger(0)
-    private val screenshots = CopyOnWriteArrayList<CapturedExplicitScreenshot>()
+    private val resources = CopyOnWriteArrayList<CapturedPlanResource>()
 
-    override fun accept(screenshot: ExplicitScreenshot) {
-        Files.createDirectories(outputDirectory)
-        val index = counter.incrementAndGet()
-        val baseName = screenshot.resourceId
-            ?: screenshot.actionId
-            ?: "screenshot-$index"
-        val fileName = "${baseName.sanitizeFileName()}-${index.toString().padStart(3, '0')}.${screenshot.data.fileExtension()}"
-        val path = outputDirectory.resolve(fileName)
-        Files.write(path, screenshot.data.bytes)
-        screenshots += CapturedExplicitScreenshot(
-            resourceId = screenshot.resourceId ?: baseName,
-            actionId = screenshot.actionId,
-            name = screenshot.name,
-            localPath = path,
-            fileName = fileName,
-            contentType = screenshot.data.contentType,
-            sizeBytes = screenshot.data.bytes.size.toLong(),
-            capturedAt = clock.instant().toString(),
-        )
+    override fun accept(screenshot: ExplicitScreenshot): CapturedPlanResource? {
+        return accept(screenshot.toPlanResource())
     }
 
-    fun captured(): List<CapturedExplicitScreenshot> {
-        return screenshots.toList()
+    override fun accept(resource: ExplicitPlanResource): CapturedPlanResource {
+        Files.createDirectories(outputDirectory)
+        val index = counter.incrementAndGet()
+        val baseName = resource.resourceId
+            ?: resource.actionId
+            ?: "${resource.purpose}-$index"
+        val fileName = "${baseName.sanitizeFileName()}-${index.toString().padStart(3, '0')}.${resource.fileExtension()}"
+        val path = outputDirectory.resolve(fileName)
+        Files.write(path, resource.bytes)
+        return CapturedPlanResource(
+            resourceId = resource.resourceId ?: baseName,
+            type = resource.type,
+            purpose = resource.purpose,
+            actionId = resource.actionId,
+            name = resource.name,
+            localPath = path,
+            fileName = fileName,
+            contentType = resource.contentType,
+            sizeBytes = resource.bytes.size.toLong(),
+            capturedAt = clock.instant().toString(),
+        ).also { captured ->
+            resources += captured
+        }
+    }
+
+    fun captured(): List<CapturedPlanResource> {
+        return resources.toList()
     }
 
     private fun String.sanitizeFileName(): String {
-        return trim().replace(Regex("""[^A-Za-z0-9._-]"""), "_").ifBlank { "screenshot" }
+        return trim().replace(Regex("""[^A-Za-z0-9._-]"""), "_").ifBlank { "resource" }
     }
 
-    private fun com.ugreen.iot.soluna.autotest.appium.driver.ScreenshotData.fileExtension(): String {
+    private fun ExplicitPlanResource.fileExtension(): String {
         return when (contentType.lowercase().substringBefore(";").trim()) {
             "image/png" -> "png"
             "image/jpeg" -> "jpg"
             "image/webp" -> "webp"
+            "video/mp4" -> "mp4"
+            "video/quicktime" -> "mov"
             else -> "bin"
         }
     }
 }
 
-data class CapturedExplicitScreenshot(
+data class CapturedPlanResource(
     val resourceId: String,
+    val type: String,
+    val purpose: String,
     val actionId: String?,
     val name: String?,
     val localPath: Path,
@@ -70,6 +85,8 @@ data class CapturedExplicitScreenshot(
     val sizeBytes: Long,
     val capturedAt: String,
 )
+
+typealias CapturedExplicitScreenshot = CapturedPlanResource
 
 data class PlanResourceManifestWriteResult(
     val file: Path,
@@ -97,28 +114,28 @@ class PlanResourceManifestWriter(
     fun write(
         result: PlanRunResult,
         directory: Path,
-        screenshots: List<CapturedExplicitScreenshot>,
+        screenshots: List<CapturedPlanResource>,
         artifactUploader: ArtifactUploader?,
     ): PlanResourceManifestWriteResult {
         Files.createDirectories(directory)
-        val resources = screenshots.map { screenshot ->
+        val resources = screenshots.map { resource ->
             val objectKey = artifactUploader?.objectKey(
                 runId = result.executionResult.runId,
                 kind = ArtifactKind.RESOURCE,
-                fileName = screenshot.fileName,
+                fileName = resource.fileName,
             )
             PublishedPlanResource(
-                resourceId = screenshot.resourceId,
-                type = "image",
-                purpose = "explicit_screenshot",
-                name = screenshot.name,
-                actionId = screenshot.actionId,
-                localPath = screenshot.localPath,
+                resourceId = resource.resourceId,
+                type = resource.type,
+                purpose = resource.purpose,
+                name = resource.name,
+                actionId = resource.actionId,
+                localPath = resource.localPath,
                 objectKey = objectKey,
                 url = objectKey?.let { artifactUploader.urlFor(it) },
-                contentType = screenshot.contentType,
-                sizeBytes = screenshot.sizeBytes,
-                capturedAt = screenshot.capturedAt,
+                contentType = resource.contentType,
+                sizeBytes = resource.sizeBytes,
+                capturedAt = resource.capturedAt,
             )
         }
         val data = PlanResourceManifestData(

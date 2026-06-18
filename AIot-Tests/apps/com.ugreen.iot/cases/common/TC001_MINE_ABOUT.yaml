@@ -1,0 +1,37 @@
+schemaVersion: "1.0"
+id: TC001_MINE_ABOUT
+name: 我的-关于
+elementRefs:
+  - id: common
+    file: ../../elements/common.yaml
+actions:
+  - tap:
+      id: open-mine-tab
+      element: common.mineTab
+      desc: 进入我的页
+  - assertElementAttrRegexMatch:
+      id: assert-mine-list-visible
+      element: common.mineList
+      attr: enabled
+      pattern: "true"
+      desc: 校验我的页列表可见
+  - tap:
+      id: open-about-page
+      element: common.mineAboutEntry
+      desc: 进入关于页
+  - assertElementAttrRegexMatch:
+      id: assert-about-page-root-visible
+      element: common.aboutPageRoot
+      attr: enabled
+      pattern: "true"
+      desc: 校验关于页根容器可见
+  - tap:
+      id: back-to-mine-page
+      element: common.backButton
+      desc: 返回我的页
+  - assertElementAttrRegexMatch:
+      id: assert-mine-list-after-back
+      element: common.mineList
+      attr: enabled
+      pattern: "true"
+      desc: 校验已返回我的页

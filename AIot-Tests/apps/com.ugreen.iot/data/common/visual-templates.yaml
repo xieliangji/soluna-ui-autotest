@@ -1,0 +1,8 @@
+schemaVersion: "1.0"
+id: common-visual-templates
+description: Common visual template asset parameters for common module flows.
+values:
+  mine:
+    visualTemplates:
+      feedbackBackIcon: "templates/feedback-back-icon.png"
+      feedbackHistoryIcon: "templates/feedback-history-icon.png"

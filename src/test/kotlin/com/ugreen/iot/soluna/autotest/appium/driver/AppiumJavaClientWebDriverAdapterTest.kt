@@ -33,4 +33,24 @@ class AppiumJavaClientWebDriverAdapterTest {
             LocatorDefinition("unknown", "x").toBy()
         }
     }
+
+    @Test
+    fun `keyboard overlay parser ignores hidden keyboard nodes`() {
+        val source = """
+            <XCUIElementTypeKeyboard visible="false" x="0" y="561" width="393" height="233"/>
+            <XCUIElementTypeButton visible="true" x="264" y="770" width="127" height="48"/>
+        """.trimIndent()
+
+        assertEquals(null, KeyboardOverlaySourceParser.topFromPageSource(source))
+    }
+
+    @Test
+    fun `keyboard overlay parser returns top of visible keyboard node`() {
+        val source = """
+            <XCUIElementTypeToolbar visible="true" x="0" y="517" width="393" height="44"/>
+            <XCUIElementTypeKeyboard visible="true" x="0" y="561" width="393" height="233"/>
+        """.trimIndent()
+
+        assertEquals(561, KeyboardOverlaySourceParser.topFromPageSource(source))
+    }
 }

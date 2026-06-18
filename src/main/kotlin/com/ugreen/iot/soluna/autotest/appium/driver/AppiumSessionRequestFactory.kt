@@ -28,6 +28,10 @@ class AppiumSessionRequestFactory(
         capabilities.putIfAbsent("appium:automationName", platform.toDefaultAutomationName())
         capabilities["appium:udid"] = deviceConfig.device.udid
         capabilities.putIfAbsent("appium:deviceName", deviceConfig.device.name ?: deviceConfig.device.udid)
+        capabilities.putIfAbsent(
+            "timeouts",
+            mapOf("implicit" to plan.defaults.implicitWaitMs),
+        )
 
         when (platform) {
             "android" -> {

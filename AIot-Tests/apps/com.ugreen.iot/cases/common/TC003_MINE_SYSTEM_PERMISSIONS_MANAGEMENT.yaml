@@ -1,0 +1,73 @@
+schemaVersion: "1.0"
+id: TC003_MINE_SYSTEM_PERMISSIONS_MANAGEMENT
+name: 我的-系统权限管理
+elementRefs:
+  - id: common
+    file: ../../elements/common.yaml
+actions:
+  - tap:
+      id: open-mine-tab
+      element: common.mineTab
+      desc: 进入我的页
+  - assertElementAttrRegexMatch:
+      id: assert-mine-list-visible
+      element: common.mineList
+      attr: enabled
+      pattern: "true"
+      desc: 校验我的页列表可见
+  - assertElementAttrRegexMatch:
+      id: assert-system-permissions-entry-visible
+      element: common.mineSystemPermissionsEntry
+      attr: enabled
+      pattern: "true"
+      desc: 校验系统权限管理入口可见
+  - tap:
+      id: open-system-permissions-page
+      element: common.mineSystemPermissionsEntry
+      desc: 进入系统权限管理页
+  - assertElementAttrRegexMatch:
+      id: assert-system-permission-list-visible
+      element: common.systemPermissionList
+      attr: enabled
+      pattern: "true"
+      desc: 校验系统权限管理列表可见
+  - assertElementAttrRegexMatch:
+      id: assert-bluetooth-permission-visible
+      element: common.systemPermissionBluetoothRow
+      attr: enabled
+      pattern: "true"
+      desc: 校验蓝牙权限项存在
+  - assertElementAttrRegexMatch:
+      id: assert-location-permission-visible
+      element: common.systemPermissionLocationRow
+      attr: enabled
+      pattern: "true"
+      desc: 校验地理位置权限项存在
+  - assertElementAttrRegexMatch:
+      id: assert-microphone-permission-visible
+      element: common.systemPermissionMicrophoneRow
+      attr: enabled
+      pattern: "true"
+      desc: 校验麦克风权限项存在
+  - assertElementAttrRegexMatch:
+      id: assert-album-permission-visible
+      element: common.systemPermissionAlbumRow
+      attr: enabled
+      pattern: "true"
+      desc: 校验相册权限项存在
+  - assertElementAttrRegexMatch:
+      id: assert-camera-permission-visible
+      element: common.systemPermissionCameraRow
+      attr: enabled
+      pattern: "true"
+      desc: 校验相机权限项存在
+  - tap:
+      id: back-to-mine-page
+      element: common.backButton
+      desc: 返回我的页
+  - assertElementAttrRegexMatch:
+      id: assert-mine-list-after-back
+      element: common.mineList
+      attr: enabled
+      pattern: "true"
+      desc: 校验已返回我的页

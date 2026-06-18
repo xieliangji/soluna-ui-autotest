@@ -21,6 +21,7 @@ object DefaultKeywordRegistry : KeywordRegistry {
     private val delegate = MapKeywordRegistry(
         mapOf(
             "tap" to setOf("click", "点击", "轻点"),
+            "tapVisualTemplate" to setOf("tapImage", "tapTemplate", "视觉点击", "模板点击", "图片点击"),
             "input" to setOf("type", "输入", "录入"),
             "restartApp" to setOf("restart", "重启应用", "重启App", "重启APP"),
             "getText" to setOf("readText", "saveText", "获取文本", "读取文本", "保存文本"),
@@ -45,6 +46,13 @@ object DefaultKeywordRegistry : KeywordRegistry {
                 "源码匹配",
             ),
             "screenshot" to setOf("截图", "显式截图"),
+            "startScreenRecording" to setOf("startRecording", "开始录屏", "开始屏幕录制"),
+            "stopScreenRecording" to setOf("stopRecording", "停止录屏", "停止屏幕录制"),
+            "assertScreenRecordingTextRegexMatch" to setOf(
+                "screenRecordingTextRegexMatch",
+                "断言录屏文本匹配",
+                "录屏文本匹配",
+            ),
         ),
     )
 

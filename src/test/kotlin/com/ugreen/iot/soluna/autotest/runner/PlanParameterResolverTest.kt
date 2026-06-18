@@ -159,6 +159,132 @@ class PlanParameterResolverTest {
     }
 
     @Test
+    fun `resolves visual template parameter references relative to data file directory`() {
+        val root = Files.createTempDirectory("soluna-template-param-test")
+        val templatePath = root.resolve("data/common/templates/back-icon.png")
+        Files.createDirectories(templatePath.parent)
+        Files.write(templatePath, byteArrayOf(1, 2, 3))
+        Files.writeString(
+            root.resolve("data/common/mine.yaml"),
+            """
+            schemaVersion: "1.0"
+            id: mine
+            values:
+              mine:
+                visualTemplates:
+                  backIcon: templates/back-icon.png
+            """.trimIndent(),
+        )
+        Files.createDirectories(root.resolve("plans"))
+        val planPath = root.resolve("plans/common.yaml")
+        Files.writeString(
+            planPath,
+            """
+            schemaVersion: "1.0"
+            id: common-plan
+            name: Common Plan
+            deviceConfig: ../devices/ios.yaml
+            stages:
+              - id: main
+                name: Main
+                cases:
+                  - id: feedback
+                    name: Feedback
+                    dataRefs:
+                      - id: mine
+                        file: ../data/common/mine.yaml
+                    actions:
+                      - tapVisualTemplate:
+                          id: tap-back
+                          template: "${'$'}{mine.visualTemplates.backIcon}"
+            """.trimIndent(),
+        )
+
+        val plan = YamlPlanParser().parse(Files.readString(planPath))
+        val assembled = PlanReferenceResolver().resolve(plan, planPath)
+        val resolved = PlanParameterResolver().resolve(plan = assembled, planPath = planPath)
+
+        val action = resolved.stages.single().cases.single().actions.single()
+        assertEquals(templatePath.normalize().toString(), action.args["template"]?.asText())
+    }
+
+    @Test
+    fun `stage and case inline parameters resolve later action references`() {
+        val root = Files.createTempDirectory("soluna-inline-params-test")
+        val dataPath = root.resolve("data/app-state.yaml")
+        Files.createDirectories(dataPath.parent)
+        Files.writeString(
+            dataPath,
+            """
+            schemaVersion: "1.0"
+            id: app-state
+            values:
+              appState:
+                mine:
+                  entryIndex: 5
+            """.trimIndent(),
+        )
+        val elementPath = root.resolve("elements/common.yaml")
+        Files.createDirectories(elementPath.parent)
+        Files.writeString(
+            elementPath,
+            """
+            schemaVersion: "1.0"
+            id: common-elements
+            elements:
+              mineEntry:
+                strategy: xpath
+                value: "(//*[@resource-id='com.example:id/recy']/android.view.ViewGroup)[${'$'}{appState.mine.entryIndex}]"
+            """.trimIndent(),
+        )
+        val planPath = root.resolve("plans/common.yaml")
+        Files.createDirectories(planPath.parent)
+        Files.writeString(
+            planPath,
+            """
+            schemaVersion: "1.0"
+            id: common-plan
+            name: Common Plan
+            deviceConfig: ../devices/android.yaml
+            parameters:
+              - id: appState
+                file: ../data/app-state.yaml
+            stages:
+              - id: guest
+                name: Guest
+                parameters:
+                  appState:
+                    mine:
+                      entryIndex: 4
+                cases:
+                  - id: open
+                    name: Open
+                    parameters:
+                      expectedIndex: "${'$'}{appState.mine.entryIndex}"
+                    elementRefs:
+                      - id: common
+                        file: ../elements/common.yaml
+                    actions:
+                      - tap:
+                          id: tap-entry
+                          element: common.mineEntry
+                      - input:
+                          id: save-index
+                          element: common.mineEntry
+                          value: "${'$'}{expectedIndex}"
+            """.trimIndent(),
+        )
+
+        val plan = YamlPlanParser().parse(Files.readString(planPath))
+        val assembled = PlanReferenceResolver().resolve(plan, planPath)
+        val resolved = PlanParameterResolver().resolve(plan = assembled, planPath = planPath)
+
+        val actions = resolved.stages.single().cases.single().actions
+        assertEquals("(//*[@resource-id='com.example:id/recy']/android.view.ViewGroup)[4]", actions.first().locator?.value)
+        assertEquals("4", actions.last().value?.asText())
+    }
+
+    @Test
     fun `resolves parameter references inside fragment control flow actions`() {
         val root = Files.createTempDirectory("soluna-if-params-test")
         val dataPath = root.resolve("data/state.yaml")

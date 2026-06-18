@@ -1,9 +1,15 @@
 schemaVersion: "1.0"
 id: app-state
+description: App-state fixture parameters. Real account values must be supplied by overrides or local secret data.
 values:
   appState:
+    login:
+      username: "__OVERRIDE_REQUIRED__"
+      password: "__OVERRIDE_REQUIRED__"
     patterns:
-      loginPage: ".+"
-      unimplementedGuestEntryFlow: "__SOLUNA_TODO_GUEST_ENTRY_FLOW__"
-      unimplementedLoginFlow: "__SOLUNA_TODO_LOGIN_FLOW__"
-      unimplementedLogoutFlow: "__SOLUNA_TODO_LOGOUT_FLOW__"
+      loginPage: "UgreenAudio"
+      devicePage: "(?s)(com\\.ugreen\\.iot:id/(tvDevicesName|ivAddDevice|rvDevices)|icon common add|TabHomeUnselect)"
+      personalInfoPage: "(?s)(com\\.ugreen\\.iot:id/btnLogOut|common back black)"
+      backButton: "(?s)(com\\.ugreen\\.iot:id/ll_left_slot|common back black|common back)"
+secrets:
+  - appState.login.password
