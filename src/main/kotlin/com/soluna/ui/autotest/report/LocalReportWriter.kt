@@ -273,6 +273,22 @@ class LocalReportWriter(
                 .modal-title { margin: 0; font-size: 18px; }
                 .modal-subtitle { margin-top: 6px; color: var(--muted); font-size: 13px; }
                 .modal-body { flex: 1 1 auto; min-height: 0; padding: 18px 20px 20px; overflow: auto; overscroll-behavior: contain; }
+                .modal-action-table th,
+                .modal-action-table td {
+                  vertical-align: middle;
+                }
+                .modal-action-table th:nth-child(4),
+                .modal-action-table td:nth-child(4) {
+                  width: 1%;
+                  min-width: 68px;
+                  text-align: center;
+                  white-space: nowrap;
+                }
+                .modal-action-table .status {
+                  width: max-content;
+                  min-width: max-content;
+                  white-space: nowrap;
+                }
                 .close-button {
                   flex: 0 0 auto;
                   width: 34px;
@@ -295,6 +311,7 @@ class LocalReportWriter(
                   h1 { font-size: 28px; }
                   .hero-grid, .summary, .resource-grid { grid-template-columns: 1fr; }
                   table { display: block; overflow-x: auto; }
+                  .modal-action-table { display: table; min-width: 840px; }
                 }
               </style>
             </head>
@@ -456,7 +473,7 @@ class LocalReportWriter(
                           </button>
                         </div>
                         <div class="modal-body">
-                          <table>
+                          <table class="modal-action-table">
                             <thead>
                               <tr><th>环节</th><th>#</th><th>动作</th><th>状态</th><th>重试</th><th>耗时</th><th>消息</th><th>错误</th></tr>
                             </thead>
@@ -543,7 +560,7 @@ class LocalReportWriter(
               <td>${action.index}</td>
               <td>${escape(actionLabel(action.actionKeyword, action.actionId))}</td>
               <td><span class="${statusClass(action.status)}">${escape(statusText(action.status))}</span></td>
-              <td>${action.attempt}</td>
+              <td>${retryCount(action.attempt)}</td>
               <td>${escape(formatDuration(action.durationMs))}</td>
               <td class="message">${escape(action.message.orEmpty())}</td>
               <td class="error">${escape(action.error.orEmpty())}</td>
@@ -657,6 +674,10 @@ class LocalReportWriter(
             "running" -> "运行中"
             else -> status
         }
+    }
+
+    private fun retryCount(attempt: Int): Int {
+        return (attempt - 1).coerceAtLeast(0)
     }
 
     private fun escape(value: String): String {

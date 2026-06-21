@@ -86,9 +86,10 @@ Verification:
 - Added `AppMetadataResolver` so plan `app.name` is also resolved from the installed app metadata returned by `soluna-ext` when `app.id` is available; configured app name remains the fallback.
 - Appium plugin changes: added `/soluna/app?udid=...&appId=...`, Android installed-app lookup through `adb shell pm path` plus `aapt dump badging`, and iOS installed-app lookup through the existing app list helpers.
 - Finalized `LocalReportWriter` HTML: removed the secondary plan subtitle from the hero, removed generated-time display, kept the device label as `设备名称`, placed report resources above execution summary, kept report resource items in left/right label-link layout, made execution overview collapsible, vertically centered action/duration cells, and opened action details from case rows or the `操作` column `动作明细` link instead of showing homepage action details.
-- Refined report action detail modals so stage/case context stays in the modal title area, the detail table no longer repeats stage/case columns, the close control is an icon button, only the modal body scrolls, and opening a modal locks the underlying report page from scrolling.
+- Refined report action detail modals so stage/case context stays in the modal title area, the detail table no longer repeats stage/case columns, the close control is an icon button, modal detail cells are vertically centered, status badges do not wrap, the retry column displays retry count instead of attempt count, only the modal body scrolls, and opening a modal locks the underlying report page from scrolling.
 - Finalized lifecycle DingTalk Markdown: fixed title remains `App UI自动化测试`, body title/subtitle use styled color/size markup with dividers before and after the blockquote subtitle, field lists start with `设备名称` and `设备标识`, finished/report-published cards use execution start/end time, and report generation time is omitted.
 - Updated architecture, schema docs, and README wording for real app/device metadata, report layout, and DingTalk card behavior; kept the bundled asset-creator skill update limited to `productModel`, report evidence usage, and extension-resolved display metadata that affect asset-project authoring/debugging.
+- Updated the bundled asset-creator skill with a focused-plan setup guardrail: preserve once-per-stage convergence in `setupFragments`, keep per-case reset in `caseSetupFragments`, and explicitly check this split before running temporary plans.
 
 Verification:
 
@@ -97,11 +98,14 @@ Verification:
 - `python3 /Users/xieliangji/.codex/skills/.system/skill-creator/scripts/quick_validate.py codex/skills/soluna-ui-autotest-creator`
 - `./gradlew installDist`; confirmed packaged skill and plugin are present under `build/install/soluna`
 - `./gradlew test --tests com.soluna.ui.autotest.report.LocalReportWriterTest`
+- `./gradlew installDist`
 - `git diff --check`
 - Android real-device run on `ZT4225X3C2`: `build/install/soluna/bin/soluna run /private/tmp/soluna-android-about-language.yaml --run-id android-about-language-report-notify-20260621-002`; cases `TC001_MINE_ABOUT` and `TC002_MINE_LANGUAGE_SETTINGS` both passed, report upload completed with 3 uploaded and 0 failed/abandoned.
 - Confirmed generated report uses real app name `UgreenAudio`, real device name `moto g - 2025`, includes start/end time, omits old subtitle/generated-time display, places report resources before execution overview, renders the execution overview as collapsible, and exposes `操作` / `动作明细` links with centered action/duration cells.
 - Android real-device rerun on `ZT4225X3C2`: `build/install/soluna/bin/soluna run /private/tmp/soluna-android-about-language-stage-setup-only.yaml --run-id android-about-language-modal-20260621-002`; cases `TC001_MINE_ABOUT` and `TC002_MINE_LANGUAGE_SETTINGS` both passed, report upload completed with 3 uploaded and 0 failed/abandoned. The temporary plan kept `appState.loggedInDevicePage` at stage `setupFragments` and used `appState.restartApp` as `caseSetupFragments`.
 - Confirmed generated modal report has icon-only close buttons, fixed modal header/body scroll separation, page scroll locking, and action detail tables without repeated stage/case columns.
+- Android real-device rerun on `ZT4225X3C2`: `build/install/soluna/bin/soluna run /private/tmp/soluna-android-about-language-stage-setup-only.yaml --run-id android-about-language-modal-cell-20260621-001`; cases `TC001_MINE_ABOUT` and `TC002_MINE_LANGUAGE_SETTINGS` both passed, report upload completed with 3 uploaded and 0 failed/abandoned.
+- Confirmed the generated modal report uses vertically centered detail cells, non-wrapping status cells, and `0` retry count for first-attempt actions.
 
 ### 2026-06-21 Report Homepage And DingTalk Card Refinement
 
