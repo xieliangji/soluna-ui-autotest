@@ -20,6 +20,16 @@ values:
       deleteDialogPattern: "(删除|移除|取消|确定)"
       connectedPattern: "已连接"
       disconnectedPattern: "未连接"
+    feedback:
+      submitDescription: "反馈自动化提交内容测试"
+      shortDescription: "少于十字"
+      minDescription: "aaaaaaaaaa"
+      maxDescription: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      overflowDescription: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      successToastPattern: "提交成功"
+      maxCounterPattern: "(?s)(200/200|200)"
+      overflowCounterPattern: "(?s)(201/200|201)"
+      overflowFailureToastPattern: "(?s)(Validation|failed|argument|问题描述.*200|不能超过|超过200|200个)"
     profile:
       nickname:
         tooShort: "a"
@@ -32,13 +42,3 @@ values:
         newPassword: "SolunaAuto123456"
       verification:
         countdownPattern: "^\\d+s$"
-    feedback:
-      submitDescription: "反馈自动化提交内容测试"
-      shortDescription: "少于十字"
-      minDescription: "aaaaaaaaaa"
-      maxDescription: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-      overflowDescription: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-      successToastPattern: "提交成功"
-      maxCounterPattern: "(?s)(200/200|200)"
-      overflowCounterPattern: "(?s)(201/200|201)"
-      overflowFailureToastPattern: "(?s)(Validation|failed|argument|问题描述.*200|不能超过|超过200|200个)"
