@@ -138,7 +138,7 @@ This keeps Android text input stable across real devices with different system k
 - direct MinIO credentials through `credentials.accessKey` / `credentials.secretKey`, with `accessKeyEnv` / `secretKeyEnv` still supported as optional indirection.
 - async upload worker count, queue capacity, bounded drain timeout, compression policy, and retry policy.
 - `upload.compression` defaults to gzip-compressing text-like artifacts such as HTML, JSON, XML, JavaScript, and structured `+json` / `+xml` content types.
-- optional upload-failure notification config reference, normally another YAML file under `examples/artifacts/`.
+- optional upload-failure notification config reference, normally another YAML file under the asset project's `artifacts/` directory.
 - optional plan lifecycle notification references: `planStarted`, `testFinished`, and `reportPublished`. The legacy `planFinished` field is still accepted as a compatibility alias for `reportPublished`.
 
 `notification-sender.schema.json` currently covers DingTalk robot config:
@@ -149,20 +149,19 @@ This keeps Android text input stable across real devices with different system k
 
 `plan-resource-manifest.schema.json` stores plan-level metadata and explicit DSL resources, including screenshots, screen recordings, and screen-recording text match frames. It is written as `plan-resource-manifest.json` beside report files and is not a step execution-detail file.
 
-Example files:
+Example asset-project files:
 
-- `examples/plans/daily-smoke.yaml`
-- `examples/plans/ugreen-profile-nickname.yaml`
-- `examples/cases/ugreen-profile-nickname.yaml`
-- `examples/data/default.yaml`
-- `examples/data/ugreen-profile.yaml`
-- `examples/elements/daily-smoke.yaml`
-- `examples/elements/ugreen-profile.yaml`
-- `examples/fragments/app-lifecycle.yaml`
-- `examples/devices/00008150-001E15AA1140401C.yaml`
-- `examples/devices/AMRF026323000807.yaml`
-- `examples/artifacts/minio.yaml`
-- `examples/artifacts/dingtalk-upload-alert.yaml`
+- `AIot-Tests/soluna-project.yaml`
+- `AIot-Tests/apps/com.ugreen.iot/plans/app-state/android.yaml`
+- `AIot-Tests/apps/com.ugreen.iot/plans/app-state/ios.yaml`
+- `AIot-Tests/apps/com.ugreen.iot/cases/common/app-state/login-page.yaml`
+- `AIot-Tests/apps/com.ugreen.iot/data/app-state.yaml`
+- `AIot-Tests/apps/com.ugreen.iot/elements/common.yaml`
+- `AIot-Tests/apps/com.ugreen.iot/fragments/app-state.yaml`
+- `AIot-Tests/devices/android/AMRF026323000807.yaml`
+- `AIot-Tests/devices/ios/00008140-001805D80C93801C.yaml`
+- `AIot-Tests/artifacts/minio.template.yaml`
+- `AIot-Tests/artifacts/dingtalk.template.yaml`
 
 Runtime model classes live under:
 

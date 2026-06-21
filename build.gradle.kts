@@ -60,6 +60,10 @@ distributions {
                 into("tools")
                 includeEmptyDirs = true
             }
+            from("codex/skills") {
+                into("codex/skills")
+                includeEmptyDirs = true
+            }
         }
     }
 }

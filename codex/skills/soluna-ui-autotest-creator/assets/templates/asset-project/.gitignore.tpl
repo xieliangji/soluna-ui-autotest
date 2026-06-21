@@ -1,0 +1,9 @@
+build/
+reports/
+logs/
+tmp/
+*.local.yaml
+*.local.yml
+*.secret.yaml
+*.secret.yml
+.DS_Store

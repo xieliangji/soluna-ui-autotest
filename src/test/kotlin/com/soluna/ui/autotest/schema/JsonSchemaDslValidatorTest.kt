@@ -70,9 +70,9 @@ class JsonSchemaDslValidatorTest {
     @Test
     fun `validates example parameter data schema`() {
         listOf(
-            Path.of("examples/data/default.yaml"),
-            Path.of("examples/data/ugreen-profile.yaml"),
             Path.of("AIot-Tests/apps/com.ugreen.iot/data/app-state.yaml"),
+            Path.of("AIot-Tests/apps/com.ugreen.iot/data/common/mine.yaml"),
+            Path.of("AIot-Tests/apps/com.ugreen.iot/data/common/visual-templates.yaml"),
         ).forEach { path ->
             val node = yamlMapper.readTree(Files.readString(path))
 
@@ -87,10 +87,9 @@ class JsonSchemaDslValidatorTest {
     @Test
     fun `validates example per device config schema`() {
         listOf(
-            Path.of("examples/devices/00008140-001805D80C93801C.yaml"),
-            Path.of("examples/devices/00008150-001E15AA1140401C.yaml"),
-            Path.of("examples/devices/AMRF026323000807.yaml"),
+            Path.of("AIot-Tests/devices/android/3B6F6KE910B3QRDN.debug.yaml"),
             Path.of("AIot-Tests/devices/android/AMRF026323000807.yaml"),
+            Path.of("AIot-Tests/devices/android/ZT4225X3C2.yaml"),
             Path.of("AIot-Tests/devices/ios/00008140-001805D80C93801C.yaml"),
         ).forEach { path ->
             val node = yamlMapper.readTree(Files.readString(path))
@@ -105,7 +104,7 @@ class JsonSchemaDslValidatorTest {
 
     @Test
     fun `validates example artifact store schema`() {
-        val path = Path.of("examples/artifacts/minio.yaml")
+        val path = Path.of("AIot-Tests/artifacts/minio.template.yaml")
         val node = yamlMapper.readTree(Files.readString(path))
 
         assertEquals(
@@ -117,7 +116,7 @@ class JsonSchemaDslValidatorTest {
 
     @Test
     fun `validates example notification sender schema`() {
-        val path = Path.of("examples/artifacts/dingtalk-upload-alert.yaml")
+        val path = Path.of("AIot-Tests/artifacts/dingtalk.template.yaml")
         val node = yamlMapper.readTree(Files.readString(path))
 
         assertEquals(
@@ -340,19 +339,15 @@ class JsonSchemaDslValidatorTest {
     fun `validates referenced case element and fragment examples`() {
         val examples = mapOf(
             "/schemas/v1/case.schema.json" to listOf(
-                Path.of("examples/cases/ugreen-profile-nickname.yaml"),
-                Path.of("examples/cases/ugreen-profile-nickname-ios.yaml"),
                 Path.of("AIot-Tests/apps/com.ugreen.iot/cases/common/app-state/login-page.yaml"),
                 Path.of("AIot-Tests/apps/com.ugreen.iot/cases/common/app-state/guest-device-page.yaml"),
                 Path.of("AIot-Tests/apps/com.ugreen.iot/cases/common/app-state/logged-in-device-page.yaml"),
+                Path.of("AIot-Tests/apps/com.ugreen.iot/cases/common/TC001_MINE_ABOUT.yaml"),
             ),
             "/schemas/v1/element-catalog.schema.json" to listOf(
-                Path.of("examples/elements/daily-smoke.yaml"),
-                Path.of("examples/elements/ugreen-profile.yaml"),
                 Path.of("AIot-Tests/apps/com.ugreen.iot/elements/common.yaml"),
             ),
             "/schemas/v1/fragment-catalog.schema.json" to listOf(
-                Path.of("examples/fragments/app-lifecycle.yaml"),
                 Path.of("AIot-Tests/apps/com.ugreen.iot/fragments/app-lifecycle.yaml"),
                 Path.of("AIot-Tests/apps/com.ugreen.iot/fragments/app-state.yaml"),
             ),

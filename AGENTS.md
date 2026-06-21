@@ -81,6 +81,27 @@ The framework should consume plugin capabilities through a client abstraction in
 - Add and install required dependencies when they are needed to complete the task. Keep the dependency choice narrow, document why it is needed, and avoid broad framework additions without a clear benefit.
 - Keep generated outputs, local build folders, logs, reports, and temporary artifacts out of git.
 
+## Codex Skill Maintenance
+
+The bundled Codex skill under `codex/skills/soluna-ui-autotest-creator` is part of this project's distribution contract. Keep it in sync with framework behavior during normal project development.
+
+Update the skill in the same iteration when changing any of these areas:
+
+- CLI entry points, validation/run/debug workflow, debug shell commands, or distribution layout.
+- YAML DSL structure, schemas, keyword aliases, action fields, runtime variables, fragments, locators, parameter data, plan/stage/case lifecycle behavior, or artifact/report contracts.
+- Appium/WebDriver behavior that affects how cases are authored or debugged.
+- Capability-gap rules, keyword extension policy, DingTalk notification flow, scaffold templates, or starter asset project layout.
+
+When updating the skill:
+
+- Keep `SKILL.md` concise and move field-level details into `references/`.
+- Update `references/keyword-usage.md` whenever action keywords, aliases, arguments, waits, assertions, visual template behavior, OCR, runtime variables, or fragment control flow change.
+- Update scaffold templates and `scripts/create_asset_project.py` when the recommended external asset project structure changes.
+- Update `scripts/send_dingtalk_gap_notice.py` and `references/capability-gap-gate.md` when capability-gap notification or approval rules change.
+- Run `python3 /Users/xieliangji/.codex/skills/.system/skill-creator/scripts/quick_validate.py codex/skills/soluna-ui-autotest-creator` after skill edits.
+- Run `./gradlew installDist` when distribution contents change, and confirm the packaged skill exists under `build/install/soluna/codex/skills/soluna-ui-autotest-creator`.
+- Record skill changes and verification in `docs/progress.md`.
+
 ## Iteration Completion Rules
 
 At the end of every implementation iteration, update the project record before handing work back.

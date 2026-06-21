@@ -10,8 +10,6 @@ import com.soluna.ui.autotest.core.model.CaseDefinition
 import com.soluna.ui.autotest.core.model.PlanDefinition
 import com.soluna.ui.autotest.core.model.StageDefinition
 import com.soluna.ui.autotest.dsl.YamlPlanParser
-import java.nio.file.Files
-import java.nio.file.Path
 import java.time.Clock
 import java.time.Instant
 import java.time.ZoneOffset
@@ -42,7 +40,7 @@ class LinearExecutionEngineTest {
             clock = fixedClock,
         )
 
-        val plan = YamlPlanParser().parse(Files.readString(Path.of("examples/plans/daily-smoke.yaml")))
+        val plan = YamlPlanParser().parse(dailySmokePlanYaml())
         val result = engine.execute(plan, ExecutionRequest(runId = "run-001"))
 
         assertEquals(ExecutionStatus.PASSED, result.status)
@@ -546,5 +544,32 @@ class LinearExecutionEngineTest {
         override fun info(message: String) {
             messages += message
         }
+    }
+
+    private fun dailySmokePlanYaml(): String {
+        return """
+            schemaVersion: "1.0"
+            id: daily-smoke
+            name: Daily Smoke
+            deviceConfig: devices/android.yaml
+            stages:
+              - id: logged-out
+                name: Logged Out
+                cases:
+                  - id: login-success
+                    name: Login Success
+                    actions:
+                      - tap:
+                          id: tap-login
+                          xRatio: 0.5
+                          yRatio: 0.5
+                      - input:
+                          id: input-username
+                          element: login.usernameInput
+                          value: demo-user
+                      - screenshot:
+                          id: capture-home
+                          resourceId: home-after-login
+        """.trimIndent()
     }
 }

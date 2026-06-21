@@ -21,7 +21,7 @@ class RealAndroidUgreenProfilePlanTest {
                 runId = System.getenv("SOLUNA_RUN_ID") ?: "ugreen-profile-local",
                 planPath = Path.of(
                     System.getenv("SOLUNA_UGREEN_PROFILE_PLAN_PATH")
-                        ?: "examples/plans/ugreen-profile-nickname.yaml",
+                        ?: "AIot-Tests/apps/com.ugreen.iot/plans/common/android.yaml",
                 ),
                 reportWriter = LocalReportWriter(),
                 parameterOverrides = newNicknameOverride(),

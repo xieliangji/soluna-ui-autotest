@@ -9,7 +9,7 @@ class YamlNotificationSenderConfigParserTest {
     @Test
     fun `parses DingTalk upload alert config with direct robot credentials`() {
         val config = YamlNotificationSenderConfigParser().parse(
-            Files.readString(Path.of("examples/artifacts/dingtalk-upload-alert.yaml")),
+            Files.readString(Path.of("AIot-Tests/artifacts/dingtalk.template.yaml")),
         )
 
         assertEquals("dingtalk-upload-alert", config.id)

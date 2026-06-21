@@ -9,7 +9,7 @@ class YamlArtifactStoreConfigParserTest {
     @Test
     fun `parses minio artifact store config using direct credentials`() {
         val config = YamlArtifactStoreConfigParser().parse(
-            Files.readString(Path.of("examples/artifacts/minio.yaml")),
+            Files.readString(Path.of("AIot-Tests/artifacts/minio.template.yaml")),
         )
 
         assertEquals("aiot-minio", config.id)
@@ -24,10 +24,10 @@ class YamlArtifactStoreConfigParserTest {
         assertEquals(0L, config.upload.compression.minBytes)
         assertEquals("application/json", config.upload.compression.contentTypes[1])
         assertEquals(5, config.upload.retry.maxAttempts)
-        assertEquals("./dingtalk-upload-alert.yaml", config.notifications.uploadFailures)
-        assertEquals("./dingtalk-upload-alert.yaml", config.notifications.planStarted)
-        assertEquals("./dingtalk-upload-alert.yaml", config.notifications.testFinished)
-        assertEquals("./dingtalk-upload-alert.yaml", config.notifications.reportPublished)
+        assertEquals("./dingtalk.template.yaml", config.notifications.uploadFailures)
+        assertEquals("./dingtalk.template.yaml", config.notifications.planStarted)
+        assertEquals("./dingtalk.template.yaml", config.notifications.testFinished)
+        assertEquals("./dingtalk.template.yaml", config.notifications.reportPublished)
         assertEquals(null, config.notifications.planFinished)
     }
 }

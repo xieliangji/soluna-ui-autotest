@@ -31,13 +31,13 @@ class YamlPlanParserTest {
 
     @Test
     fun `parses example plan`() {
-        val planYaml = Files.readString(Path.of("examples/plans/daily-smoke.yaml"))
+        val planYaml = Files.readString(Path.of("AIot-Tests/apps/com.ugreen.iot/plans/app-state/android.yaml"))
 
         val plan = parser.parse(planYaml)
 
-        assertEquals("daily-smoke", plan.id)
-        assertEquals("logged-out", plan.stages.single().id)
-        assertEquals("capture-home", plan.stages.single().cases.single().actions.last().id)
+        assertEquals("ugreen-app-state-android", plan.id)
+        assertEquals("app-state", plan.stages.single().id)
+        assertEquals(3, plan.stages.single().caseRefs.size)
     }
 
     @Test

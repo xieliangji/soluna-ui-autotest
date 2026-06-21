@@ -38,22 +38,21 @@ Codex agent development guidance:
 - Extension model: schema-first, hook-driven, and pluggable
 - Runtime orchestration: owned by Soluna runner, not JUnit/TestNG
 
-## Examples
+## Example Asset Project
 
 ```text
-examples/plans/daily-smoke.yaml
-examples/plans/ugreen-profile-nickname.yaml
-examples/cases/ugreen-profile-nickname.yaml
-examples/data/default.yaml
-examples/data/ugreen-profile.yaml
-examples/elements/daily-smoke.yaml
-examples/elements/ugreen-profile.yaml
-examples/fragments/app-lifecycle.yaml
-examples/devices/00008150-001E15AA1140401C.yaml
-examples/devices/AMRF026323000807.yaml
-examples/artifacts/minio.yaml
-examples/artifacts/dingtalk-upload-alert.yaml
 AIot-Tests/soluna-project.yaml
+AIot-Tests/apps/com.ugreen.iot/plans/app-state/android.yaml
+AIot-Tests/apps/com.ugreen.iot/plans/app-state/ios.yaml
+AIot-Tests/apps/com.ugreen.iot/plans/common/android.yaml
+AIot-Tests/apps/com.ugreen.iot/plans/common/ios.yaml
+AIot-Tests/apps/com.ugreen.iot/cases/common/app-state/login-page.yaml
+AIot-Tests/apps/com.ugreen.iot/elements/common.yaml
+AIot-Tests/apps/com.ugreen.iot/fragments/app-state.yaml
+AIot-Tests/devices/android/AMRF026323000807.yaml
+AIot-Tests/devices/ios/00008140-001805D80C93801C.yaml
+AIot-Tests/artifacts/minio.template.yaml
+AIot-Tests/artifacts/dingtalk.template.yaml
 ```
 
 The current v0 parser validates plan YAML with JSON Schema and framework policy checks before mapping it to Kotlin models.
@@ -78,6 +77,38 @@ src/main/resources/schemas/v1/run-result.schema.json
 ```
 
 The CLI still starts from a single plan path. Asset project metadata is a stable contract for future project discovery, platform use-case management, and Runner service requests.
+
+## Codex Skill
+
+The project maintains a bundled Codex skill for creating and debugging external Soluna asset projects:
+
+```text
+codex/skills/soluna-ui-autotest-creator
+```
+
+`./gradlew installDist` copies the skill into:
+
+```text
+build/install/soluna/codex/skills/soluna-ui-autotest-creator
+```
+
+The skill is versioned with the framework because it depends on the current DSL schema, CLI behavior, action keywords, debug workflow, and capability-extension rules. When those contracts change, update the skill in the same iteration.
+
+The skill includes a deterministic starter scaffold for external asset projects:
+
+```bash
+python3 codex/skills/soluna-ui-autotest-creator/scripts/create_asset_project.py \
+  --output ./My-Tests \
+  --project-id my-tests \
+  --app-id com.example.app \
+  --app-name ExampleApp \
+  --platform android \
+  --udid CHANGE_ME_UDID
+```
+
+The generated project is intentionally minimal. It creates a smoke plan that restarts the app, waits, and captures a screenshot; business locators, state fragments, and test data should be added after real-device debugging through the distributed Soluna CLI validation, run, and debug workflows.
+
+The skill also includes `scripts/send_dingtalk_gap_notice.py` for approved capability-gap notifications. It defaults to the built-in Soluna debug DingTalk robot; override it with `SOLUNA_CODEX_DINGTALK_WEBHOOK` and `SOLUNA_CODEX_DINGTALK_SECRET` when another robot should receive notices.
 
 The first real asset project example is under:
 
@@ -116,10 +147,10 @@ AIot-Tests/apps/com.ugreen.iot/fragments/app-state.yaml
 
 They use generic fragment `if` / `then` / `else` control flow with ordinary action/assertion predicates. The login and logout branches still require stable real-app flow details before being wired into executable plans.
 
-Run them the same way as any plan:
+Run an example asset-project plan the same way as any plan:
 
 ```bash
-./gradlew run --args='run AIot-Tests/apps/com.ugreen.iot/plans/profile/nickname-ios.yaml'
+./gradlew run --args='run AIot-Tests/apps/com.ugreen.iot/plans/app-state/ios.yaml'
 ```
 
 ## v0 Status
@@ -141,14 +172,14 @@ JUnit is used for framework development tests only. Runtime DSL plan orchestrati
 Normal execution starts from a single plan path:
 
 ```bash
-./gradlew run --args='run examples/plans/ugreen-profile-nickname.yaml'
+./gradlew run --args='run AIot-Tests/apps/com.ugreen.iot/plans/app-state/android.yaml'
 ```
 
 The installed distribution exposes the executable as `soluna`:
 
 ```bash
 ./gradlew installDist
-./build/install/soluna/bin/soluna run examples/plans/ugreen-profile-nickname.yaml
+./build/install/soluna/bin/soluna run AIot-Tests/apps/com.ugreen.iot/plans/app-state/android.yaml
 ```
 
 Supported optional runtime flags:
@@ -215,13 +246,13 @@ artifactStore: ../artifacts/minio.yaml
 The example MinIO config is:
 
 ```text
-examples/artifacts/minio.yaml
+AIot-Tests/artifacts/minio.template.yaml
 ```
 
 It contains the endpoint, bucket, prefix, direct credentials, gzip compression policy, upload retry policy, and a relative reference to:
 
 ```text
-examples/artifacts/dingtalk-upload-alert.yaml
+AIot-Tests/artifacts/dingtalk.template.yaml
 ```
 
 The v0 config supports direct values in YAML:
@@ -335,7 +366,7 @@ SOLUNA_RUN_ID=ugreen-profile-minio-20260613-005 \
 ./gradlew test --tests com.soluna.ui.autotest.runner.RealAndroidUgreenProfilePlanTest
 ```
 
-The plan is `examples/plans/ugreen-profile-nickname.yaml`. It composes `examples/cases/ugreen-profile-nickname.yaml`, which references `examples/data/ugreen-profile.yaml` for the new nickname and `examples/elements/ugreen-profile.yaml` for stable non-copy locators. App restart is a stage setup from `examples/fragments/app-lifecycle.yaml`, and `examples/devices/AMRF026323000807.yaml` is the UDID-named real Android device config. The plan keeps repeated action waits under `defaults.actionWait`; the case captures the original nickname at runtime into `@{case.originalNickname}`, changes and verifies the new nickname in the main action flow, then restores the captured nickname from case teardown so cleanup still runs after a main-flow failure. The local report writer emits:
+The default in-repository Android asset plan is `AIot-Tests/apps/com.ugreen.iot/plans/common/android.yaml`. It composes cases under `AIot-Tests/apps/com.ugreen.iot/cases/common/`, uses shared data and elements under the same app asset root, and resolves the Android device config from `AIot-Tests/devices/android/`. The local report writer emits:
 
 ```text
 build/soluna-runs/ugreen-profile-local/report/index.html
@@ -346,13 +377,13 @@ Optional real iOS UGREEN profile nickname YAML smoke:
 
 ```bash
 SOLUNA_IOS_UGREEN_PROFILE_SMOKE=true \
-SOLUNA_IOS_UGREEN_PROFILE_PLAN_PATH=examples/plans/ugreen-profile-nickname-ios.yaml \
+SOLUNA_IOS_UGREEN_PROFILE_PLAN_PATH=AIot-Tests/apps/com.ugreen.iot/plans/common/ios.yaml \
 SOLUNA_IOS_UGREEN_PROFILE_NEW_NICKNAME=SolunaIOS \
 SOLUNA_RUN_ID=ugreen-profile-ios-local \
 ./gradlew test --tests com.soluna.ui.autotest.runner.RealIosUgreenProfilePlanTest
 ```
 
-The iOS smoke uses `examples/cases/ugreen-profile-nickname-ios.yaml` and the shared element catalog with iOS locator branches selected from `examples/elements/ugreen-profile.yaml`. The iOS case includes the current app workaround for the first nickname modal after restart: it uses viewport-relative `tap` actions on the modal backdrop, then reopens the nickname dialog before editing. The connected iOS device must already be logged in to an account where the mine page exposes the profile/avatar entry; otherwise the nickname flow cannot reach the personal information page.
+The default in-repository iOS asset plan is `AIot-Tests/apps/com.ugreen.iot/plans/common/ios.yaml`. The connected iOS device must satisfy that plan's account and app-state preconditions.
 
 ## Appium Plugin
 

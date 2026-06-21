@@ -7,6 +7,7 @@ This file is the compact project progress record. It should help future agents u
 - Keep this file concise. Record milestones, current status, verification, and next work.
 - Do not paste long command output, stack traces, or every failed attempt here. Use git history and test reports for forensic detail.
 - If behavior, boundaries, schemas, lifecycle assumptions, commands, or dependencies change, update the relevant design/usage document in the same iteration.
+- When CLI, DSL, schema, keyword, debug, artifact/report, scaffold, or capability-gap behavior changes, update the bundled Codex skill under `codex/skills/soluna-ui-autotest-creator` in the same iteration.
 - For each implementation iteration, add one short entry under "Recent Iterations".
 
 ## Current State
@@ -48,6 +49,35 @@ Primary verified real-device flow:
 - iOS upload-enabled run verified MinIO upload, report/resource links, local cleanup, DingTalk notifications, and assertion polling without fixed post-confirm sleeps.
 
 ## Recent Iterations
+
+### 2026-06-21 Bundled Codex Asset Creator Skill
+
+- Added the project-versioned Codex skill `codex/skills/soluna-ui-autotest-creator` for external asset project creation, validation/debug/run workflow guidance, and strict capability-gap reporting.
+- Added a deterministic `create_asset_project.py` scaffold with minimal starter templates for `soluna-project.yaml`, app plans/cases/data/elements/fragments/docs, device config, and artifact templates.
+- Added a `send_dingtalk_gap_notice.py` helper so Codex can dry-run and send approved capability-gap requests to the built-in Soluna debug DingTalk robot, with optional environment or CLI overrides for other robots.
+- Added `references/keyword-usage.md` so the skill explains field-level keyword usage, runtime variables, ROI, visual templates, screen recording OCR, assertions, and fragment control flow before asking for framework expansion.
+- Added `AGENTS.md` maintenance rules requiring the bundled skill to be updated with related CLI, DSL, schema, debug, artifact/report, scaffold, and capability-gap behavior changes.
+- Kept maintenance responsibility out of distributed skill instructions; skill references now focus on asset-project use through the packaged distribution instead of source-checkout paths.
+- Removed the legacy root examples asset tree; `AIot-Tests` is now the in-repository example Soluna asset project for docs and tests.
+- Updated Gradle distribution packaging so `installDist` copies bundled skills under `build/install/soluna/codex/skills`.
+- Updated README and architecture notes to make the skill part of the framework distribution contract and require skill updates when schema, CLI, keyword, debug, report, or extension-flow behavior changes.
+
+Verification:
+
+- `python3 /Users/xieliangji/.codex/skills/.system/skill-creator/scripts/quick_validate.py codex/skills/soluna-ui-autotest-creator`
+- Manual cross-check against `DefaultKeywordRegistry`, v1 case/fragment schemas, and current action executor field semantics.
+- `git diff --check -- AGENTS.md codex/skills/soluna-ui-autotest-creator docs/progress.md`
+- Stale root example-path reference scan returned no matches outside generated output and git metadata.
+- Focused parser, linear execution, artifact config, notification config, and schema validation Gradle tests passed against the staged snapshot.
+- `python3 codex/skills/soluna-ui-autotest-creator/scripts/create_asset_project.py --output /private/tmp/soluna-skill-scaffold-check --project-id smoke-check --app-id com.example.smoke --app-name SmokeApp --platform android --udid TEST_UDID --force`
+- `python3 codex/skills/soluna-ui-autotest-creator/scripts/send_dingtalk_gap_notice.py --message 'Capability gap dry run' --dry-run`
+- `python3 codex/skills/soluna-ui-autotest-creator/scripts/send_dingtalk_gap_notice.py --message 'Capability gap dry run' --webhook 'https://oapi.dingtalk.com/robot/send?access_token=override12345678' --dry-run`
+- `python3 codex/skills/soluna-ui-autotest-creator/scripts/send_dingtalk_gap_notice.py --message 'Capability gap dry run' --no-default-robot --dry-run`
+- `./gradlew installDist`
+- Confirmed `build/install/soluna/codex/skills/soluna-ui-autotest-creator/references/keyword-usage.md` exists after `installDist`.
+- `python3 build/install/soluna/codex/skills/soluna-ui-autotest-creator/scripts/create_asset_project.py --output /private/tmp/soluna-skill-scaffold-check-dist --project-id smoke-check-dist --app-id com.example.dist --app-name DistApp --platform ios --udid IOS_TEST_UDID --force`
+- `python3 build/install/soluna/codex/skills/soluna-ui-autotest-creator/scripts/send_dingtalk_gap_notice.py --message 'Capability gap dry run from dist' --dry-run`
+- DingTalk helper verification used `--dry-run` only; no live DingTalk notification was sent.
 
 ### 2026-06-18 iOS Feedback History Polling Fix
 
