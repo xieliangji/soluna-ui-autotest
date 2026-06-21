@@ -71,7 +71,7 @@ class AppiumDebugManager(
             stdout.appendLine("server: ${active.server.url}")
             active.wda?.url?.let { stdout.appendLine("wda: $it") }
             stdout.appendLine("session: ${active.session.sessionId}")
-            stdout.appendLine("commands: restart-app [--app-id id], source [--out file], screenshot --out file, tap --x-ratio n --y-ratio n, tap-element --strategy s --locator v, input --strategy s --locator v --text text, tap-template --template file [--roi x,y,w,h], help, exit")
+            stdout.appendLine("commands: restart-app [--app-id id], source [--out file], screenshot --out file, tap --x-ratio n --y-ratio n, tap-element --strategy s --locator v, swipe --start-x-ratio n --start-y-ratio n --end-x-ratio n --end-y-ratio n, swipe-element --strategy s --locator v --start-x-ratio n --start-y-ratio n --end-x-ratio n --end-y-ratio n, input --strategy s --locator v --text text, tap-template --template file [--roi x,y,w,h], help, exit")
             stdout.flushIfPossible()
 
             var executed = 0
@@ -92,6 +92,8 @@ class AppiumDebugManager(
                         stdout.appendLine("  screenshot --out file")
                         stdout.appendLine("  tap --x-ratio <0..1> --y-ratio <0..1>")
                         stdout.appendLine("  tap-element --strategy <strategy> --locator <value> [--element-x-ratio <0..1>] [--element-y-ratio <0..1>]")
+                        stdout.appendLine("  swipe --start-x-ratio <0..1> --start-y-ratio <0..1> --end-x-ratio <0..1> --end-y-ratio <0..1> [--duration-ms n]")
+                        stdout.appendLine("  swipe-element --strategy <strategy> --locator <value> --start-x-ratio <0..1> --start-y-ratio <0..1> --end-x-ratio <0..1> --end-y-ratio <0..1> [--duration-ms n]")
                         stdout.appendLine("  input --strategy <strategy> --locator <value> --text <text> [--clear-first true|false]")
                         stdout.appendLine("  tap-template --template <png> [--roi x,y,w,h] [--threshold <0..1>] [--scales a,b,c]")
                         stdout.appendLine("  exit")
@@ -215,6 +217,33 @@ class AppiumDebugManager(
                 )
                 "tap-element: ${action.locator.strategy}=${action.locator.value}, xRatio=${action.xRatio}, yRatio=${action.yRatio}"
             }
+            is AppiumDebugAction.Swipe -> {
+                webDriverAdapter.swipeViewport(
+                    sessionId = sessionId,
+                    durationMs = action.durationMs,
+                    startXRatio = action.startXRatio,
+                    startYRatio = action.startYRatio,
+                    endXRatio = action.endXRatio,
+                    endYRatio = action.endYRatio,
+                )
+                "swipe: start=${action.startXRatio},${action.startYRatio}, end=${action.endXRatio},${action.endYRatio}, durationMs=${action.durationMs}"
+            }
+            is AppiumDebugAction.SwipeElement -> {
+                val element = webDriverAdapter.findElement(
+                    sessionId = sessionId,
+                    locator = action.locator,
+                )
+                webDriverAdapter.swipe(
+                    sessionId = sessionId,
+                    element = element,
+                    durationMs = action.durationMs,
+                    startXRatio = action.startXRatio,
+                    startYRatio = action.startYRatio,
+                    endXRatio = action.endXRatio,
+                    endYRatio = action.endYRatio,
+                )
+                "swipe-element: ${action.locator.strategy}=${action.locator.value}, start=${action.startXRatio},${action.startYRatio}, end=${action.endXRatio},${action.endYRatio}, durationMs=${action.durationMs}"
+            }
             is AppiumDebugAction.Input -> {
                 val element = webDriverAdapter.findElement(
                     sessionId = sessionId,
@@ -267,6 +296,11 @@ class AppiumDebugManager(
         var output: Path? = null
         var xRatio: Double? = null
         var yRatio: Double? = null
+        var startXRatio: Double? = null
+        var startYRatio: Double? = null
+        var endXRatio: Double? = null
+        var endYRatio: Double? = null
+        var durationMs: Long = 500
         var strategy: String? = null
         var locatorValue: String? = null
         var text: String? = null
@@ -300,6 +334,31 @@ class AppiumDebugManager(
                     index += 1
                 }
                 arg.startsWith("--y-ratio=") -> yRatio = parseRatio(arg.substringAfter("="), "--y-ratio")
+                arg == "--start-x-ratio" -> {
+                    startXRatio = parseRatio(args.valueAfter(index, arg), arg)
+                    index += 1
+                }
+                arg.startsWith("--start-x-ratio=") -> startXRatio = parseRatio(arg.substringAfter("="), "--start-x-ratio")
+                arg == "--start-y-ratio" -> {
+                    startYRatio = parseRatio(args.valueAfter(index, arg), arg)
+                    index += 1
+                }
+                arg.startsWith("--start-y-ratio=") -> startYRatio = parseRatio(arg.substringAfter("="), "--start-y-ratio")
+                arg == "--end-x-ratio" -> {
+                    endXRatio = parseRatio(args.valueAfter(index, arg), arg)
+                    index += 1
+                }
+                arg.startsWith("--end-x-ratio=") -> endXRatio = parseRatio(arg.substringAfter("="), "--end-x-ratio")
+                arg == "--end-y-ratio" -> {
+                    endYRatio = parseRatio(args.valueAfter(index, arg), arg)
+                    index += 1
+                }
+                arg.startsWith("--end-y-ratio=") -> endYRatio = parseRatio(arg.substringAfter("="), "--end-y-ratio")
+                arg == "--duration-ms" -> {
+                    durationMs = parseNonNegativeLong(args.valueAfter(index, arg), arg)
+                    index += 1
+                }
+                arg.startsWith("--duration-ms=") -> durationMs = parseNonNegativeLong(arg.substringAfter("="), "--duration-ms")
                 arg == "--strategy" || arg == "--by" -> {
                     strategy = args.valueAfter(index, arg)
                     index += 1
@@ -382,6 +441,13 @@ class AppiumDebugManager(
                 xRatio = xRatio ?: error("tap requires --x-ratio"),
                 yRatio = yRatio ?: error("tap requires --y-ratio"),
             )
+            "swipe" -> AppiumDebugAction.Swipe(
+                startXRatio = startXRatio ?: error("swipe requires --start-x-ratio"),
+                startYRatio = startYRatio ?: error("swipe requires --start-y-ratio"),
+                endXRatio = endXRatio ?: error("swipe requires --end-x-ratio"),
+                endYRatio = endYRatio ?: error("swipe requires --end-y-ratio"),
+                durationMs = durationMs,
+            )
             "tap-element", "tapElement" -> AppiumDebugAction.TapElement(
                 locator = LocatorDefinition(
                     strategy = strategy ?: error("tap-element requires --strategy"),
@@ -389,6 +455,17 @@ class AppiumDebugManager(
                 ),
                 xRatio = elementXRatio,
                 yRatio = elementYRatio,
+            )
+            "swipe-element", "swipeElement" -> AppiumDebugAction.SwipeElement(
+                locator = LocatorDefinition(
+                    strategy = strategy ?: error("swipe-element requires --strategy"),
+                    value = locatorValue ?: error("swipe-element requires --locator"),
+                ),
+                startXRatio = startXRatio ?: error("swipe-element requires --start-x-ratio"),
+                startYRatio = startYRatio ?: error("swipe-element requires --start-y-ratio"),
+                endXRatio = endXRatio ?: error("swipe-element requires --end-x-ratio"),
+                endYRatio = endYRatio ?: error("swipe-element requires --end-y-ratio"),
+                durationMs = durationMs,
             )
             "input" -> AppiumDebugAction.Input(
                 locator = LocatorDefinition(
@@ -454,6 +531,18 @@ class AppiumDebugManager(
             ?: error("$option requires a number")
         require(value in 0.0..1.0) {
             "$option must be between 0 and 1"
+        }
+        return value
+    }
+
+    private fun parseNonNegativeLong(
+        raw: String,
+        option: String,
+    ): Long {
+        val value = raw.toLongOrNull()
+            ?: error("$option requires an integer")
+        require(value >= 0) {
+            "$option must be >= 0"
         }
         return value
     }
@@ -609,6 +698,23 @@ sealed class AppiumDebugAction(val name: String) {
         val xRatio: Double = 0.5,
         val yRatio: Double = 0.5,
     ) : AppiumDebugAction("tap-element")
+
+    data class Swipe(
+        val startXRatio: Double,
+        val startYRatio: Double,
+        val endXRatio: Double,
+        val endYRatio: Double,
+        val durationMs: Long = 500,
+    ) : AppiumDebugAction("swipe")
+
+    data class SwipeElement(
+        val locator: LocatorDefinition,
+        val startXRatio: Double,
+        val startYRatio: Double,
+        val endXRatio: Double,
+        val endYRatio: Double,
+        val durationMs: Long = 500,
+    ) : AppiumDebugAction("swipe-element")
 
     data class Input(
         val locator: LocatorDefinition,

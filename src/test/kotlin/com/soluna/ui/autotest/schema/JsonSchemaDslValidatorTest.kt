@@ -405,6 +405,36 @@ class JsonSchemaDslValidatorTest {
     }
 
     @Test
+    fun `validates swipe action schemas`() {
+        val node = yamlMapper.readTree(
+            """
+            schemaVersion: "1.0"
+            id: swipe-actions
+            name: Swipe Actions
+            actions:
+              - swipe: swipe-page-up
+                startXRatio: 0.5
+                startYRatio: 0.8
+                endXRatio: 0.5
+                endYRatio: 0.2
+                durationMs: 600
+              - 滑动: swipe-list-item
+                element: common.list
+                startElementXRatio: 0.5
+                startElementYRatio: 0.9
+                endElementXRatio: 0.5
+                endElementYRatio: 0.1
+                settleMs: 0
+            """.trimIndent(),
+        )
+
+        assertEquals(
+            emptyList(),
+            validator.validate("/schemas/v1/case.schema.json", node),
+        )
+    }
+
+    @Test
     fun `validates screen recording text assertion action schemas`() {
         val node = yamlMapper.readTree(
             """
@@ -429,6 +459,47 @@ class JsonSchemaDslValidatorTest {
                   framesPerSecond: 8
                   maxFrames: 60
                   resourceId: toast-frame
+            """.trimIndent(),
+        )
+
+        assertEquals(
+            emptyList(),
+            validator.validate("/schemas/v1/case.schema.json", node),
+        )
+    }
+
+    @Test
+    fun `validates app log capture and custom assertion action schemas`() {
+        val node = yamlMapper.readTree(
+            """
+            schemaVersion: "1.0"
+            id: app-log-actions
+            name: App Log Actions
+            actions:
+              - captureAppLogStart:
+                  id: start-bt-log
+                  saveAs: btLogWindow
+                  maxBufferEntries: 500
+                  filter:
+                    messageContains: "BLE"
+                    ios:
+                      processRegex: "UgreenAudio"
+                    android:
+                      tag: "BluetoothCmd"
+              - captureAppLogEnd:
+                  id: stop-bt-log
+                  source: "@{case.btLogWindow}"
+                  saveAs: btLogFile
+                  readLimit: 200
+                  maxEntries: 1000
+              - customAssertAppLog:
+                  id: assert-bt-log
+                  plugin: ugreen-audio
+                  assertion: bluetoothCommandReported
+                  source: "@{case.btLogFile}"
+                  args:
+                    operation: customControl
+                    expected: playPause
             """.trimIndent(),
         )
 

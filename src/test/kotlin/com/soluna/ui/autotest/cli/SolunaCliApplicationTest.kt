@@ -242,6 +242,57 @@ class SolunaCliApplicationTest {
     }
 
     @Test
+    fun `debug swipe command passes viewport ratios to debug manager`() {
+        var capturedRequest: AppiumDebugRequest? = null
+        val stdout = StringBuilder()
+        val stderr = StringBuilder()
+        val cli = SolunaCliApplication(
+            runDebug = { request ->
+                capturedRequest = request
+                AppiumDebugResult(
+                    action = request.action.name,
+                    serverUrl = "http://127.0.0.1:4723",
+                    wdaUrl = null,
+                    sessionId = "session-debug",
+                    output = "swipe: start=0.5,0.8, end=0.5,0.2, durationMs=650",
+                )
+            },
+        )
+
+        val exitCode = cli.run(
+            arrayOf(
+                "debug",
+                "plans/ios.yaml",
+                "swipe",
+                "--start-x-ratio",
+                "0.5",
+                "--start-y-ratio",
+                "0.8",
+                "--end-x-ratio",
+                "0.5",
+                "--end-y-ratio",
+                "0.2",
+                "--duration-ms",
+                "650",
+            ),
+            stdout,
+            stderr,
+        )
+
+        val request = assertNotNull(capturedRequest)
+        val action = assertIs<AppiumDebugAction.Swipe>(request.action)
+        assertEquals(0, exitCode)
+        assertEquals(Path.of("plans/ios.yaml"), request.planPath)
+        assertEquals(0.5, action.startXRatio)
+        assertEquals(0.8, action.startYRatio)
+        assertEquals(0.5, action.endXRatio)
+        assertEquals(0.2, action.endYRatio)
+        assertEquals(650L, action.durationMs)
+        assertTrue(stdout.toString().contains("action: swipe"))
+        assertEquals("", stderr.toString())
+    }
+
+    @Test
     fun `debug shell command delegates to shell runner`() {
         var capturedRequest: AppiumDebugShellRequest? = null
         val stdout = StringBuilder()
@@ -268,6 +319,75 @@ class SolunaCliApplicationTest {
         assertTrue(stdout.toString().contains("shell body"))
         assertTrue(stdout.toString().contains("commands: 2"))
         assertEquals("", stderr.toString())
+    }
+
+    @Test
+    fun `scaffold app log plugin command creates plugin project files`() {
+        val root = Files.createTempDirectory("soluna-cli-plugin-scaffold")
+        val output = root.resolve("ugreen-audio-plugin")
+        val stdout = StringBuilder()
+        val stderr = StringBuilder()
+        val cli = SolunaCliApplication()
+
+        val exitCode = cli.run(
+            arrayOf(
+                "scaffold",
+                "app-log-plugin",
+                output.toString(),
+                "--plugin-id",
+                "ugreen-audio",
+                "--package",
+                "com.ugreen.soluna.applog",
+                "--assertion",
+                "ble-command-ack",
+            ),
+            stdout,
+            stderr,
+        )
+
+        assertEquals(0, exitCode)
+        assertEquals("", stderr.toString())
+        assertTrue(stdout.toString().contains("Soluna app-log plugin scaffold created"))
+        assertTrue(Files.exists(output.resolve("settings.gradle.kts")))
+        assertTrue(Files.readString(output.resolve("build.gradle.kts")).contains("SOLUNA_HOME"))
+        assertEquals(
+            "com.ugreen.soluna.applog.UgreenAudioAppLogPlugin\n",
+            Files.readString(
+                output.resolve(
+                    "src/main/resources/META-INF/services/com.soluna.ui.autotest.extension.applog.AppLogAssertionPlugin",
+                ),
+            ),
+        )
+        val source = Files.readString(output.resolve("src/main/kotlin/com/ugreen/soluna/applog/UgreenAudioAppLogPlugin.kt"))
+        assertTrue(source.contains("override val id: String = \"ugreen-audio\""))
+        assertTrue(source.contains("override val name: String = \"ble-command-ack\""))
+    }
+
+    @Test
+    fun `scaffold app log plugin command refuses non-empty output without force`() {
+        val output = Files.createTempDirectory("soluna-cli-plugin-scaffold-existing")
+        Files.writeString(output.resolve("existing.txt"), "existing")
+        val stdout = StringBuilder()
+        val stderr = StringBuilder()
+        val cli = SolunaCliApplication()
+
+        val exitCode = cli.run(
+            arrayOf(
+                "scaffold",
+                "app-log-plugin",
+                output.toString(),
+                "--plugin-id",
+                "ugreen-audio",
+                "--package",
+                "com.ugreen.soluna.applog",
+            ),
+            stdout,
+            stderr,
+        )
+
+        assertEquals(1, exitCode)
+        assertEquals("", stdout.toString())
+        assertTrue(stderr.toString().contains("Output directory is not empty"))
     }
 
     private fun planRunResult(

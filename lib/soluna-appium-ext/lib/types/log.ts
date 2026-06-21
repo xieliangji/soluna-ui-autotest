@@ -17,11 +17,46 @@ export interface UnifiedLogEntry {
   raw: string
 }
 
+export interface LogSessionFilter {
+  source?: LogLineSource
+  level?: string
+  levels?: string[]
+  tag?: string
+  tags?: string[]
+  tagRegex?: string
+  process?: string
+  processes?: string[]
+  processRegex?: string
+  messageContains?: string
+  messageRegex?: string
+  rawContains?: string
+  rawRegex?: string
+  android?: LogSessionPlatformFilter
+  ios?: LogSessionPlatformFilter
+}
+
+export interface LogSessionPlatformFilter {
+  source?: LogLineSource
+  level?: string
+  levels?: string[]
+  tag?: string
+  tags?: string[]
+  tagRegex?: string
+  process?: string
+  processes?: string[]
+  processRegex?: string
+  messageContains?: string
+  messageRegex?: string
+  rawContains?: string
+  rawRegex?: string
+}
+
 export interface CreateLogSessionRequest {
   udid: string
   maxBufferEntries?: number
   maxSessionBytes?: number
   ttlMs?: number
+  filter?: LogSessionFilter
 }
 
 export interface ReadLogSessionRequest {

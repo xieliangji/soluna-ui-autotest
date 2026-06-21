@@ -154,6 +154,43 @@ Optional fields:
 
 Aliases are `longTap`, `pressAndHold`, `长按`, and `长按点击`; prefer canonical `longPress` in new assets.
 
+### swipe
+
+Use for drag/swipe gestures such as scrolling a detail page or moving inside a scrollable list. Prefer an element-relative swipe when a stable scrollable container is exposed; use viewport ratios only when no stable element can model the scroll surface.
+
+Viewport example:
+
+```yaml
+- swipe:
+    id: scroll-device-detail
+    startXRatio: 0.50
+    startYRatio: 0.80
+    endXRatio: 0.50
+    endYRatio: 0.25
+    durationMs: 500
+```
+
+Element-relative example:
+
+```yaml
+- swipe:
+    id: scroll-settings-list
+    element: device.settingsList
+    startElementXRatio: 0.50
+    startElementYRatio: 0.90
+    endElementXRatio: 0.50
+    endElementYRatio: 0.10
+```
+
+Optional fields:
+
+- `durationMs`: Swipe movement duration in milliseconds. Defaults to `500`.
+- `settleMs`: Post-swipe settle delay. Defaults to `800`.
+- `startXRatio`, `startYRatio`, `endXRatio`, `endYRatio`: Viewport-relative start/end points. Provide all four fields together and do not combine them with `element`.
+- `startElementXRatio`, `startElementYRatio`, `endElementXRatio`, `endElementYRatio`: Element-relative start/end points. Provide all four fields together with `element`.
+
+Aliases are `滑动` and `划动`; prefer canonical `swipe` in new assets.
+
 ### wait
 
 Use only for brief UI settling or platform delays that cannot be asserted directly.
@@ -302,6 +339,55 @@ Use after the transient event and optionally save the video path for OCR.
 
 The runner also saves the last video path to `@{case.lastScreenRecording}`.
 
+### captureAppLogStart
+
+Use before a UI action that must later be checked against app logs. Always keep the capture window narrow and use `filter` to reduce log volume during collection.
+
+```yaml
+- captureAppLogStart:
+    id: start-ble-log-capture
+    saveAs: bleLogCapture
+    filter:
+      messageContains: BLE
+      android:
+        tagRegex: Bluetooth|BLE
+      ios:
+        processRegex: Ugreen|Bluetooth
+```
+
+Required fields:
+
+- `saveAs`: Runtime variable name for the log-session descriptor. The runner also stores the latest capture descriptor as `@{case.lastAppLogCapture}`.
+
+Optional fields:
+
+- `filter`: Capture-time filter. Common fields at the top level are combined with the current platform branch under `android` or `ios`.
+- `maxBufferEntries`, `maxSessionBytes`, `ttlMs`: Bounds passed to the underlying log session.
+- `udid`: Override the plan device UDID only for focused diagnostics.
+
+Filter fields are `source`, `level` / `levels`, `tag` / `tags`, `tagRegex`, `process` / `processes`, `processRegex`, `messageContains`, `messageRegex`, `rawContains`, and `rawRegex`.
+
+### captureAppLogEnd
+
+Use after the UI action to close the current app-log capture and write a JSONL resource.
+
+```yaml
+- captureAppLogEnd:
+    id: stop-ble-log-capture
+    source: "@{case.bleLogCapture}"
+    resourceId: ble-command-log
+    saveAs: bleLogFile
+```
+
+Defaults:
+
+- `source`: `@{case.lastAppLogCapture}`
+- `readLimit`: `500`
+- `maxReadBatches`: `20`
+- `maxEntries`: `5000`
+
+The runner writes an `application/x-ndjson` explicit resource, stores its descriptor in `@{case.lastAppLogFile}`, and also stores it in `saveAs` when supplied.
+
 ### assertElementExists
 
 Use for presence or page-state assertions.
@@ -395,6 +481,34 @@ Defaults:
 
 Use `recognizer: multimodal` only when Paddle OCR is insufficient and runtime multimodal environment variables are configured.
 
+### customAssertAppLog
+
+Use after `captureAppLogEnd` when log semantics require an app-specific parser or matcher.
+
+```yaml
+- customAssertAppLog:
+    id: assert-ble-command-succeeded
+    source: "@{case.bleLogFile}"
+    plugin: ugreen-audio
+    assertion: ble-command-ack
+    args:
+      command: ${deviceLog.expectedCommand}
+      status: success
+```
+
+Required fields:
+
+- `plugin`: App-log assertion plugin id.
+- `assertion`: Assertion name provided by that plugin.
+
+Defaults:
+
+- `source`: `@{case.lastAppLogFile}`
+
+`args` is plugin-specific structured data. Missing plugin/assertion registrations fail the action; do not rely on this keyword as a no-op placeholder.
+
+Plugin source should live in an independent JVM module. Start one with `soluna scaffold app-log-plugin`, then install its JAR into an app-log plugin directory. At runtime, the runner loads app-log assertion JARs from classpath, `plugins/app-log/*.jar` under the active distribution/current working directory/inferred plan asset root, and any directories listed in `soluna.appLogPluginDirs` or `SOLUNA_APP_LOG_PLUGIN_DIRS`.
+
 ## Fragment Control Flow
 
 Use `if` only in fragments or reusable lifecycle flows, not in case `actions`.
@@ -434,10 +548,11 @@ Keep case files linear. Put branchy state convergence in fragments referenced by
 
 Before requesting a new keyword or framework capability, prove why the current recipes cannot close the scenario:
 
-- Element action path tried: `tap`, `input`, `getText`, element assertions.
+- Element/gesture action path tried: `tap`, `swipe`, `input`, `getText`, element assertions.
 - Source path tried: `assertSourceRegexMatch` with parameterized regex.
 - Visual path tried: `saveElementRect` plus `tapVisualTemplate` or OCR ROI.
 - Transient text path tried: `startScreenRecording`, `stopScreenRecording`, `assertScreenRecordingTextRegexMatch`.
+- App log path tried: `captureAppLogStart`, `captureAppLogEnd`, and existing app-log assertion plugins.
 - State orchestration tried: plan/stage/case setup and teardown, fragment `if` branches, focused platform-specific cases.
 - Evidence collected: fresh source, screenshot, template/ROI match data, run report, and minimal reproducing plan/case.
 

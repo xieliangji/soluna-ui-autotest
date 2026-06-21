@@ -51,6 +51,15 @@ python3 codex/skills/soluna-ui-autotest-creator/scripts/create_asset_project.py 
 
 The scaffold is intentionally minimal: it creates a project contract, one app root, one device template, artifact templates, a restart fragment, an empty public element catalog, default data, formal/debug plan directories, device case/data directories, a `elements/device/` folder for one YAML catalog per model, and a smoke plan/case with the required `productModel` display field. Add business locators, device fragments, and state fragments only after real-device debugging.
 
+For app-log assertion plugins used by `customAssertAppLog`, use the packaged Soluna scaffold command instead of writing parser code in the asset project:
+
+```bash
+soluna scaffold app-log-plugin ./ugreen-audio-log-plugin \
+  --plugin-id ugreen-audio \
+  --package com.ugreen.soluna.applog \
+  --assertion ble-command-ack
+```
+
 ## Hard Rules
 
 - Do not hardcode account passwords, MinIO credentials, DingTalk tokens, or multimodal API keys into generated asset projects; the bundled local debug DingTalk robot in `scripts/send_dingtalk_gap_notice.py` is the only approved exception.

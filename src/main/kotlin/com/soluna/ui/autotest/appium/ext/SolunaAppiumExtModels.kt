@@ -2,6 +2,7 @@ package com.soluna.ui.autotest.appium.ext
 
 import com.fasterxml.jackson.annotation.JsonCreator
 import com.fasterxml.jackson.annotation.JsonValue
+import com.fasterxml.jackson.databind.JsonNode
 
 enum class Platform(
     private val wireValue: String,
@@ -166,6 +167,7 @@ data class CreateLogSessionRequest(
     val maxBufferEntries: Int? = null,
     val maxSessionBytes: Long? = null,
     val ttlMs: Long? = null,
+    val filter: JsonNode? = null,
 )
 
 data class ReadLogSessionRequest(

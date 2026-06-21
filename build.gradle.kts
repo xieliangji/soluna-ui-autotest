@@ -66,6 +66,10 @@ distributions {
                 exclude("node_modules/**", "build/**")
                 includeEmptyDirs = true
             }
+            from("plugins/app-log") {
+                into("plugins/app-log")
+                includeEmptyDirs = true
+            }
             from("codex/skills") {
                 into("codex/skills")
                 includeEmptyDirs = true

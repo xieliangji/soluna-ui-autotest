@@ -43,6 +43,7 @@ class YamlPlanParserTest {
     @Test
     fun `normalizes chinese action keyword`() {
         assertEquals("tap", DefaultKeywordRegistry.normalize("点击"))
+        assertEquals("swipe", DefaultKeywordRegistry.normalize("滑动"))
         assertEquals("screenshot", DefaultKeywordRegistry.normalize("显式截图"))
         assertEquals("assertElementExists", DefaultKeywordRegistry.normalize("元素存在"))
     }
@@ -76,6 +77,13 @@ class YamlPlanParserTest {
                           wait:
                             timeoutMs: 3000
                             intervalMs: 500
+                      - swipe:
+                          id: scroll-login-page
+                          startXRatio: 0.5
+                          startYRatio: 0.8
+                          endXRatio: 0.5
+                          endYRatio: 0.2
+                          durationMs: 600
         """.trimIndent()
 
         val plan = parser.parse(yaml)
@@ -88,6 +96,9 @@ class YamlPlanParserTest {
         assertEquals(true, actions[0].args["clearFirst"]?.asBoolean())
         assertEquals("assertElementAttrRegexMatch", actions[1].keyword)
         assertEquals(3_000, actions[1].wait?.timeoutMs)
+        assertEquals("swipe", actions[2].keyword)
+        assertEquals(0.8, actions[2].args["startYRatio"]?.asDouble())
+        assertEquals(600, actions[2].args["durationMs"]?.asInt())
     }
 
     @Test
@@ -132,6 +143,57 @@ class YamlPlanParserTest {
         assertEquals("提交成功", actions[2].value?.asText())
         assertEquals("@{case.toastVideo}", actions[2].args["source"]?.asText())
         assertEquals("toast-frame", actions[2].resourceId)
+    }
+
+    @Test
+    fun `parses app log capture and custom assertion payloads`() {
+        val yaml = """
+            schemaVersion: "1.0"
+            id: app-log-actions
+            name: App Log Actions
+            productModel: Test Product
+            deviceConfig: devices/ios.yaml
+            stages:
+              - id: main
+                name: Main
+                cases:
+                  - id: bt-log
+                    name: Bluetooth Log
+                    actions:
+                      - captureAppLogStart:
+                          id: start-bt-log
+                          saveAs: btLogWindow
+                          filter:
+                            messageContains: "BLE"
+                            ios:
+                              processRegex: "UgreenAudio"
+                            android:
+                              tag: "BluetoothCmd"
+                      - captureAppLogEnd:
+                          id: stop-bt-log
+                          source: "@{case.btLogWindow}"
+                          saveAs: btLogFile
+                      - customAssertAppLog:
+                          id: assert-bt-log
+                          plugin: ugreen-audio
+                          assertion: bluetoothCommandReported
+                          source: "@{case.btLogFile}"
+                          args:
+                            operation: customControl
+                            expected: playPause
+        """.trimIndent()
+
+        val actions = parser.parse(yaml).stages.single().cases.single().actions
+
+        assertEquals("captureAppLogStart", actions[0].keyword)
+        assertEquals("btLogWindow", actions[0].args["saveAs"]?.asText())
+        assertEquals("UgreenAudio", actions[0].args["filter"]?.path("ios")?.path("processRegex")?.asText())
+        assertEquals("captureAppLogEnd", actions[1].keyword)
+        assertEquals("@{case.btLogWindow}", actions[1].args["source"]?.asText())
+        assertEquals("customAssertAppLog", actions[2].keyword)
+        assertEquals("ugreen-audio", actions[2].args["plugin"]?.asText())
+        assertEquals("bluetoothCommandReported", actions[2].args["assertion"]?.asText())
+        assertEquals("customControl", actions[2].args["args"]?.path("operation")?.asText())
     }
 
     @Test

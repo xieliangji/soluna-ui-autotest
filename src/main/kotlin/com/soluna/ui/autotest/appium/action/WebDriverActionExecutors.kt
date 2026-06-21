@@ -22,6 +22,7 @@ import com.soluna.ui.autotest.appium.driver.ElementRect
 import com.soluna.ui.autotest.appium.driver.ScreenRecordingOptions
 import com.soluna.ui.autotest.appium.driver.ScreenshotData
 import com.soluna.ui.autotest.appium.driver.WebDriverAdapter
+import com.soluna.ui.autotest.appium.ext.SolunaAppiumExtClient
 import com.soluna.ui.autotest.artifact.CapturedPlanResource
 import com.soluna.ui.autotest.core.execution.ActionExecutionResult
 import com.soluna.ui.autotest.core.execution.ActionExecutor
@@ -144,6 +145,63 @@ class LongPressActionExecutor(
     }
 
     private fun sleepAfterPress(action: ActionDefinition) {
+        val settleMs = action.args["settleMs"]?.asLongOrNull() ?: defaultSettleMs
+        if (settleMs > 0) {
+            sleeper.sleep(settleMs)
+        }
+    }
+}
+
+class SwipeActionExecutor(
+    private val driver: WebDriverAdapter,
+    private val sleeper: Sleeper = ThreadSleeper,
+    private val defaultDurationMs: Long = 500,
+    private val defaultSettleMs: Long = 800,
+) : ActionExecutor {
+    override val keyword: String = "swipe"
+
+    override fun execute(
+        action: ActionDefinition,
+        context: ExecutionContext,
+    ): ActionExecutionResult {
+        val sessionId = context.requireDriverSessionId()
+        val durationMs = action.args["durationMs"]?.asLongOrNull() ?: defaultDurationMs
+        require(durationMs >= 0) {
+            "Swipe action '${action.id ?: action.keyword}' requires durationMs >= 0"
+        }
+
+        if (action.locator == null) {
+            driver.swipeViewport(
+                sessionId = sessionId,
+                durationMs = durationMs,
+                startXRatio = action.requireRatioArg("startXRatio", "Swipe"),
+                startYRatio = action.requireRatioArg("startYRatio", "Swipe"),
+                endXRatio = action.requireRatioArg("endXRatio", "Swipe"),
+                endYRatio = action.requireRatioArg("endYRatio", "Swipe"),
+            )
+            sleepAfterSwipe(action)
+            return ActionExecutionResult.passed("swipe viewport executed")
+        }
+
+        val element = driver.findElement(
+            sessionId = sessionId,
+            locator = action.requireLocator(),
+            wait = action.wait.toDriverWaitOptions(),
+        )
+        driver.swipe(
+            sessionId = sessionId,
+            element = element,
+            durationMs = durationMs,
+            startXRatio = action.requireRatioArg("startElementXRatio", "Swipe"),
+            startYRatio = action.requireRatioArg("startElementYRatio", "Swipe"),
+            endXRatio = action.requireRatioArg("endElementXRatio", "Swipe"),
+            endYRatio = action.requireRatioArg("endElementYRatio", "Swipe"),
+        )
+        sleepAfterSwipe(action)
+        return ActionExecutionResult.passed("swipe executed")
+    }
+
+    private fun sleepAfterSwipe(action: ActionDefinition) {
         val settleMs = action.args["settleMs"]?.asLongOrNull() ?: defaultSettleMs
         if (settleMs > 0) {
             sleeper.sleep(settleMs)
@@ -1145,6 +1203,9 @@ object NoOpScreenshotSink : ScreenshotSink {
 fun defaultWebDriverActionExecutors(
     driver: WebDriverAdapter,
     resourceSink: PlanResourceSink = NoOpPlanResourceSink,
+    extClient: SolunaAppiumExtClient? = null,
+    deviceUdid: String? = null,
+    platform: String? = null,
 ): List<ActionExecutor> {
     val screenshotSink = resourceSink as? ScreenshotSink ?: NoOpScreenshotSink
     return listOf(
@@ -1154,11 +1215,15 @@ fun defaultWebDriverActionExecutors(
         SaveElementRectActionExecutor(driver),
         TapActionExecutor(driver),
         LongPressActionExecutor(driver),
+        SwipeActionExecutor(driver),
         TapVisualTemplateActionExecutor(driver),
         InputActionExecutor(driver),
         StartScreenRecordingActionExecutor(driver),
         StopScreenRecordingActionExecutor(driver, resourceSink),
         AssertScreenRecordingTextRegexMatchActionExecutor(sink = resourceSink),
+        CaptureAppLogStartActionExecutor(extClient, deviceUdid, platform),
+        CaptureAppLogEndActionExecutor(extClient, resourceSink),
+        CustomAssertAppLogActionExecutor(),
         AssertElementExistsActionExecutor(driver),
         AssertElementAttrEqualsActionExecutor(driver),
         AssertElementAttrRegexMatchActionExecutor(driver),
@@ -1188,6 +1253,18 @@ private fun ExecutionContext.requireDriverSessionId(): String {
 
 private fun ActionDefinition.requireLocator(): LocatorDefinition {
     return locator ?: error("Action '${id ?: keyword}' requires a locator")
+}
+
+private fun ActionDefinition.requireRatioArg(
+    name: String,
+    actionLabel: String,
+): Double {
+    val value = args[name]?.asDoubleOrNull()
+        ?: error("$actionLabel action '${id ?: keyword}' requires args.$name")
+    require(value in 0.0..1.0) {
+        "$actionLabel action '${id ?: keyword}' requires args.$name between 0 and 1"
+    }
+    return value
 }
 
 private fun ActionDefinition.requireTextValue(): String {

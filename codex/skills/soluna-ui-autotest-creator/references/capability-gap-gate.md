@@ -10,12 +10,13 @@ Read `keyword-usage.md` before applying this gate. Submit a capability gap only 
 2. Existing plan/stage/case setup and teardown orchestration cannot close it.
 3. Fragment `if` / `then` / `else` with existing assertion/action predicates cannot close it.
 4. Existing actions cannot close it after trying the relevant `keyword-usage.md` recipes:
-   - Element path: `tap`, `input`, `getText`, `assertElementExists`, `assertElementAttrEquals`, `assertElementAttrRegexMatch`
+   - Element/gesture path: `tap`, `swipe`, `input`, `getText`, `assertElementExists`, `assertElementAttrEquals`, `assertElementAttrRegexMatch`
    - App state path: `restartApp`, `clearAppData`, `wait`
    - Source path: `assertSourceRegexMatch`
    - Explicit resource path: `screenshot`
    - Visual path: `saveElementRect`, `tapVisualTemplate`
    - Transient text path: `startScreenRecording`, `stopScreenRecording`, `assertScreenRecordingTextRegexMatch`
+   - App log path: `captureAppLogStart`, `captureAppLogEnd`, existing `customAssertAppLog` plugins
 5. Parameter data, runtime variables, element catalogs, visual templates, ROI narrowing, OCR, platform-specific case splits, and teardown cannot close it.
 6. Fresh debug source/screenshot evidence proves the issue is not stale XML, weak locator selection, or incorrect ROI/template assets.
 7. A minimal focused plan/case reproduces the gap.
@@ -58,6 +59,8 @@ Rejected workarounds:
 ```
 
 If any gate item is missing, continue debugging or ask the user for the missing precondition instead of requesting framework expansion.
+
+App-specific log semantics, such as Bluetooth command/report parsing, should become an independent app-log assertion plugin behind `customAssertAppLog`. Do not add business-specific default keywords or put parser/matcher logic in the case asset project.
 
 ## DingTalk Notification
 

@@ -23,9 +23,23 @@ The distribution should include:
 - `bin/soluna`: CLI entry point.
 - `tools/`: bundled runtime tools such as FFmpeg.
 - `plugins/soluna-appium-ext/`: bundled Appium extension source.
+- `plugins/app-log/`: optional runtime location for independent app-log assertion plugin JARs used by `customAssertAppLog`.
 - `codex/skills/soluna-ui-autotest-creator/`: this Codex skill and scaffolding resources.
 
 Asset projects should not depend on framework source paths. Reference only files inside the asset project and execute through the distribution CLI.
+
+App-specific log parsers and matchers should be built as independent JVM plugin JARs. Place the JAR and any sibling dependency JARs in the active distribution's `plugins/app-log/`, or pass additional directories with `-Dsoluna.appLogPluginDirs=<paths>` / `SOLUNA_APP_LOG_PLUGIN_DIRS=<paths>`. Do not write parser code inside case, data, element, or fragment assets.
+
+Create a starter app-log assertion plugin project through the Soluna CLI:
+
+```bash
+soluna scaffold app-log-plugin ./ugreen-audio-log-plugin \
+  --plugin-id ugreen-audio \
+  --package com.ugreen.soluna.applog \
+  --assertion ble-command-ack
+```
+
+Build the generated project with `SOLUNA_HOME=/path/to/soluna gradle test jar` or `gradle test jar -PsolunaHome=/path/to/soluna`, then copy the resulting JAR to `plugins/app-log/`.
 
 ## Verification Order
 

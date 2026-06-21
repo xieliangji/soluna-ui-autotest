@@ -1,12 +1,17 @@
 package com.soluna.ui.autotest.runner
 
 import com.soluna.ui.autotest.appium.action.defaultWebDriverActionExecutors
+import com.soluna.ui.autotest.appium.action.CaptureAppLogEndActionExecutor
+import com.soluna.ui.autotest.appium.action.CaptureAppLogStartActionExecutor
+import com.soluna.ui.autotest.appium.action.CustomAssertAppLogActionExecutor
 import com.soluna.ui.autotest.appium.driver.AppiumJavaClientWebDriverAdapter
 import com.soluna.ui.autotest.appium.driver.AppiumSessionRequestFactory
 import com.soluna.ui.autotest.appium.driver.AppiumSessionRecoveryPolicy
 import com.soluna.ui.autotest.appium.driver.DriverSession
 import com.soluna.ui.autotest.appium.driver.RecoveringWebDriverAdapter
 import com.soluna.ui.autotest.appium.driver.WebDriverAdapter
+import com.soluna.ui.autotest.appium.ext.SolunaAppiumExtClient
+import com.soluna.ui.autotest.appium.ext.SolunaAppiumExtHttpClient
 import com.soluna.ui.autotest.appium.server.AppiumServerHandle
 import com.soluna.ui.autotest.appium.server.AppiumServerManager
 import com.soluna.ui.autotest.appium.server.LocalProcessAppiumServerManager
@@ -59,6 +64,8 @@ import com.soluna.ui.autotest.core.hook.Slf4jExecutionLogger
 import com.soluna.ui.autotest.core.model.PlanDefinition
 import com.soluna.ui.autotest.dsl.DslParser
 import com.soluna.ui.autotest.dsl.YamlPlanParser
+import com.soluna.ui.autotest.extension.applog.AppLogAssertionPluginLoader
+import com.soluna.ui.autotest.extension.applog.AppLogAssertionRegistry
 import com.soluna.ui.autotest.report.ReportWriteResult
 import com.soluna.ui.autotest.report.ReportLinkRewriter
 import com.soluna.ui.autotest.report.ReportWriter
@@ -109,6 +116,10 @@ class PlanRunner(
     },
     private val actionExecutorFactory: (WebDriverAdapter, PlanResourceSink) -> List<ActionExecutor> = { driver, resourceSink ->
         defaultWebDriverActionExecutors(driver, resourceSink)
+    },
+    private val appLogExtClientFactory: (java.net.URI) -> SolunaAppiumExtClient = { uri -> SolunaAppiumExtHttpClient(uri) },
+    private val appLogAssertionRegistryFactory: (Path) -> AppLogAssertionRegistry = { planPath ->
+        AppLogAssertionPluginLoader.defaultRegistry(planPath)
     },
     private val clock: () -> Instant = { Instant.now() },
     private val notificationZoneId: ZoneId = ZoneId.systemDefault(),
@@ -213,6 +224,8 @@ class PlanRunner(
                 config = plan.trace.screenshots,
                 artifactUploader = artifactUploader,
             )
+            val appLogExtClient = appLogExtClientFactory(java.net.URI.create(activeServerHandle.url))
+            val appLogAssertionRegistry = appLogAssertionRegistryFactory(planPath)
 
             val sessionId = request.driverSessionId ?: runtimeDriver.startSession(
                 sessionRequestFactory.create(
@@ -226,7 +239,20 @@ class PlanRunner(
             }.sessionId
 
             val engine = LinearExecutionEngine(
-                actionExecutorRegistry = DefaultActionExecutorRegistry(actionExecutorFactory(runtimeDriver, screenshotSink)),
+                actionExecutorRegistry = DefaultActionExecutorRegistry(
+                    actionExecutorFactory(runtimeDriver, screenshotSink) + listOf(
+                        CaptureAppLogStartActionExecutor(
+                            extClient = appLogExtClient,
+                            udid = deviceConfig.device.udid,
+                            platform = deviceConfig.device.platform,
+                        ),
+                        CaptureAppLogEndActionExecutor(
+                            extClient = appLogExtClient,
+                            sink = screenshotSink,
+                        ),
+                        CustomAssertAppLogActionExecutor(appLogAssertionRegistry),
+                    ),
+                ),
                 hookBus = hookBus,
                 failureStrategy = resolveFailureStrategy(plan.defaults.failureStrategy),
                 retryStrategy = retryStrategy,

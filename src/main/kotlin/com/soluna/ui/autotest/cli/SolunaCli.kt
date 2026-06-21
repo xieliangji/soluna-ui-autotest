@@ -25,6 +25,9 @@ class SolunaCliApplication(
     private val runDebugShell: (AppiumDebugShellRequest, Appendable) -> AppiumDebugShellResult = { request, stdout ->
         AppiumDebugManager().runShell(request, stdout)
     },
+    private val scaffoldAppLogPlugin: (AppLogPluginScaffoldRequest) -> AppLogPluginScaffoldResult = { request ->
+        AppLogPluginScaffold().create(request)
+    },
     private val objectMapper: ObjectMapper = defaultObjectMapper(),
 ) {
     fun run(
@@ -41,6 +44,7 @@ class SolunaCliApplication(
                 is CliCommand.Run -> runPlanCommand(command, stdout)
                 is CliCommand.Debug -> runDebugCommand(command, stdout)
                 is CliCommand.DebugShell -> runDebugShellCommand(command, stdout)
+                is CliCommand.ScaffoldAppLogPlugin -> runScaffoldAppLogPluginCommand(command, stdout)
             }
         } catch (err: CliUsageException) {
             stderr.appendLine(err.message ?: "Invalid CLI arguments")
@@ -48,7 +52,7 @@ class SolunaCliApplication(
             stderr.appendLine(usage())
             2
         } catch (err: Throwable) {
-            stderr.appendLine("Soluna run failed: ${err.message ?: err::class.simpleName}")
+            stderr.appendLine("Soluna command failed: ${err.message ?: err::class.simpleName}")
             1
         }
     }
@@ -133,6 +137,23 @@ class SolunaCliApplication(
         return 0
     }
 
+    private fun runScaffoldAppLogPluginCommand(
+        command: CliCommand.ScaffoldAppLogPlugin,
+        stdout: Appendable,
+    ): Int {
+        val result = scaffoldAppLogPlugin(command.request)
+        stdout.appendLine("Soluna app-log plugin scaffold created")
+        stdout.appendLine("output: ${result.output}")
+        stdout.appendLine("project: ${result.projectName}")
+        stdout.appendLine("plugin: ${result.pluginId}")
+        stdout.appendLine("assertion: ${result.assertionName}")
+        stdout.appendLine("files:")
+        result.files.forEach { file ->
+            stdout.appendLine("  - ${result.output.relativize(file)}")
+        }
+        return 0
+    }
+
     private fun parse(args: Array<String>): CliCommand {
         if (args.isEmpty() || args.singleOrNull() in setOf("-h", "--help", "help")) {
             return CliCommand.Help
@@ -140,8 +161,11 @@ class SolunaCliApplication(
         if (args.first() == "debug") {
             return parseDebug(args)
         }
+        if (args.first() == "scaffold") {
+            return parseScaffold(args)
+        }
         if (args.first() != "run") {
-            throw CliUsageException("Expected command 'run' or 'debug'")
+            throw CliUsageException("Expected command 'run', 'debug', or 'scaffold'")
         }
 
         var planPath: Path? = null
@@ -193,6 +217,97 @@ class SolunaCliApplication(
         )
     }
 
+    private fun parseScaffold(args: Array<String>): CliCommand {
+        if (args.size < 2) {
+            throw CliUsageException("scaffold requires a scaffold type")
+        }
+        if (args[1] != "app-log-plugin") {
+            throw CliUsageException("Unsupported scaffold type '${args[1]}'")
+        }
+
+        var output: Path? = null
+        var pluginId: String? = null
+        var packageName: String? = null
+        var assertionName = "contains-text"
+        var projectName: String? = null
+        var pluginClassName: String? = null
+        var group: String? = null
+        var version = "0.1.0"
+        var force = false
+
+        var index = 2
+        while (index < args.size) {
+            val arg = args[index]
+            when {
+                arg == "-h" || arg == "--help" -> return CliCommand.Help
+                arg == "--output" || arg == "--out" -> {
+                    output = Path.of(args.valueAfter(index, arg))
+                    index += 1
+                }
+                arg.startsWith("--output=") || arg.startsWith("--out=") -> output = Path.of(arg.substringAfter("="))
+                arg == "--plugin-id" -> {
+                    pluginId = args.valueAfter(index, arg)
+                    index += 1
+                }
+                arg.startsWith("--plugin-id=") -> pluginId = arg.substringAfter("=")
+                arg == "--package" -> {
+                    packageName = args.valueAfter(index, arg)
+                    index += 1
+                }
+                arg.startsWith("--package=") -> packageName = arg.substringAfter("=")
+                arg == "--assertion" -> {
+                    assertionName = args.valueAfter(index, arg)
+                    index += 1
+                }
+                arg.startsWith("--assertion=") -> assertionName = arg.substringAfter("=")
+                arg == "--project-name" -> {
+                    projectName = args.valueAfter(index, arg)
+                    index += 1
+                }
+                arg.startsWith("--project-name=") -> projectName = arg.substringAfter("=")
+                arg == "--class-name" || arg == "--plugin-class" -> {
+                    pluginClassName = args.valueAfter(index, arg)
+                    index += 1
+                }
+                arg.startsWith("--class-name=") || arg.startsWith("--plugin-class=") -> pluginClassName = arg.substringAfter("=")
+                arg == "--group" -> {
+                    group = args.valueAfter(index, arg)
+                    index += 1
+                }
+                arg.startsWith("--group=") -> group = arg.substringAfter("=")
+                arg == "--version" -> {
+                    version = args.valueAfter(index, arg)
+                    index += 1
+                }
+                arg.startsWith("--version=") -> version = arg.substringAfter("=")
+                arg == "--force" -> force = true
+                arg.startsWith("-") -> throw CliUsageException("Unknown scaffold option '$arg'")
+                output == null -> output = Path.of(arg)
+                else -> throw CliUsageException("Unexpected scaffold argument '$arg'")
+            }
+            index += 1
+        }
+
+        val resolvedPluginId = validatePluginId(pluginId ?: throw CliUsageException("scaffold app-log-plugin requires --plugin-id"))
+        val resolvedPackageName = validatePackageName(packageName ?: throw CliUsageException("scaffold app-log-plugin requires --package"))
+        val resolvedAssertionName = validatePluginId(assertionName)
+        val resolvedPluginClassName = pluginClassName?.let { validateClassName(it) }
+
+        return CliCommand.ScaffoldAppLogPlugin(
+            AppLogPluginScaffoldRequest(
+                output = output ?: throw CliUsageException("scaffold app-log-plugin requires <output> or --output"),
+                pluginId = resolvedPluginId,
+                packageName = resolvedPackageName,
+                assertionName = resolvedAssertionName,
+                projectName = projectName?.takeIf { it.isNotBlank() },
+                pluginClassName = resolvedPluginClassName,
+                group = group?.takeIf { it.isNotBlank() },
+                version = version.takeIf { it.isNotBlank() } ?: "0.1.0",
+                force = force,
+            ),
+        )
+    }
+
     private fun parseDebug(args: Array<String>): CliCommand {
         if (args.size < 3) {
             throw CliUsageException("debug requires <plan.yaml> and an action")
@@ -203,6 +318,11 @@ class SolunaCliApplication(
         var output: Path? = null
         var xRatio: Double? = null
         var yRatio: Double? = null
+        var startXRatio: Double? = null
+        var startYRatio: Double? = null
+        var endXRatio: Double? = null
+        var endYRatio: Double? = null
+        var durationMs: Long = 500
         var strategy: String? = null
         var locatorValue: String? = null
         var text: String? = null
@@ -240,6 +360,31 @@ class SolunaCliApplication(
                     index += 1
                 }
                 arg.startsWith("--y-ratio=") -> yRatio = parseRatio(arg.substringAfter("="), "--y-ratio")
+                arg == "--start-x-ratio" -> {
+                    startXRatio = parseRatio(args.valueAfter(index, arg), arg)
+                    index += 1
+                }
+                arg.startsWith("--start-x-ratio=") -> startXRatio = parseRatio(arg.substringAfter("="), "--start-x-ratio")
+                arg == "--start-y-ratio" -> {
+                    startYRatio = parseRatio(args.valueAfter(index, arg), arg)
+                    index += 1
+                }
+                arg.startsWith("--start-y-ratio=") -> startYRatio = parseRatio(arg.substringAfter("="), "--start-y-ratio")
+                arg == "--end-x-ratio" -> {
+                    endXRatio = parseRatio(args.valueAfter(index, arg), arg)
+                    index += 1
+                }
+                arg.startsWith("--end-x-ratio=") -> endXRatio = parseRatio(arg.substringAfter("="), "--end-x-ratio")
+                arg == "--end-y-ratio" -> {
+                    endYRatio = parseRatio(args.valueAfter(index, arg), arg)
+                    index += 1
+                }
+                arg.startsWith("--end-y-ratio=") -> endYRatio = parseRatio(arg.substringAfter("="), "--end-y-ratio")
+                arg == "--duration-ms" -> {
+                    durationMs = parseNonNegativeLong(args.valueAfter(index, arg), arg)
+                    index += 1
+                }
+                arg.startsWith("--duration-ms=") -> durationMs = parseNonNegativeLong(arg.substringAfter("="), "--duration-ms")
                 arg == "--strategy" || arg == "--by" -> {
                     strategy = args.valueAfter(index, arg)
                     index += 1
@@ -330,6 +475,13 @@ class SolunaCliApplication(
                 xRatio = xRatio ?: throw CliUsageException("debug tap requires --x-ratio"),
                 yRatio = yRatio ?: throw CliUsageException("debug tap requires --y-ratio"),
             )
+            "swipe" -> AppiumDebugAction.Swipe(
+                startXRatio = startXRatio ?: throw CliUsageException("debug swipe requires --start-x-ratio"),
+                startYRatio = startYRatio ?: throw CliUsageException("debug swipe requires --start-y-ratio"),
+                endXRatio = endXRatio ?: throw CliUsageException("debug swipe requires --end-x-ratio"),
+                endYRatio = endYRatio ?: throw CliUsageException("debug swipe requires --end-y-ratio"),
+                durationMs = durationMs,
+            )
             "tap-element", "tapElement" -> AppiumDebugAction.TapElement(
                 locator = LocatorDefinition(
                     strategy = strategy ?: throw CliUsageException("debug tap-element requires --strategy"),
@@ -337,6 +489,17 @@ class SolunaCliApplication(
                 ),
                 xRatio = elementXRatio,
                 yRatio = elementYRatio,
+            )
+            "swipe-element", "swipeElement" -> AppiumDebugAction.SwipeElement(
+                locator = LocatorDefinition(
+                    strategy = strategy ?: throw CliUsageException("debug swipe-element requires --strategy"),
+                    value = locatorValue ?: throw CliUsageException("debug swipe-element requires --locator"),
+                ),
+                startXRatio = startXRatio ?: throw CliUsageException("debug swipe-element requires --start-x-ratio"),
+                startYRatio = startYRatio ?: throw CliUsageException("debug swipe-element requires --start-y-ratio"),
+                endXRatio = endXRatio ?: throw CliUsageException("debug swipe-element requires --end-x-ratio"),
+                endYRatio = endYRatio ?: throw CliUsageException("debug swipe-element requires --end-y-ratio"),
+                durationMs = durationMs,
             )
             "input" -> AppiumDebugAction.Input(
                 locator = LocatorDefinition(
@@ -401,6 +564,18 @@ class SolunaCliApplication(
         return value
     }
 
+    private fun parseNonNegativeLong(
+        raw: String,
+        option: String,
+    ): Long {
+        val value = raw.toLongOrNull()
+            ?: throw CliUsageException("$option requires an integer")
+        if (value < 0) {
+            throw CliUsageException("$option must be >= 0")
+        }
+        return value
+    }
+
     private fun parseScales(raw: String): List<Double> {
         val values = raw.split(',')
             .map { it.trim() }
@@ -434,6 +609,31 @@ class SolunaCliApplication(
         }
     }
 
+    private fun validatePluginId(raw: String): String {
+        val value = raw.trim()
+        if (!Regex("^[A-Za-z0-9][A-Za-z0-9._:-]*$").matches(value)) {
+            throw CliUsageException("Plugin and assertion ids must match [A-Za-z0-9][A-Za-z0-9._:-]*")
+        }
+        return value
+    }
+
+    private fun validatePackageName(raw: String): String {
+        val value = raw.trim()
+        val part = "[A-Za-z_][A-Za-z0-9_]*"
+        if (!Regex("^$part(\\.$part)*$").matches(value)) {
+            throw CliUsageException("--package must be a valid Kotlin package name")
+        }
+        return value
+    }
+
+    private fun validateClassName(raw: String): String {
+        val value = raw.trim()
+        if (!Regex("^[A-Za-z_][A-Za-z0-9_]*$").matches(value)) {
+            throw CliUsageException("--class-name must be a valid Kotlin class name")
+        }
+        return value
+    }
+
     private fun defaultRunId(): String {
         return "run-${System.currentTimeMillis()}"
     }
@@ -451,11 +651,14 @@ class SolunaCliApplication(
         return """
             Usage:
               soluna run <plan.yaml> [--run-id <id>] [--param key=value] [--report-root <dir>] [--expect passed|failed]
+              soluna scaffold app-log-plugin <output> --plugin-id <id> --package <package> [--assertion <name>] [--force]
               soluna debug <plan.yaml> restart-app [--app-id <id>] [--keep-infra]
               soluna debug <plan.yaml> source [--out <file>] [--keep-infra]
               soluna debug <plan.yaml> screenshot --out <file> [--keep-infra]
               soluna debug <plan.yaml> tap --x-ratio <0..1> --y-ratio <0..1> [--keep-infra]
               soluna debug <plan.yaml> tap-element --strategy <strategy> --locator <value> [--element-x-ratio <0..1>] [--element-y-ratio <0..1>] [--keep-infra]
+              soluna debug <plan.yaml> swipe --start-x-ratio <0..1> --start-y-ratio <0..1> --end-x-ratio <0..1> --end-y-ratio <0..1> [--duration-ms n] [--keep-infra]
+              soluna debug <plan.yaml> swipe-element --strategy <strategy> --locator <value> --start-x-ratio <0..1> --start-y-ratio <0..1> --end-x-ratio <0..1> --end-y-ratio <0..1> [--duration-ms n] [--keep-infra]
               soluna debug <plan.yaml> input --strategy <strategy> --locator <value> --text <text> [--clear-first true|false] [--keep-infra]
               soluna debug <plan.yaml> tap-template --template <png> [--roi x,y,w,h] [--threshold <0..1>] [--scales a,b,c] [--keep-infra]
               soluna debug <plan.yaml> shell [--keep-infra]
@@ -471,9 +674,13 @@ class SolunaCliApplication(
 
             Debug:
               debug starts a temporary Appium/WDA session from the plan device/app config and runs low-level actions.
-              shell keeps one session alive for step-by-step source/screenshot/tap/input/template debugging.
+              shell keeps one session alive for step-by-step source/screenshot/tap/swipe/input/template debugging.
               It does not execute plan setup, cases, reports, uploads, or notifications.
               --roi uses normalized screenshot coordinates: x,y,width,height.
+
+            Scaffold:
+              app-log-plugin creates an independent Kotlin/JVM ServiceLoader plugin project for customAssertAppLog.
+              Build the generated project with SOLUNA_HOME or -PsolunaHome pointing at an installed Soluna distribution.
         """.trimIndent()
     }
 
@@ -505,6 +712,10 @@ private sealed class CliCommand {
     data class DebugShell(
         val planPath: Path,
         val keepInfrastructure: Boolean,
+    ) : CliCommand()
+
+    data class ScaffoldAppLogPlugin(
+        val request: AppLogPluginScaffoldRequest,
     ) : CliCommand()
 }
 

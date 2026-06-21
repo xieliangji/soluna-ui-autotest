@@ -49,6 +49,29 @@ interface WebDriverAdapter {
         error("longPressViewport is not supported by this WebDriverAdapter")
     }
 
+    fun swipe(
+        sessionId: String,
+        element: DriverElement,
+        durationMs: Long = 500,
+        startXRatio: Double,
+        startYRatio: Double,
+        endXRatio: Double,
+        endYRatio: Double,
+    ) {
+        error("swipe is not supported by this WebDriverAdapter")
+    }
+
+    fun swipeViewport(
+        sessionId: String,
+        durationMs: Long = 500,
+        startXRatio: Double,
+        startYRatio: Double,
+        endXRatio: Double,
+        endYRatio: Double,
+    ) {
+        error("swipeViewport is not supported by this WebDriverAdapter")
+    }
+
     fun inputText(
         sessionId: String,
         element: DriverElement,

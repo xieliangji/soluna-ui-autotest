@@ -154,6 +154,50 @@ class AppiumJavaClientWebDriverAdapter(
         driver.performLongPress(x, y, durationMs)
     }
 
+    override fun swipe(
+        sessionId: String,
+        element: DriverElement,
+        durationMs: Long,
+        startXRatio: Double,
+        startYRatio: Double,
+        endXRatio: Double,
+        endYRatio: Double,
+    ) {
+        require(durationMs >= 0) { "durationMs must be >= 0" }
+        require(startXRatio in 0.0..1.0) { "startXRatio must be between 0.0 and 1.0" }
+        require(startYRatio in 0.0..1.0) { "startYRatio must be between 0.0 and 1.0" }
+        require(endXRatio in 0.0..1.0) { "endXRatio must be between 0.0 and 1.0" }
+        require(endYRatio in 0.0..1.0) { "endYRatio must be between 0.0 and 1.0" }
+        val driver = requireDriver(sessionId)
+        val webElement = resolveElement(sessionId, element)
+        val visibleRect = webElement.visibleRect(sessionId, driver, clipKeyboard = true)
+        val startPoint = visibleRect.pointAt(startXRatio, startYRatio)
+        val endPoint = visibleRect.pointAt(endXRatio, endYRatio)
+        driver.performSwipe(startPoint.x, startPoint.y, endPoint.x, endPoint.y, durationMs)
+    }
+
+    override fun swipeViewport(
+        sessionId: String,
+        durationMs: Long,
+        startXRatio: Double,
+        startYRatio: Double,
+        endXRatio: Double,
+        endYRatio: Double,
+    ) {
+        require(durationMs >= 0) { "durationMs must be >= 0" }
+        require(startXRatio in 0.0..1.0) { "startXRatio must be between 0.0 and 1.0" }
+        require(startYRatio in 0.0..1.0) { "startYRatio must be between 0.0 and 1.0" }
+        require(endXRatio in 0.0..1.0) { "endXRatio must be between 0.0 and 1.0" }
+        require(endYRatio in 0.0..1.0) { "endYRatio must be between 0.0 and 1.0" }
+        val driver = requireDriver(sessionId)
+        val size = driver.manage().window().size
+        val startX = (size.width * startXRatio).roundToInt().coerceIn(0, size.width - 1)
+        val startY = (size.height * startYRatio).roundToInt().coerceIn(0, size.height - 1)
+        val endX = (size.width * endXRatio).roundToInt().coerceIn(0, size.width - 1)
+        val endY = (size.height * endYRatio).roundToInt().coerceIn(0, size.height - 1)
+        driver.performSwipe(startX, startY, endX, endY, durationMs)
+    }
+
     private fun AppiumDriver.performTap(
         x: Int,
         y: Int,
@@ -181,6 +225,24 @@ class AppiumJavaClientWebDriverAdapter(
             addAction(finger.createPointerUp(PointerInput.MouseButton.LEFT.asArg()))
         }
         perform(listOf(press))
+    }
+
+    private fun AppiumDriver.performSwipe(
+        startX: Int,
+        startY: Int,
+        endX: Int,
+        endY: Int,
+        durationMs: Long,
+    ) {
+        val finger = PointerInput(PointerInput.Kind.TOUCH, "finger")
+        val swipe = Sequence(finger, 0).apply {
+            addAction(finger.createPointerMove(Duration.ZERO, PointerInput.Origin.viewport(), startX, startY))
+            addAction(finger.createPointerDown(PointerInput.MouseButton.LEFT.asArg()))
+            addAction(Pause(finger, Duration.ofMillis(50)))
+            addAction(finger.createPointerMove(Duration.ofMillis(durationMs), PointerInput.Origin.viewport(), endX, endY))
+            addAction(finger.createPointerUp(PointerInput.MouseButton.LEFT.asArg()))
+        }
+        perform(listOf(swipe))
     }
 
     override fun inputText(

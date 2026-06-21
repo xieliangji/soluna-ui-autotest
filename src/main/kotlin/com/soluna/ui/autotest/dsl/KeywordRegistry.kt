@@ -22,6 +22,7 @@ object DefaultKeywordRegistry : KeywordRegistry {
         mapOf(
             "tap" to setOf("click", "点击", "轻点"),
             "longPress" to setOf("longTap", "pressAndHold", "长按", "长按点击"),
+            "swipe" to setOf("滑动", "划动"),
             "tapVisualTemplate" to setOf("tapImage", "tapTemplate", "视觉点击", "模板点击", "图片点击"),
             "input" to setOf("type", "输入", "录入"),
             "restartApp" to setOf("restart", "重启应用", "重启App", "重启APP"),
@@ -63,6 +64,9 @@ object DefaultKeywordRegistry : KeywordRegistry {
                 "断言录屏文本匹配",
                 "录屏文本匹配",
             ),
+            "captureAppLogStart" to setOf("startAppLogCapture", "开始采集App日志", "开始抓取App日志"),
+            "captureAppLogEnd" to setOf("stopAppLogCapture", "结束采集App日志", "结束抓取App日志"),
+            "customAssertAppLog" to setOf("assertCustomAppLog", "自定义断言App日志", "自定义App日志断言"),
         ),
     )
 

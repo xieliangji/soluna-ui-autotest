@@ -12,6 +12,7 @@ import type {
   CreateLogSessionResult,
   DeleteLogSessionRequest,
   DeleteLogSessionResult,
+  LogSessionFilter,
   LogLineSource,
   LogSessionSnapshot,
   LogSessionStatus,
@@ -58,6 +59,26 @@ interface ParsedCreateLogSessionRequest {
   maxBufferEntries: number
   maxSessionBytes: number
   ttlMs: number
+  filter?: ParsedLogSessionFilter
+}
+
+interface ParsedLogSessionFilter {
+  common?: ParsedLogSessionFilterRules
+  android?: ParsedLogSessionFilterRules
+  ios?: ParsedLogSessionFilterRules
+}
+
+interface ParsedLogSessionFilterRules {
+  source?: LogLineSource
+  levels?: string[]
+  tags?: string[]
+  tagRegex?: RegExp
+  processes?: string[]
+  processRegex?: RegExp
+  messageContains?: string
+  messageRegex?: RegExp
+  rawContains?: string
+  rawRegex?: RegExp
 }
 
 interface ParsedReadLogSessionRequest {
@@ -86,6 +107,7 @@ interface InternalLogSession {
   droppedCount: number
   maxBufferEntries: number
   maxSessionBytes: number
+  filter?: ParsedLogSessionFilter
   filePath: string
   fileBytes: number
   error?: string
@@ -150,6 +172,159 @@ function parseOptionalNumber(value: unknown, fieldName: string): number | undefi
   return parseFiniteNumber(value, fieldName)
 }
 
+function parseOptionalString(value: unknown, fieldName: string): string | undefined {
+  if (value === undefined) {
+    return undefined
+  }
+  if (typeof value !== 'string') {
+    throw new LogSessionHttpError(400, 'invalid_argument', `'${fieldName}' must be a string`)
+  }
+  const trimmed = value.trim()
+  return trimmed.length > 0 ? trimmed : undefined
+}
+
+function parseOptionalStringList(value: unknown, fieldName: string): string[] | undefined {
+  if (value === undefined) {
+    return undefined
+  }
+  if (!Array.isArray(value)) {
+    throw new LogSessionHttpError(400, 'invalid_argument', `'${fieldName}' must be a string array`)
+  }
+  const values = value
+    .map((item) => {
+      if (typeof item !== 'string') {
+        throw new LogSessionHttpError(400, 'invalid_argument', `'${fieldName}' must be a string array`)
+      }
+      return item.trim()
+    })
+    .filter((item) => item.length > 0)
+  return values.length > 0 ? values : undefined
+}
+
+function parseOptionalRegex(value: unknown, fieldName: string): RegExp | undefined {
+  const pattern = parseOptionalString(value, fieldName)
+  if (!pattern) {
+    return undefined
+  }
+  try {
+    return new RegExp(pattern)
+  } catch (err) {
+    throw new LogSessionHttpError(
+      400,
+      'invalid_argument',
+      `'${fieldName}' must be a valid regular expression: ${err instanceof Error ? err.message : String(err)}`
+    )
+  }
+}
+
+function mergeSingleAndList(single: string | undefined, values: string[] | undefined): string[] | undefined {
+  const merged = [...(single ? [single] : []), ...(values ?? [])]
+  return merged.length > 0 ? merged : undefined
+}
+
+function parseOptionalLogSessionFilterRules(value: unknown, fieldPrefix: string): ParsedLogSessionFilterRules | undefined {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new LogSessionHttpError(400, 'invalid_argument', `'${fieldPrefix}' must be a JSON object`)
+  }
+
+  const filter = value as LogSessionFilter
+  const source = parseOptionalString(filter.source, `${fieldPrefix}.source`)
+  if (source !== undefined && source !== 'stdout' && source !== 'stderr') {
+    throw new LogSessionHttpError(400, 'invalid_argument', `'${fieldPrefix}.source' must be 'stdout' or 'stderr'`)
+  }
+
+  const parsed: ParsedLogSessionFilterRules = {
+    source: source as LogLineSource | undefined,
+    levels: mergeSingleAndList(
+      parseOptionalString(filter.level, `${fieldPrefix}.level`)?.toLowerCase(),
+      parseOptionalStringList(filter.levels, `${fieldPrefix}.levels`)?.map((item) => item.toLowerCase())
+    ),
+    tags: mergeSingleAndList(
+      parseOptionalString(filter.tag, `${fieldPrefix}.tag`),
+      parseOptionalStringList(filter.tags, `${fieldPrefix}.tags`)
+    ),
+    tagRegex: parseOptionalRegex(filter.tagRegex, `${fieldPrefix}.tagRegex`),
+    processes: mergeSingleAndList(
+      parseOptionalString(filter.process, `${fieldPrefix}.process`),
+      parseOptionalStringList(filter.processes, `${fieldPrefix}.processes`)
+    ),
+    processRegex: parseOptionalRegex(filter.processRegex, `${fieldPrefix}.processRegex`),
+    messageContains: parseOptionalString(filter.messageContains, `${fieldPrefix}.messageContains`),
+    messageRegex: parseOptionalRegex(filter.messageRegex, `${fieldPrefix}.messageRegex`),
+    rawContains: parseOptionalString(filter.rawContains, `${fieldPrefix}.rawContains`),
+    rawRegex: parseOptionalRegex(filter.rawRegex, `${fieldPrefix}.rawRegex`),
+  }
+
+  return Object.values(parsed).some((item) => item !== undefined) ? parsed : undefined
+}
+
+function parseOptionalLogSessionFilter(value: unknown): ParsedLogSessionFilter | undefined {
+  if (value === undefined) {
+    return undefined
+  }
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new LogSessionHttpError(400, 'invalid_argument', "'filter' must be a JSON object")
+  }
+
+  const filter = value as LogSessionFilter
+  const common = parseOptionalLogSessionFilterRules(value, 'filter')
+  const android = filter.android === undefined
+    ? undefined
+    : parseOptionalLogSessionFilterRules(filter.android, 'filter.android')
+  const ios = filter.ios === undefined
+    ? undefined
+    : parseOptionalLogSessionFilterRules(filter.ios, 'filter.ios')
+  if (common === undefined && android === undefined && ios === undefined) {
+    return undefined
+  }
+  return {common, android, ios}
+}
+
+function matchesLogFilterRules(entry: UnifiedLogEntry, filter: ParsedLogSessionFilterRules | undefined): boolean {
+  if (!filter) {
+    return true
+  }
+  if (filter.source !== undefined && entry.source !== filter.source) {
+    return false
+  }
+  if (filter.levels !== undefined && !filter.levels.includes((entry.level ?? '').toLowerCase())) {
+    return false
+  }
+  if (filter.tags !== undefined && !filter.tags.includes(entry.tag ?? '')) {
+    return false
+  }
+  if (filter.tagRegex !== undefined && !filter.tagRegex.test(entry.tag ?? '')) {
+    return false
+  }
+  if (filter.processes !== undefined && !filter.processes.includes(entry.process ?? '')) {
+    return false
+  }
+  if (filter.processRegex !== undefined && !filter.processRegex.test(entry.process ?? '')) {
+    return false
+  }
+  if (filter.messageContains !== undefined && !entry.message.includes(filter.messageContains)) {
+    return false
+  }
+  if (filter.messageRegex !== undefined && !filter.messageRegex.test(entry.message)) {
+    return false
+  }
+  if (filter.rawContains !== undefined && !entry.raw.includes(filter.rawContains)) {
+    return false
+  }
+  if (filter.rawRegex !== undefined && !filter.rawRegex.test(entry.raw)) {
+    return false
+  }
+  return true
+}
+
+function matchesLogFilter(entry: UnifiedLogEntry, filter: ParsedLogSessionFilter | undefined): boolean {
+  if (!filter) {
+    return true
+  }
+  const platformFilter = entry.platform === 'android' ? filter.android : filter.ios
+  return matchesLogFilterRules(entry, filter.common) && matchesLogFilterRules(entry, platformFilter)
+}
+
 function parseCreateLogSessionRequest(input: unknown): ParsedCreateLogSessionRequest {
   if (!input || typeof input !== 'object') {
     throw new LogSessionHttpError(400, 'invalid_argument', 'Request body must be a JSON object')
@@ -163,6 +338,7 @@ function parseCreateLogSessionRequest(input: unknown): ParsedCreateLogSessionReq
   const maxBufferEntriesRaw = parseOptionalNumber(body.maxBufferEntries, 'maxBufferEntries')
   const maxSessionBytesRaw = parseOptionalNumber(body.maxSessionBytes, 'maxSessionBytes')
   const ttlMsRaw = parseOptionalNumber(body.ttlMs, 'ttlMs')
+  const filter = parseOptionalLogSessionFilter(body.filter)
 
   return {
     udid: body.udid.trim(),
@@ -177,6 +353,7 @@ function parseCreateLogSessionRequest(input: unknown): ParsedCreateLogSessionReq
       MAX_SESSION_BYTES
     ),
     ttlMs: clamp(Math.floor(ttlMsRaw ?? DEFAULT_TTL_MS), MIN_TTL_MS, MAX_TTL_MS),
+    filter,
   }
 }
 
@@ -502,6 +679,9 @@ export class LogSessionManager implements LogSessionService {
         source,
         line,
       })
+      if (!matchesLogFilter(entry, session.filter)) {
+        continue
+      }
       session.nextSeq += 1
       session.ringBuffer.push(entry)
       if (session.ringBuffer.length > session.maxBufferEntries) {
@@ -530,6 +710,9 @@ export class LogSessionManager implements LogSessionService {
       source,
       line: value,
     })
+    if (!matchesLogFilter(entry, session.filter)) {
+      return
+    }
     session.nextSeq += 1
     session.ringBuffer.push(entry)
     if (session.ringBuffer.length > session.maxBufferEntries) {
@@ -675,6 +858,7 @@ export class LogSessionManager implements LogSessionService {
       droppedCount: 0,
       maxBufferEntries: request.maxBufferEntries,
       maxSessionBytes: request.maxSessionBytes,
+      filter: request.filter,
       filePath,
       fileBytes: 0,
       stdoutRemainder: '',

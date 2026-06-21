@@ -10,6 +10,24 @@ import com.soluna.ui.autotest.appium.driver.ScreenRecordingOptions
 import com.soluna.ui.autotest.appium.driver.ScreenshotData
 import com.soluna.ui.autotest.appium.driver.StartSessionRequest
 import com.soluna.ui.autotest.appium.driver.WebDriverAdapter
+import com.soluna.ui.autotest.appium.ext.AppLookupResult
+import com.soluna.ui.autotest.appium.ext.CommandExecuteRequest
+import com.soluna.ui.autotest.appium.ext.CommandExecuteResult
+import com.soluna.ui.autotest.appium.ext.CreateLogSessionRequest
+import com.soluna.ui.autotest.appium.ext.CreateLogSessionResult
+import com.soluna.ui.autotest.appium.ext.DeleteLogSessionRequest
+import com.soluna.ui.autotest.appium.ext.DeleteLogSessionResult
+import com.soluna.ui.autotest.appium.ext.DeviceLookupResult
+import com.soluna.ui.autotest.appium.ext.ListDevicesResult
+import com.soluna.ui.autotest.appium.ext.LogLineSource
+import com.soluna.ui.autotest.appium.ext.LogSessionSnapshot
+import com.soluna.ui.autotest.appium.ext.LogSessionStatus
+import com.soluna.ui.autotest.appium.ext.Platform
+import com.soluna.ui.autotest.appium.ext.ReadLogSessionRequest
+import com.soluna.ui.autotest.appium.ext.ReadLogSessionResult
+import com.soluna.ui.autotest.appium.ext.SolunaAppiumExtClient
+import com.soluna.ui.autotest.appium.ext.UnifiedLogEntry
+import com.soluna.ui.autotest.appium.ext.WdaBundleLookupResult
 import com.soluna.ui.autotest.artifact.CapturedPlanResource
 import com.soluna.ktvisual.model.MatchResult
 import com.soluna.ktvisual.model.Region
@@ -21,6 +39,10 @@ import com.soluna.ui.autotest.core.model.ActionDefinition
 import com.soluna.ui.autotest.core.model.LocatorDefinition
 import com.soluna.ui.autotest.core.model.PlanDefinition
 import com.soluna.ui.autotest.core.model.WaitDefinition
+import com.soluna.ui.autotest.extension.applog.AppLogAssertion
+import com.soluna.ui.autotest.extension.applog.AppLogAssertionInput
+import com.soluna.ui.autotest.extension.applog.AppLogAssertionRegistry
+import com.soluna.ui.autotest.extension.applog.AppLogAssertionResult
 import java.awt.image.BufferedImage
 import java.io.ByteArrayOutputStream
 import java.nio.file.Files
@@ -153,6 +175,63 @@ class WebDriverActionExecutorsTest {
 
         assertEquals(ExecutionStatus.PASSED, result.status)
         assertEquals(listOf("longPressViewport:session-1:900:0.5:0.3"), driver.calls)
+        assertEquals(emptyList(), sleeper.delays)
+    }
+
+    @Test
+    fun `swipe action can swipe viewport coordinates by ratio`() {
+        val driver = RecordingWebDriverAdapter()
+        val sleeper = RecordingSleeper()
+        val executor = SwipeActionExecutor(driver, sleeper)
+        val action = ActionDefinition(
+            id = "scroll-down",
+            keyword = "swipe",
+            args = mapOf(
+                "startXRatio" to objectMapper.valueToTree(0.5),
+                "startYRatio" to objectMapper.valueToTree(0.8),
+                "endXRatio" to objectMapper.valueToTree(0.5),
+                "endYRatio" to objectMapper.valueToTree(0.2),
+                "durationMs" to objectMapper.valueToTree(600),
+            ),
+        )
+
+        val result = executor.execute(action, context())
+
+        assertEquals(ExecutionStatus.PASSED, result.status)
+        assertEquals(listOf("swipeViewport:session-1:600:0.5:0.8:0.5:0.2"), driver.calls)
+        assertEquals(listOf(800L), sleeper.delays)
+    }
+
+    @Test
+    fun `swipe action can swipe inside an element`() {
+        val driver = RecordingWebDriverAdapter()
+        val sleeper = RecordingSleeper()
+        val executor = SwipeActionExecutor(driver, sleeper)
+        val action = ActionDefinition(
+            id = "scroll-list",
+            keyword = "swipe",
+            locator = LocatorDefinition(
+                strategy = "id",
+                value = "list",
+            ),
+            args = mapOf(
+                "startElementXRatio" to objectMapper.valueToTree(0.5),
+                "startElementYRatio" to objectMapper.valueToTree(0.9),
+                "endElementXRatio" to objectMapper.valueToTree(0.5),
+                "endElementYRatio" to objectMapper.valueToTree(0.1),
+                "durationMs" to objectMapper.valueToTree(500),
+                "settleMs" to objectMapper.valueToTree(0),
+            ),
+            wait = WaitDefinition(timeoutMs = 3000, intervalMs = 100),
+        )
+
+        val result = executor.execute(action, context())
+
+        assertEquals(ExecutionStatus.PASSED, result.status)
+        assertEquals(
+            listOf("find:session-1:id=list:3000", "swipe:element-1:500:0.5:0.9:0.5:0.1"),
+            driver.calls,
+        )
         assertEquals(emptyList(), sleeper.delays)
     }
 
@@ -1036,6 +1115,140 @@ class WebDriverActionExecutorsTest {
     }
 
     @Test
+    fun `app log capture start and end write filtered log resource and variables`() {
+        val extClient = RecordingSolunaExtClient()
+        extClient.readResults += ReadLogSessionResult(
+            session = logSessionSnapshot(nextSeq = 1),
+            cursor = 0,
+            nextCursor = 1,
+            cursorAdjusted = false,
+            entries = listOf(
+                UnifiedLogEntry(
+                    seq = 0,
+                    ts = "2026-06-21T00:00:00Z",
+                    platform = Platform.IOS,
+                    udid = "ios-1",
+                    source = LogLineSource.STDOUT,
+                    level = "notice",
+                    process = "UgreenAudio",
+                    pid = 42,
+                    message = "BLE command reported",
+                    raw = "raw BLE command reported",
+                ),
+            ),
+        )
+        extClient.readResults += ReadLogSessionResult(
+            session = logSessionSnapshot(nextSeq = 1),
+            cursor = 1,
+            nextCursor = 1,
+            cursorAdjusted = false,
+            entries = emptyList(),
+        )
+        val sink = RecordingPlanResourceSink()
+        val context = context(currentCaseId = "case-1")
+        val filter = objectMapper.createObjectNode().also { root ->
+            root.put("messageContains", "BLE")
+            root.set<com.fasterxml.jackson.databind.JsonNode>(
+                "ios",
+                objectMapper.createObjectNode().put("processRegex", "UgreenAudio"),
+            )
+            root.set<com.fasterxml.jackson.databind.JsonNode>(
+                "android",
+                objectMapper.createObjectNode().put("tag", "BluetoothCmd"),
+            )
+        }
+
+        val startResult = CaptureAppLogStartActionExecutor(extClient, "ios-1", "ios").execute(
+            ActionDefinition(
+                id = "start-log",
+                keyword = "captureAppLogStart",
+                args = mapOf(
+                    "saveAs" to objectMapper.valueToTree("appLogWindow"),
+                    "filter" to filter,
+                ),
+            ),
+            context,
+        )
+        val endResult = CaptureAppLogEndActionExecutor(extClient, sink).execute(
+            ActionDefinition(
+                id = "end-log",
+                keyword = "captureAppLogEnd",
+                resourceId = "app-log",
+                args = mapOf(
+                    "source" to objectMapper.valueToTree("@{case.appLogWindow}"),
+                    "saveAs" to objectMapper.valueToTree("appLogFile"),
+                ),
+            ),
+            context,
+        )
+
+        assertEquals(ExecutionStatus.PASSED, startResult.status)
+        assertEquals(ExecutionStatus.PASSED, endResult.status)
+        assertEquals("ios-1", extClient.createRequests.single().udid)
+        assertEquals("UgreenAudio", extClient.createRequests.single().filter?.path("ios")?.path("processRegex")?.asText())
+        assertEquals(listOf("session-1"), extClient.deletedSessionIds)
+        assertEquals("log", sink.resources.single().type)
+        assertEquals("app_log_capture", sink.resources.single().purpose)
+        assertTrue(sink.resources.single().bytes.toString(Charsets.UTF_8).contains("BLE command reported"))
+        assertEquals("/tmp/app-log.jsonl", context.variables.get("case", "appLogFile", "_:case-1")?.path("path")?.asText())
+        assertEquals("/tmp/app-log.jsonl", context.variables.get("case", "lastAppLogFile", "_:case-1")?.path("path")?.asText())
+    }
+
+    @Test
+    fun `custom app log assertion fails when plugin assertion is missing`() {
+        val result = CustomAssertAppLogActionExecutor(EmptyAppLogAssertionRegistry).execute(
+            ActionDefinition(
+                id = "assert-log",
+                keyword = "customAssertAppLog",
+                args = mapOf(
+                    "plugin" to objectMapper.valueToTree("ugreen-audio"),
+                    "assertion" to objectMapper.valueToTree("bluetoothCommandReported"),
+                ),
+            ),
+            context(),
+        )
+
+        assertEquals(ExecutionStatus.FAILED, result.status)
+        assertEquals("No app log assertion 'bluetoothCommandReported' registered by plugin 'ugreen-audio'", result.error)
+    }
+
+    @Test
+    fun `custom app log assertion delegates to registered plugin assertion`() {
+        val logFile = Files.createTempFile("soluna-app-log-", ".jsonl")
+        Files.writeString(logFile, """{"message":"BLE command reported"}""")
+        val context = context(currentCaseId = "case-1")
+        context.variables.set(
+            scope = "case",
+            name = "lastAppLogFile",
+            value = objectMapper.createObjectNode()
+                .put("path", logFile.toString())
+                .put("platform", "ios")
+                .put("udid", "ios-1"),
+            caseId = "_:case-1",
+        )
+        val assertion = RecordingAppLogAssertion()
+        val result = CustomAssertAppLogActionExecutor(
+            StaticAppLogAssertionRegistry("ugreen-audio", "bluetoothCommandReported", assertion),
+        ).execute(
+            ActionDefinition(
+                id = "assert-log",
+                keyword = "customAssertAppLog",
+                args = mapOf(
+                    "plugin" to objectMapper.valueToTree("ugreen-audio"),
+                    "assertion" to objectMapper.valueToTree("bluetoothCommandReported"),
+                    "args" to objectMapper.createObjectNode().put("operation", "customControl"),
+                ),
+            ),
+            context,
+        )
+
+        assertEquals(ExecutionStatus.PASSED, result.status)
+        assertEquals(logFile, assertion.inputs.single().logFile)
+        assertEquals("customControl", assertion.inputs.single().args?.path("operation")?.asText())
+        assertEquals("ios", assertion.inputs.single().context.platform)
+    }
+
+    @Test
     fun `default web driver action executors register through action registry`() {
         val driver = RecordingWebDriverAdapter()
         val sink = RecordingScreenshotSink()
@@ -1080,24 +1293,134 @@ class WebDriverActionExecutorsTest {
         }
     }
 
+    private inner class RecordingSolunaExtClient : SolunaAppiumExtClient {
+        val createRequests = mutableListOf<CreateLogSessionRequest>()
+        val readRequests = mutableListOf<ReadLogSessionRequest>()
+        val readResults = ArrayDeque<ReadLogSessionResult>()
+        val deletedSessionIds = mutableListOf<String>()
+
+        override fun getDevice(udid: String): DeviceLookupResult {
+            error("not used")
+        }
+
+        override fun listDevices(): ListDevicesResult {
+            error("not used")
+        }
+
+        override fun getApp(
+            udid: String,
+            appId: String,
+        ): AppLookupResult {
+            error("not used")
+        }
+
+        override fun getWdaBundle(udid: String): WdaBundleLookupResult {
+            error("not used")
+        }
+
+        override fun executeCommand(request: CommandExecuteRequest): CommandExecuteResult {
+            error("not used")
+        }
+
+        override fun createLogSession(request: CreateLogSessionRequest): CreateLogSessionResult {
+            createRequests += request
+            return CreateLogSessionResult(logSessionSnapshot())
+        }
+
+        override fun readLogSession(request: ReadLogSessionRequest): ReadLogSessionResult {
+            readRequests += request
+            return if (readResults.isEmpty()) {
+                ReadLogSessionResult(
+                    session = logSessionSnapshot(nextSeq = request.cursor ?: 0),
+                    cursor = request.cursor ?: 0,
+                    nextCursor = request.cursor ?: 0,
+                    cursorAdjusted = false,
+                    entries = emptyList(),
+                )
+            } else {
+                readResults.removeFirst()
+            }
+        }
+
+        override fun deleteLogSession(request: DeleteLogSessionRequest): DeleteLogSessionResult {
+            deletedSessionIds += request.sessionId
+            return DeleteLogSessionResult(sessionId = request.sessionId, removed = true)
+        }
+    }
+
+    private object EmptyAppLogAssertionRegistry : AppLogAssertionRegistry {
+        override fun find(
+            pluginId: String,
+            assertionName: String,
+        ): AppLogAssertion? {
+            return null
+        }
+    }
+
+    private class StaticAppLogAssertionRegistry(
+        private val pluginId: String,
+        private val assertionName: String,
+        private val assertion: AppLogAssertion,
+    ) : AppLogAssertionRegistry {
+        override fun find(
+            pluginId: String,
+            assertionName: String,
+        ): AppLogAssertion? {
+            return assertion.takeIf {
+                this.pluginId == pluginId && this.assertionName == assertionName
+            }
+        }
+    }
+
+    private class RecordingAppLogAssertion : AppLogAssertion {
+        val inputs = mutableListOf<AppLogAssertionInput>()
+        override val name: String = "bluetoothCommandReported"
+
+        override fun evaluate(input: AppLogAssertionInput): AppLogAssertionResult {
+            inputs += input
+            return AppLogAssertionResult.passed("ok")
+        }
+    }
+
     private class RecordingPlanResourceSink : PlanResourceSink {
         val resources = mutableListOf<ExplicitPlanResource>()
 
         override fun accept(resource: ExplicitPlanResource): CapturedPlanResource {
             resources += resource
+            val extension = if (resource.contentType == "application/x-ndjson") "jsonl" else "mp4"
+            val fileName = "${resource.resourceId ?: "recording"}.$extension"
             return CapturedPlanResource(
                 resourceId = resource.resourceId ?: "recording",
                 type = resource.type,
                 purpose = resource.purpose,
                 actionId = resource.actionId,
                 name = resource.name,
-                localPath = Path.of("/tmp/${resource.resourceId ?: "recording"}.mp4"),
-                fileName = "${resource.resourceId ?: "recording"}.mp4",
+                localPath = Path.of("/tmp/$fileName"),
+                fileName = fileName,
                 contentType = resource.contentType,
                 sizeBytes = resource.bytes.size.toLong(),
                 capturedAt = "2026-06-17T00:00:00Z",
             )
         }
+    }
+
+    private fun logSessionSnapshot(nextSeq: Long = 0): LogSessionSnapshot {
+        return LogSessionSnapshot(
+            sessionId = "session-1",
+            udid = "ios-1",
+            platform = Platform.IOS,
+            status = LogSessionStatus.RUNNING,
+            command = "ios",
+            args = listOf("syslog"),
+            startedAt = "2026-06-21T00:00:00Z",
+            lastActivityAt = "2026-06-21T00:00:00Z",
+            ttlMs = 600000,
+            nextSeq = nextSeq,
+            minSeq = 0,
+            droppedCount = 0,
+            maxBufferEntries = 1000,
+            maxSessionBytes = 104857600,
+        )
     }
 
     private class RecordingFrameExtractor(
@@ -1245,6 +1568,29 @@ class WebDriverActionExecutorsTest {
             yRatio: Double,
         ) {
             calls += "longPressViewport:$sessionId:$durationMs:$xRatio:$yRatio"
+        }
+
+        override fun swipe(
+            sessionId: String,
+            element: DriverElement,
+            durationMs: Long,
+            startXRatio: Double,
+            startYRatio: Double,
+            endXRatio: Double,
+            endYRatio: Double,
+        ) {
+            calls += "swipe:${element.elementId}:$durationMs:$startXRatio:$startYRatio:$endXRatio:$endYRatio"
+        }
+
+        override fun swipeViewport(
+            sessionId: String,
+            durationMs: Long,
+            startXRatio: Double,
+            startYRatio: Double,
+            endXRatio: Double,
+            endYRatio: Double,
+        ) {
+            calls += "swipeViewport:$sessionId:$durationMs:$startXRatio:$startYRatio:$endXRatio:$endYRatio"
         }
 
         override fun inputText(

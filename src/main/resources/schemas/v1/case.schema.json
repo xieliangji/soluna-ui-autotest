@@ -153,6 +153,9 @@
         { "allOf": [{ "$ref": "#/$defs/tapAction" }, { "required": ["pressAndHold"] }] },
         { "allOf": [{ "$ref": "#/$defs/tapAction" }, { "required": ["长按"] }] },
         { "allOf": [{ "$ref": "#/$defs/tapAction" }, { "required": ["长按点击"] }] },
+        { "allOf": [{ "$ref": "#/$defs/swipeAction" }, { "required": ["swipe"] }] },
+        { "allOf": [{ "$ref": "#/$defs/swipeAction" }, { "required": ["滑动"] }] },
+        { "allOf": [{ "$ref": "#/$defs/swipeAction" }, { "required": ["划动"] }] },
         { "allOf": [{ "$ref": "#/$defs/inputAction" }, { "required": ["input"] }] },
         { "allOf": [{ "$ref": "#/$defs/inputAction" }, { "required": ["type"] }] },
         { "allOf": [{ "$ref": "#/$defs/inputAction" }, { "required": ["输入"] }] },
@@ -232,6 +235,9 @@
         "pressAndHold": { "$ref": "#/$defs/nestedActionBody" },
         "长按": { "$ref": "#/$defs/nestedActionBody" },
         "长按点击": { "$ref": "#/$defs/nestedActionBody" },
+        "swipe": { "$ref": "#/$defs/nestedActionBody" },
+        "滑动": { "$ref": "#/$defs/nestedActionBody" },
+        "划动": { "$ref": "#/$defs/nestedActionBody" },
         "tapVisualTemplate": { "$ref": "#/$defs/nestedActionBody" },
         "tapImage": { "$ref": "#/$defs/nestedActionBody" },
         "tapTemplate": { "$ref": "#/$defs/nestedActionBody" },
@@ -304,7 +310,19 @@
         "assertScreenRecordingTextRegexMatch": { "$ref": "#/$defs/nestedActionBody" },
         "screenRecordingTextRegexMatch": { "$ref": "#/$defs/nestedActionBody" },
         "断言录屏文本匹配": { "$ref": "#/$defs/nestedActionBody" },
-        "录屏文本匹配": { "$ref": "#/$defs/nestedActionBody" }
+        "录屏文本匹配": { "$ref": "#/$defs/nestedActionBody" },
+        "captureAppLogStart": { "$ref": "#/$defs/nestedActionBody" },
+        "startAppLogCapture": { "$ref": "#/$defs/nestedActionBody" },
+        "开始采集App日志": { "$ref": "#/$defs/nestedActionBody" },
+        "开始抓取App日志": { "$ref": "#/$defs/nestedActionBody" },
+        "captureAppLogEnd": { "$ref": "#/$defs/nestedActionBody" },
+        "stopAppLogCapture": { "$ref": "#/$defs/nestedActionBody" },
+        "结束采集App日志": { "$ref": "#/$defs/nestedActionBody" },
+        "结束抓取App日志": { "$ref": "#/$defs/nestedActionBody" },
+        "customAssertAppLog": { "$ref": "#/$defs/nestedActionBody" },
+        "assertCustomAppLog": { "$ref": "#/$defs/nestedActionBody" },
+        "自定义断言App日志": { "$ref": "#/$defs/nestedActionBody" },
+        "自定义App日志断言": { "$ref": "#/$defs/nestedActionBody" }
       }
     },
     "nestedActionBody": {
@@ -315,10 +333,19 @@
         "id": { "$ref": "#/$defs/id" },
         "desc": { "$ref": "#/$defs/nonEmptyString" },
         "appId": { "$ref": "#/$defs/nonEmptyString" },
+        "args": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "assertion": { "$ref": "#/$defs/nonEmptyString" },
         "asRoi": { "type": "boolean" },
         "attr": { "$ref": "#/$defs/nonEmptyString" },
         "clearFirst": { "type": "boolean" },
         "durationMs": { "type": "integer", "minimum": 0 },
+        "endElementXRatio": { "$ref": "#/$defs/ratio" },
+        "endElementYRatio": { "$ref": "#/$defs/ratio" },
+        "endXRatio": { "$ref": "#/$defs/ratio" },
+        "endYRatio": { "$ref": "#/$defs/ratio" },
         "element": { "$ref": "#/$defs/nonEmptyString" },
         "elementXRatio": { "$ref": "#/$defs/ratio" },
         "elementYRatio": { "$ref": "#/$defs/ratio" },
@@ -329,12 +356,19 @@
         "expected": true,
         "fullHeight": { "type": "boolean" },
         "fullWidth": { "type": "boolean" },
+        "filter": { "$ref": "#/$defs/appLogFilter" },
         "pattern": { "$ref": "#/$defs/nonEmptyString" },
+        "plugin": { "$ref": "#/$defs/nonEmptyString" },
         "recognizer": { "$ref": "#/$defs/screenRecordingTextRecognizer" },
+        "maxBufferEntries": { "type": "integer", "minimum": 100 },
         "candidateMaxFrames": { "type": "integer", "minimum": 1 },
         "candidateStrategy": { "$ref": "#/$defs/frameCandidateStrategy" },
         "framesPerSecond": { "type": "number", "exclusiveMinimum": 0 },
+        "maxEntries": { "type": "integer", "minimum": 1 },
         "maxFrames": { "type": "integer", "minimum": 1 },
+        "maxReadBatches": { "type": "integer", "minimum": 1 },
+        "maxSessionBytes": { "type": "integer", "minimum": 1048576 },
+        "readLimit": { "type": "integer", "minimum": 1 },
         "resourceId": { "$ref": "#/$defs/id" },
         "roi": { "$ref": "#/$defs/roi" },
         "saveAs": { "$ref": "#/$defs/id" },
@@ -346,6 +380,10 @@
         },
         "settleMs": { "type": "integer", "minimum": 0 },
         "source": { "$ref": "#/$defs/nonEmptyString" },
+        "startElementXRatio": { "$ref": "#/$defs/ratio" },
+        "startElementYRatio": { "$ref": "#/$defs/ratio" },
+        "startXRatio": { "$ref": "#/$defs/ratio" },
+        "startYRatio": { "$ref": "#/$defs/ratio" },
         "target": { "$ref": "#/$defs/nonEmptyString" },
         "targetXRatio": { "$ref": "#/$defs/ratio" },
         "targetYRatio": { "$ref": "#/$defs/ratio" },
@@ -353,6 +391,8 @@
         "threshold": { "$ref": "#/$defs/ratio" },
         "timeLimitMs": { "type": "integer", "minimum": 1 },
         "timeoutMs": { "type": "integer", "minimum": 0 },
+        "ttlMs": { "type": "integer", "minimum": 60000 },
+        "udid": { "$ref": "#/$defs/nonEmptyString" },
         "value": true,
         "visualDifferenceThreshold": { "type": "number", "minimum": 0 },
         "wait": { "$ref": "#/$defs/wait" },
@@ -390,6 +430,53 @@
         {
           "required": ["xRatio", "yRatio"],
           "not": { "required": ["element"] }
+        }
+      ]
+    },
+    "swipeAction": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "swipe": { "$ref": "#/$defs/id" },
+        "滑动": { "$ref": "#/$defs/id" },
+        "划动": { "$ref": "#/$defs/id" },
+        "desc": { "$ref": "#/$defs/nonEmptyString" },
+        "durationMs": { "type": "integer", "minimum": 0 },
+        "element": { "$ref": "#/$defs/nonEmptyString" },
+        "startElementXRatio": { "$ref": "#/$defs/ratio" },
+        "startElementYRatio": { "$ref": "#/$defs/ratio" },
+        "endElementXRatio": { "$ref": "#/$defs/ratio" },
+        "endElementYRatio": { "$ref": "#/$defs/ratio" },
+        "startXRatio": { "$ref": "#/$defs/ratio" },
+        "startYRatio": { "$ref": "#/$defs/ratio" },
+        "endXRatio": { "$ref": "#/$defs/ratio" },
+        "endYRatio": { "$ref": "#/$defs/ratio" },
+        "settleMs": { "type": "integer", "minimum": 0 },
+        "wait": { "$ref": "#/$defs/wait" }
+      },
+      "oneOf": [
+        {
+          "required": ["element", "startElementXRatio", "startElementYRatio", "endElementXRatio", "endElementYRatio"],
+          "not": {
+            "anyOf": [
+              { "required": ["startXRatio"] },
+              { "required": ["startYRatio"] },
+              { "required": ["endXRatio"] },
+              { "required": ["endYRatio"] }
+            ]
+          }
+        },
+        {
+          "required": ["startXRatio", "startYRatio", "endXRatio", "endYRatio"],
+          "not": {
+            "anyOf": [
+              { "required": ["element"] },
+              { "required": ["startElementXRatio"] },
+              { "required": ["startElementYRatio"] },
+              { "required": ["endElementXRatio"] },
+              { "required": ["endElementYRatio"] }
+            ]
+          }
         }
       ]
     },
@@ -597,6 +684,64 @@
         "roi": { "$ref": "#/$defs/roi" },
         "visualDifferenceThreshold": { "type": "number", "minimum": 0 },
         "resourceId": { "$ref": "#/$defs/id" }
+      }
+    },
+    "appLogFilter": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "source": { "enum": ["stdout", "stderr"] },
+        "level": { "$ref": "#/$defs/nonEmptyString" },
+        "levels": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/nonEmptyString" }
+        },
+        "tag": { "$ref": "#/$defs/nonEmptyString" },
+        "tags": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/nonEmptyString" }
+        },
+        "tagRegex": { "$ref": "#/$defs/nonEmptyString" },
+        "process": { "$ref": "#/$defs/nonEmptyString" },
+        "processes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/nonEmptyString" }
+        },
+        "processRegex": { "$ref": "#/$defs/nonEmptyString" },
+        "messageContains": { "$ref": "#/$defs/nonEmptyString" },
+        "messageRegex": { "$ref": "#/$defs/nonEmptyString" },
+        "rawContains": { "$ref": "#/$defs/nonEmptyString" },
+        "rawRegex": { "$ref": "#/$defs/nonEmptyString" },
+        "android": { "$ref": "#/$defs/appLogFilterFields" },
+        "ios": { "$ref": "#/$defs/appLogFilterFields" }
+      }
+    },
+    "appLogFilterFields": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "source": { "enum": ["stdout", "stderr"] },
+        "level": { "$ref": "#/$defs/nonEmptyString" },
+        "levels": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/nonEmptyString" }
+        },
+        "tag": { "$ref": "#/$defs/nonEmptyString" },
+        "tags": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/nonEmptyString" }
+        },
+        "tagRegex": { "$ref": "#/$defs/nonEmptyString" },
+        "process": { "$ref": "#/$defs/nonEmptyString" },
+        "processes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/nonEmptyString" }
+        },
+        "processRegex": { "$ref": "#/$defs/nonEmptyString" },
+        "messageContains": { "$ref": "#/$defs/nonEmptyString" },
+        "messageRegex": { "$ref": "#/$defs/nonEmptyString" },
+        "rawContains": { "$ref": "#/$defs/nonEmptyString" },
+        "rawRegex": { "$ref": "#/$defs/nonEmptyString" }
       }
     },
     "roi": {

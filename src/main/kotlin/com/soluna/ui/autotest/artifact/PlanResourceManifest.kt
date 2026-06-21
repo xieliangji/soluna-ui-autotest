@@ -68,6 +68,8 @@ class LocalExplicitScreenshotSink(
             "image/webp" -> "webp"
             "video/mp4" -> "mp4"
             "video/quicktime" -> "mov"
+            "application/x-ndjson", "application/jsonl", "application/json-lines" -> "jsonl"
+            "application/json" -> "json"
             else -> "bin"
         }
     }

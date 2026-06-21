@@ -20,12 +20,18 @@ class DslPolicyValidator(
     private val parameterReference = Regex("""\$\{[^}]+}""")
     private val actionFields = setOf(
         "appId",
+        "args",
+        "assertion",
         "asRoi",
         "candidateMaxFrames",
         "candidateStrategy",
         "clearFirst",
         "desc",
         "durationMs",
+        "endElementXRatio",
+        "endElementYRatio",
+        "endXRatio",
+        "endYRatio",
         "element",
         "elementXRatio",
         "elementYRatio",
@@ -37,10 +43,17 @@ class DslPolicyValidator(
         "framesPerSecond",
         "fullHeight",
         "fullWidth",
+        "filter",
         "attr",
         "id",
+        "maxBufferEntries",
+        "maxEntries",
         "maxFrames",
+        "maxReadBatches",
+        "maxSessionBytes",
         "pattern",
+        "plugin",
+        "readLimit",
         "recognizer",
         "resourceId",
         "roi",
@@ -49,6 +62,10 @@ class DslPolicyValidator(
         "settleMs",
         "source",
         "scales",
+        "startElementXRatio",
+        "startElementYRatio",
+        "startXRatio",
+        "startYRatio",
         "targetXRatio",
         "targetYRatio",
         "template",
@@ -56,6 +73,8 @@ class DslPolicyValidator(
         "target",
         "timeLimitMs",
         "timeoutMs",
+        "ttlMs",
+        "udid",
         "value",
         "visualDifferenceThreshold",
         "wait",
@@ -371,6 +390,10 @@ class DslPolicyValidator(
                 validatePointerTargetPayload(payload, path, violations, actionName = "Long press")
             }
 
+            "swipe" -> {
+                validateSwipePayload(payload, path, violations)
+            }
+
             "input" -> {
                 requireNestedFields(payload, path, violations, "element", "value")
             }
@@ -430,6 +453,18 @@ class DslPolicyValidator(
             "tapVisualTemplate" -> {
                 requireNestedFields(payload, path, violations, "template")
             }
+
+            "captureAppLogStart" -> {
+                requireNestedFields(payload, path, violations, "saveAs")
+            }
+
+            "captureAppLogEnd" -> {
+                // source/saveAs are optional; the executor falls back to the latest case log capture.
+            }
+
+            "customAssertAppLog" -> {
+                requireNestedFields(payload, path, violations, "plugin", "assertion")
+            }
         }
     }
 
@@ -464,6 +499,59 @@ class DslPolicyValidator(
                 path = path,
                 message = "$actionName action requires both elementXRatio and elementYRatio when overriding element-relative position",
             )
+        }
+    }
+
+    private fun validateSwipePayload(
+        payload: JsonNode,
+        path: String,
+        violations: MutableList<DslViolation>,
+    ) {
+        val hasElement = payload.hasNonNullField("element")
+        val viewportFields = listOf("startXRatio", "startYRatio", "endXRatio", "endYRatio")
+        val elementFields = listOf("startElementXRatio", "startElementYRatio", "endElementXRatio", "endElementYRatio")
+        val hasAnyViewportField = viewportFields.any { payload.hasNonNullField(it) }
+        val hasAllViewportFields = viewportFields.all { payload.hasNonNullField(it) }
+        val hasAnyElementField = elementFields.any { payload.hasNonNullField(it) }
+        val hasAllElementFields = elementFields.all { payload.hasNonNullField(it) }
+
+        when {
+            hasElement && hasAnyViewportField -> {
+                violations += DslViolation(
+                    path = path,
+                    message = "Swipe action must use either element-relative ratios or viewport ratios, not both",
+                )
+            }
+            hasElement && !hasAllElementFields -> {
+                violations += DslViolation(
+                    path = path,
+                    message = "Swipe action with element requires startElementXRatio, startElementYRatio, endElementXRatio, and endElementYRatio",
+                )
+            }
+            !hasElement && !hasAllViewportFields -> {
+                violations += DslViolation(
+                    path = path,
+                    message = "Swipe action requires element-relative ratios with element or viewport startXRatio, startYRatio, endXRatio, and endYRatio",
+                )
+            }
+            !hasElement && hasAnyElementField -> {
+                violations += DslViolation(
+                    path = path,
+                    message = "Swipe action can only use element-relative ratios with element",
+                )
+            }
+            hasAnyViewportField && !hasAllViewportFields -> {
+                violations += DslViolation(
+                    path = path,
+                    message = "Swipe action viewport ratios must include startXRatio, startYRatio, endXRatio, and endYRatio",
+                )
+            }
+            hasAnyElementField && !hasAllElementFields -> {
+                violations += DslViolation(
+                    path = path,
+                    message = "Swipe action element-relative ratios must include startElementXRatio, startElementYRatio, endElementXRatio, and endElementYRatio",
+                )
+            }
         }
     }
 

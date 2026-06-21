@@ -30,8 +30,8 @@ Implemented capabilities:
 - Managed Appium server with runtime port allocation, extension bootstrap, required driver bootstrap, and `/status` probing.
 - Managed iOS WDA through go-ios, including iOS 17+ userspace tunnel handling.
 - Recovering WebDriver adapter with logical session and physical session rebuild.
-- `soluna-ext` client for device metadata, installed app metadata, WDA bundle lookup, commands, and logs.
-- Default actions: `tap`, `input`, `wait`, `restartApp`, `clearAppData`, `getText`, `saveElementRect`, `screenshot`, `tapVisualTemplate`, `startScreenRecording`, `stopScreenRecording`, `assertElementAttrEquals`, `assertElementAttrRegexMatch`, `assertSourceRegexMatch`, and `assertScreenRecordingTextRegexMatch`.
+- `soluna-ext` client for device metadata, installed app metadata, WDA bundle lookup, commands, and log sessions.
+- Default actions: `tap`, `longPress`, `swipe`, `input`, `wait`, `restartApp`, `clearAppData`, `getText`, `saveElementRect`, `screenshot`, `tapVisualTemplate`, `startScreenRecording`, `stopScreenRecording`, `captureAppLogStart`, `captureAppLogEnd`, `assertElementAttrEquals`, `assertElementAttrRegexMatch`, `assertSourceRegexMatch`, `assertScreenRecordingTextRegexMatch`, and `customAssertAppLog`.
 - `tap` resolves the current viewport-visible element, clicks the element-visible-area center by default, supports element-relative click ratios, and settles for 800ms by default.
 - `clearAppData` supports Android app data reset through `adb shell pm clear`, then reactivates the app and waits for foreground state.
 - `saveElementRect` stores an element's visible viewport rectangle as a pixel rect or normalized ROI for later runtime-variable reuse.
@@ -40,14 +40,45 @@ Implemented capabilities:
 - Runtime variables via `@{plan.name}` and `@{case.name}`; parameter references via `${...}`.
 - Local JSON/HTML report writer with execution summary, failure summary, action metadata, trace links, report-resource links, and per-case action detail dialogs.
 - App and device display names in reports and lifecycle notifications prefer real `soluna-ext` metadata when available.
-- Explicit resource manifest for screenshots, screen recordings, and retained analysis frames.
+- Explicit resource manifest for screenshots, screen recordings, retained analysis frames, and App log JSONL files.
 - Failure trace screenshots and page source diagnostics.
 - Async MinIO uploads with compression, retry, bounded drain, and local cleanup after successful upload.
 - DingTalk lifecycle notifications with execution statistics and failure summaries, plus aggregated upload-failure alerts.
 - CLI runner: `soluna run <plan.yaml>`.
-- Debug CLI: `soluna debug <plan.yaml> source|screenshot|tap|tap-element|input|tap-template|shell`.
+- Debug CLI: `soluna debug <plan.yaml> source|screenshot|tap|tap-element|swipe|swipe-element|input|tap-template|shell`.
 
 ## Recent Iterations
+
+### 2026-06-21 Swipe Action And Log-Assisted Extension Follow-up
+
+- Added a generalized `swipe` WebDriver action with English and Chinese aliases for Appium-backed iOS/Android real-device automation.
+- Added schema, keyword registry, policy validation, adapter forwarding, debug CLI/shell support, and focused parser/schema/executor/CLI coverage for viewport and element-relative swipes.
+- Added generic App log actions: `captureAppLogStart` creates a `soluna-ext` log session, `captureAppLogEnd` writes a JSONL explicit resource and case variable descriptor, and `customAssertAppLog` dispatches to JVM app-log assertion plugins by `plugin` + `assertion`.
+- Added automatic app-log assertion plugin JAR discovery from classpath, `plugins/app-log/*.jar` under the distribution/current working directory/inferred plan asset root, and directories configured through `soluna.appLogPluginDirs` or `SOLUNA_APP_LOG_PLUGIN_DIRS`.
+- Added `soluna scaffold app-log-plugin` to create an independent Kotlin/JVM ServiceLoader plugin project for `customAssertAppLog`.
+- Added capture-time App log filtering in `soluna-ext`, including common filters and platform-specific `android` / `ios` branches whose rules are matched together for the current platform.
+- Updated framework usage docs and the bundled asset-project creator skill so generated/maintained asset projects can use `swipe` and App log capture/assertion keywords without page-object abstractions or business-specific default keywords.
+
+Verification:
+
+- `./gradlew test --tests com.soluna.ui.autotest.appium.action.WebDriverActionExecutorsTest --tests com.soluna.ui.autotest.cli.SolunaCliApplicationTest --tests com.soluna.ui.autotest.schema.JsonSchemaDslValidatorTest --tests com.soluna.ui.autotest.dsl.YamlPlanParserTest`
+- `./gradlew test --tests com.soluna.ui.autotest.extension.applog.AppLogAssertionPluginLoaderTest --tests com.soluna.ui.autotest.appium.action.WebDriverActionExecutorsTest`
+- `./gradlew test --tests com.soluna.ui.autotest.cli.SolunaCliApplicationTest --tests com.soluna.ui.autotest.extension.applog.AppLogAssertionPluginLoaderTest`
+- `./gradlew test --tests com.soluna.ui.autotest.cli.SolunaCliApplicationTest`
+- `npm test` in `lib/soluna-appium-ext`
+- `npm run build` in `lib/soluna-appium-ext`
+- `npm run lint` in `lib/soluna-appium-ext`
+- `python3 /Users/xieliangji/.codex/skills/.system/skill-creator/scripts/quick_validate.py codex/skills/soluna-ui-autotest-creator`
+- `./gradlew installDist`; confirmed the packaged skill contains the updated `swipe` and App log keyword guidance, and the distribution includes `plugins/app-log`.
+- iOS real-device debug command executed `swipe` against the UGREEN HiTune S6 Pro device-detail surface successfully.
+- `./gradlew installDist --rerun-tasks`; refreshed the packaged CLI after the `soluna scaffold app-log-plugin` template fix.
+- `build/install/soluna/bin/soluna scaffold app-log-plugin /private/tmp/soluna-app-log-plugin-scaffold-check --plugin-id ugreen-audio --package com.ugreen.soluna.applog --assertion ble-command-ack --force`
+- `./gradlew -p /private/tmp/soluna-app-log-plugin-scaffold-check test jar -PsolunaHome=/Users/xieliangji/IdeaProjects/soluna-ui-autotest/build/install/soluna`
+
+Next recommended framework work:
+
+- Add the first independent app-log assertion plugin JAR when concrete UGREEN Bluetooth command/report semantics are finalized.
+- Keep raw Android/iOS App log collection behind `soluna-ext`; keep UGREEN Bluetooth command/report semantics outside both the default keyword set and the case asset project.
 
 ### 2026-06-21 Asset Creator Device Case Layout Guidance
 

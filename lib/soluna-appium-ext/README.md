@@ -102,7 +102,16 @@ English documentation is available in [`README.en.md`](./README.en.md).
   "udid": "abc123",
   "maxBufferEntries": 1000,
   "maxSessionBytes": 104857600,
-  "ttlMs": 600000
+  "ttlMs": 600000,
+  "filter": {
+    "messageContains": "BLE",
+    "android": {
+      "tagRegex": "Bluetooth|BLE"
+    },
+    "ios": {
+      "processRegex": "Ugreen|Bluetooth"
+    }
+  }
 }
 ```
 
@@ -112,6 +121,16 @@ English documentation is available in [`README.en.md`](./README.en.md).
 - `maxBufferEntries`：内存环形缓存条数（默认 1000，范围 100~10000）
 - `maxSessionBytes`：单会话落盘文件上限（默认 100MB，范围 1MB~500MB）
 - `ttlMs`：会话空闲超时自动清理（默认 10 分钟，范围 1 分钟~24 小时）
+- `filter`：采集阶段过滤规则（可选）。顶层字段是通用规则；`filter.android` 和 `filter.ios` 是平台专属规则。实际匹配为通用规则与当前平台规则同时满足，便于分别适配 Android logcat 和 iOS unified log 的格式差异。
+
+`filter` 支持的字段：
+
+- `source`：`stdout` 或 `stderr`
+- `level` / `levels`：日志级别精确匹配
+- `tag` / `tags` / `tagRegex`：日志 tag 精确或正则匹配
+- `process` / `processes` / `processRegex`：进程名精确或正则匹配
+- `messageContains` / `messageRegex`：解析后 message 匹配
+- `rawContains` / `rawRegex`：原始日志行匹配
 
 返回 `sessionId` 后，调用方可按 cursor 增量拉取日志。
 
@@ -137,6 +156,7 @@ English documentation is available in [`README.en.md`](./README.en.md).
 
 - 每条日志写入临时 JSONL 文件
 - 同时保留最近 N 条在内存中，保证热读取性能
+- 如果创建会话时声明了 `filter`，不匹配的日志不会进入内存缓存和落盘文件
 - 文件超上限后会裁剪最旧日志，并在会话元数据中累计 `droppedCount`
 - 会话到期（TTL）自动清理，避免长期占用磁盘
 

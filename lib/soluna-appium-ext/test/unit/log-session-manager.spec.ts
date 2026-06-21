@@ -96,4 +96,107 @@ describe('log session manager', () => {
       await manager.dispose()
     }
   })
+
+  it('filters captured android logs before buffering and persistence', async () => {
+    const baseDir = await mkdtemp(path.join(tmpdir(), 'soluna-log-test-'))
+    const child = createFakeChild()
+
+    const manager = new LogSessionManager({
+      baseDir,
+      sessionIdFactory: () => 'session-filter',
+      spawnProcess: () => child,
+      lookupDeviceByUdid: async () => ({
+        found: true,
+        device: {
+          platform: 'android',
+          udid: 'abc123',
+          name: 'Pixel',
+          model: 'Pixel',
+          osVersion: '14',
+        },
+      }),
+      resolveIosCommand: async () => 'ios',
+      cleanupIntervalMs: 100000,
+    })
+
+    await manager.createSession({
+      udid: 'abc123',
+      filter: {
+        android: {
+          tag: 'BluetoothCmd',
+          messageRegex: 'reported',
+        },
+      },
+    })
+
+    child.stdout.emit('data', Buffer.from('D/Other( 42): reported\n'))
+    child.stdout.emit('data', Buffer.from('D/BluetoothCmd( 42): ignored\n'))
+    child.stdout.emit('data', Buffer.from('D/BluetoothCmd( 42): command reported\n'))
+
+    await new Promise((resolve) => setTimeout(resolve, 20))
+
+    const read = await manager.readSession({
+      sessionId: 'session-filter',
+      cursor: 0,
+      limit: 10,
+    })
+    expect(read.entries.map((entry) => entry.message)).to.deep.equal(['command reported'])
+    expect(read.nextCursor).to.equal(1)
+
+    const fileContent = await readFile(path.join(baseDir, 'session-filter.jsonl'), 'utf8')
+    expect(fileContent).to.contain('command reported')
+    expect(fileContent).to.not.contain('ignored')
+    await manager.dispose()
+  })
+
+  it('uses platform specific ios filter branch', async () => {
+    const baseDir = await mkdtemp(path.join(tmpdir(), 'soluna-log-test-'))
+    const child = createFakeChild()
+
+    const manager = new LogSessionManager({
+      baseDir,
+      sessionIdFactory: () => 'session-ios-filter',
+      spawnProcess: () => child,
+      lookupDeviceByUdid: async () => ({
+        found: true,
+        device: {
+          platform: 'ios',
+          udid: 'ios-123',
+          name: 'iPhone',
+          model: 'iPhone',
+          osVersion: '17',
+        },
+      }),
+      resolveIosCommand: async () => 'ios',
+      cleanupIntervalMs: 100000,
+    })
+
+    await manager.createSession({
+      udid: 'ios-123',
+      filter: {
+        messageContains: 'BLE',
+        android: {
+          tag: 'BluetoothCmd',
+        },
+        ios: {
+          processRegex: 'UgreenAudio',
+        },
+      },
+    })
+
+    child.stdout.emit('data', Buffer.from('Jun 21 20:20:00 iPhone OtherApp[10] <Notice>: BLE command reported\n'))
+    child.stdout.emit('data', Buffer.from('Jun 21 20:20:01 iPhone UgreenAudio[11] <Notice>: unrelated\n'))
+    child.stdout.emit('data', Buffer.from('Jun 21 20:20:02 iPhone UgreenAudio[11] <Notice>: BLE command reported\n'))
+
+    await new Promise((resolve) => setTimeout(resolve, 20))
+
+    const read = await manager.readSession({
+      sessionId: 'session-ios-filter',
+      cursor: 0,
+      limit: 10,
+    })
+    expect(read.entries.map((entry) => entry.process)).to.deep.equal(['UgreenAudio'])
+    expect(read.entries[0].message).to.equal('BLE command reported')
+    await manager.dispose()
+  })
 })

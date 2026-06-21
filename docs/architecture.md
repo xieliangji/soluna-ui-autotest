@@ -220,7 +220,7 @@ locator:
 - 用例中引用元素时使用独立字段，例如 `element: common.nicknameInput`，不使用 `${...}` 参数引用语法。
 - `case.schema.json`、`plan.schema.json` 和 `fragment-catalog.schema.json` 的 action 输入不允许直接声明 `locator`；locator 只允许定义在 `element-catalog.schema.json` 中。
 - runner 在引用装配阶段把 `element` 解析为内部运行时 `ActionDefinition.locator`，该字段属于执行器输入，不是外部 DSL 输入。
-- 当没有稳定元素可定位时，动作可以声明 executor 参数完成非定位交互。例如 `tap` 支持 viewport 相对坐标 `xRatio` / `yRatio`，用于 modal backdrop 这类非元素目标。坐标 tap 不是 locator，不应替代可维护的元素目录定位。
+- 当没有稳定元素可定位时，动作可以声明 executor 参数完成非定位交互。例如 `tap` 支持 viewport 相对坐标 `xRatio` / `yRatio`，`swipe` 支持 viewport 相对起止坐标，用于 modal backdrop 或无稳定滚动容器这类非元素目标。坐标类参数不是 locator，不应替代可维护的元素目录定位。
 - 元素点击不直接依赖 WebDriver `click()` 或历史缓存元素。运行时必须重新解析当前元素，确认元素与屏幕 viewport 有可见交集，再按元素当前可见区域计算点击点。默认点击元素可见区域中心；需要点击元素内部特定区域时，`tap` 可声明 `elementXRatio` / `elementYRatio`。
 - DSL parser / validator 必须能识别并阻断硬编码文案定位。
 - 定位策略本身保持可扩展，例如 id、accessibility id、xpath、class chain、predicate、uiautomator、image 等。
@@ -406,7 +406,7 @@ action.before
 
 - 设备查询
 - iOS 已安装 WDA runner bundle 查询
-- 设备日志
+- 设备日志和 App 日志采集会话
 - `adb` / `go-ios` / `ios` 受控命令
 - 宿主机依赖检查
 - 设备文件、系统状态等靠近宿主机的增强能力
@@ -426,8 +426,8 @@ action.before
 - `RecoveringWebDriverAdapter` 维护逻辑 session，可在 managed Appium server、managed iOS WDA 或物理 session 失效后重建底层 session；若 WDA 不健康，恢复流程会先重启 WDA，再用新的 `appium:webDriverAgentUrl` 重建 Appium session。
 - WebDriver 命令需要有有界等待。默认 adapter 在容易被 WDA/Appium 慢响应拖住的截图、source、元素查找、元素矩形、窗口尺寸、输入和 session health check 等命令外层加显式超时；命令超时属于 session 恢复信号，恢复判断不能再依赖一个可能继续卡住的无界 health check。
 - iOS WDA 由 `LocalGoIosWdaManager` 通过 go-ios 管理，iOS 17+ 使用 userspace tunnel，并保证 runwda 重启后 forward 同步重启；go-ios v1.0.x 的 tunnel-info CLI 只传 `--tunnel-info-port`。
-- `soluna-ext` 客户端用于设备元信息、已安装应用元信息、iOS WDA runner bundle 和受控宿主机命令等设备邻近能力。
-- 默认 action executor 覆盖 tap/longPress/input/wait/restartApp/clearAppData/getText/saveElementRect/screenshot/screen recording、视觉模板点击、属性/source 断言和录屏文本 OCR 断言；断言可按 `wait` 轮询。元素 tap 和 longPress 会重新定位当前元素、过滤屏幕外元素，并按元素可见区域计算点击/长按点；`longPress` 支持元素内比例或视口比例目标，默认按压 1000ms。`clearAppData` 当前是 Android 专用动作，通过 `pm clear` 清理应用数据并重新激活应用；如果当前 Android session 申请了 `autoGrantPermissions`，清理后会重新授予 package runtime permissions，避免首启流程被系统权限弹框打断。`saveElementRect` 可把元素可见矩形保存为像素 rect 或归一化 ROI，供后续步骤通过运行时变量引用。视觉模板点击通过当前截图、data 目录模板资产、归一化 `roi` 和 kt-visual 匹配得到目标区域，再转换为视口比例点击，不暴露平台 back 这类平台敏感动作；其 `roi` 可直接写对象或引用 `saveElementRect` 保存的 ROI，且 action 级 `wait` 会触发重复截图匹配。录屏文本断言默认使用 kt-visual Paddle OCR，也可通过 action 的 `recognizer: multimodal` 切到 OpenAI-compatible kt-visual multimodal OCR；多模态候选帧并发识别，stream 模式按 reasoning/content 输出刷新 idle timeout。动作级显式 `wait` 会覆盖元素查找的隐式等待预算：执行显式轮询期间临时关闭 session implicit wait，结束后恢复。`restartApp` 和 `clearAppData` 在返回前都需要等待目标 app 进入前台，动作级 `wait` 可覆盖默认前台等待预算。FFmpeg 作为项目运行工具解析，优先使用显式配置或分发包内 `tools/ffmpeg/<os>-<arch>/ffmpeg(.exe)`，最后才回退到宿主机 PATH。
+- `soluna-ext` 客户端用于设备元信息、已安装应用元信息、iOS WDA runner bundle、受控宿主机命令和日志会话等设备邻近能力。App 日志会话在采集阶段过滤日志，过滤规则支持通用字段和 `android` / `ios` 平台分支；实际匹配为通用规则与当前平台分支的交集，避免把平台差异化日志格式塞进用例侧处理。
+- 默认 action executor 覆盖 tap/longPress/swipe/input/wait/restartApp/clearAppData/getText/saveElementRect/screenshot/screen recording、App 日志采集、视觉模板点击、属性/source 断言、录屏文本 OCR 断言和自定义 App 日志断言；断言可按 `wait` 轮询。元素 tap、longPress 和 swipe 会重新定位当前元素、过滤屏幕外元素，并按元素可见区域计算点击、长按或滑动起止点；`longPress` 支持元素内比例或视口比例目标，默认按压 1000ms；`swipe` 支持元素内起止比例或视口起止比例目标，默认移动 500ms。`clearAppData` 当前是 Android 专用动作，通过 `pm clear` 清理应用数据并重新激活应用；如果当前 Android session 申请了 `autoGrantPermissions`，清理后会重新授予 package runtime permissions，避免首启流程被系统权限弹框打断。`saveElementRect` 可把元素可见矩形保存为像素 rect 或归一化 ROI，供后续步骤通过运行时变量引用。视觉模板点击通过当前截图、data 目录模板资产、归一化 `roi` 和 kt-visual 匹配得到目标区域，再转换为视口比例点击，不暴露平台 back 这类平台敏感动作；其 `roi` 可直接写对象或引用 `saveElementRect` 保存的 ROI，且 action 级 `wait` 会触发重复截图匹配。`captureAppLogStart` / `captureAppLogEnd` 通过 `soluna-ext` 创建、读取和关闭 App 日志会话，结束时把抓到的日志写成 JSONL 显式资源并把描述符保存到 case 变量；`customAssertAppLog` 根据 `plugin` + `assertion` 通过 JVM ServiceLoader 注册的 `AppLogAssertionPlugin` 分发到独立扩展实现，未找到插件或断言时必须失败。App 日志断言插件源码应作为独立 Kotlin/JVM 模块维护；运行时可从 classpath、发行包 `plugins/app-log/*.jar`、当前工作目录 `plugins/app-log/*.jar`、plan 资产根 `plugins/app-log/*.jar` 或 `soluna.appLogPluginDirs` / `SOLUNA_APP_LOG_PLUGIN_DIRS` 指定目录加载 JAR；`soluna scaffold app-log-plugin` 提供该类插件项目结构脚手架。录屏文本断言默认使用 kt-visual Paddle OCR，也可通过 action 的 `recognizer: multimodal` 切到 OpenAI-compatible kt-visual multimodal OCR；多模态候选帧并发识别，stream 模式按 reasoning/content 输出刷新 idle timeout。动作级显式 `wait` 会覆盖元素查找的隐式等待预算：执行显式轮询期间临时关闭 session implicit wait，结束后恢复。`restartApp` 和 `clearAppData` 在返回前都需要等待目标 app 进入前台，动作级 `wait` 可覆盖默认前台等待预算。FFmpeg 作为项目运行工具解析，优先使用显式配置或分发包内 `tools/ffmpeg/<os>-<arch>/ffmpeg(.exe)`，最后才回退到宿主机 PATH。
 - Android/iOS opt-in 真机验证覆盖基础 Appium、session recovery、AIot asset plan 执行、MinIO 上传和钉钉通知链路。
 
 实现细节以代码和 schema 为准；本节只保留边界和能力摘要，避免后续维护两套细粒度说明。
@@ -482,7 +482,7 @@ trace 中的截图按普通诊断产物处理，不进入显式资源清单。
 - trace 截图上传不写入 `plan-resource-manifest.json`，该 manifest 只面向业务 DSL 显式请求的资源。
 - 正式 plan 运行中，managed iOS WDA/go-ios 子进程日志写入本地 run 目录的 `diagnostics/wda`，用于定位 WDA 启动、隧道和端口转发问题；该目录不进入显式资源清单。
 
-本地调试可使用 `soluna debug <plan.yaml> source|screenshot|tap|tap-element|input|tap-template`，也可以使用 `soluna debug <plan.yaml> shell` 在同一个临时 Appium/WDA session 中逐步执行这些低层动作。debug 命令复用 plan 的 device/app 配置、managed Appium server、soluna-ext 设备解析和 iOS WDA 管理，只执行少量定位、输入、截图或模板点击动作，不进入 plan/stage/case 生命周期，不生成报告、上传或通知。该路径用于采集 page source、截图或验证定位和视觉模板点击，不能替代正式 DSL 用例。
+本地调试可使用 `soluna debug <plan.yaml> source|screenshot|tap|tap-element|swipe|swipe-element|input|tap-template`，也可以使用 `soluna debug <plan.yaml> shell` 在同一个临时 Appium/WDA session 中逐步执行这些低层动作。debug 命令复用 plan 的 device/app 配置、managed Appium server、soluna-ext 设备解析和 iOS WDA 管理，只执行少量定位、滑动、输入、截图或模板点击动作，不进入 plan/stage/case 生命周期，不生成报告、上传或通知。该路径用于采集 page source、截图或验证定位、滑动和视觉模板点击，不能替代正式 DSL 用例。
 
 用例 DSL 中显式截图、录屏和录屏分析命中帧等资源，需要统一整理到一个 JSON 文件中。该 JSON 主要面向其他服务或模块消费，不是步骤级执行明细。
 

@@ -109,6 +109,15 @@ python3 codex/skills/soluna-ui-autotest-creator/scripts/create_asset_project.py 
 
 The generated project is intentionally minimal. It creates a smoke plan with the required `productModel` display field, then restarts the app, waits, and captures a screenshot. Public app-function plans should set `productModel` to the app display name; model-specific plans should set it to the concrete product model shown in reports and DingTalk notifications. Business locators, state fragments, and test data should be added after real-device debugging through the distributed Soluna CLI validation, run, and debug workflows.
 
+For app-log assertion extensions used by `customAssertAppLog`, the packaged CLI can create an independent Kotlin/JVM plugin project:
+
+```bash
+soluna scaffold app-log-plugin ./ugreen-audio-log-plugin \
+  --plugin-id ugreen-audio \
+  --package com.ugreen.soluna.applog \
+  --assertion ble-command-ack
+```
+
 The skill also includes `scripts/send_dingtalk_gap_notice.py` for approved capability-gap notifications. It defaults to the built-in Soluna debug DingTalk robot; override it with `SOLUNA_CODEX_DINGTALK_WEBHOOK` and `SOLUNA_CODEX_DINGTALK_SECRET` when another robot should receive notices.
 
 The in-repository asset project example is:
@@ -148,10 +157,12 @@ The current runner supports:
 - Plan-rooted YAML execution with schema-first validation, case/data/element/fragment references, and keyword-as-field actions such as `tap: { id, element, desc }`.
 - Linear real-device execution on Android and iOS through Appium Java Client, managed Appium server startup, managed Appium extension/driver bootstrap, session recovery, and managed iOS WDA/go-ios support.
 - Pluggable execution boundaries for parsers, action executors, driver adapters, Appium server management, artifact upload, report writing, notifications, failure strategy, and retry strategy.
-- Default actions for tap/long press/input/wait/restart app/clear app data/get text/save element rect/screenshot/visual-template tap/screen recording and element-attribute, source-regex, or screen-recording OCR assertions. Assertion actions poll by resolved `wait`.
+- Default actions for tap/long press/swipe/input/wait/restart app/clear app data/get text/save element rect/screenshot/visual-template tap/screen recording/App log capture and element-attribute, source-regex, screen-recording OCR, or custom App log assertions. Assertion actions poll by resolved `wait`.
+- App log assertion plugins can be delivered as independent JVM JARs under `plugins/app-log/*.jar` in the distribution, current working directory, or inferred app asset root. Extra directories can be supplied with `-Dsoluna.appLogPluginDirs=<paths>` or `SOLUNA_APP_LOG_PLUGIN_DIRS=<paths>` using the host path separator.
+- Scaffold CLI for independent app-log assertion plugins through `soluna scaffold app-log-plugin`.
 - Runtime variables through `@{case.name}` / `@{plan.name}` and parameter references through `${...}`.
-- Local JSON/HTML reporting with product-model summary, `soluna-ext` resolved app/device/start/end metadata, failure/action metadata, overview-first HTML, report-resource links, collapsible case overview, case-linked action detail dialogs, explicit resource manifest for screenshots/recordings/OCR evidence, failure trace screenshots and page source, MinIO artifact upload, upload-success cleanup, and compact Chinese DingTalk lifecycle/upload-failure notifications with execution statistics.
-- Debug CLI for source/screenshot/tap/tap-element/input/tap-template/shell inspection from a plan's device and app config.
+- Local JSON/HTML reporting with product-model summary, `soluna-ext` resolved app/device/start/end metadata, failure/action metadata, overview-first HTML, report-resource links, collapsible case overview, case-linked action detail dialogs, explicit resource manifest for screenshots/recordings/OCR evidence/App log JSONL files, failure trace screenshots and page source, MinIO artifact upload, upload-success cleanup, and compact Chinese DingTalk lifecycle/upload-failure notifications with execution statistics.
+- Debug CLI for source/screenshot/tap/tap-element/swipe/swipe-element/input/tap-template/shell inspection from a plan's device and app config.
 
 JUnit is used for framework development tests only. Runtime DSL plan orchestration belongs to the Soluna runner and result model.
 
@@ -182,6 +193,15 @@ soluna run <plan.yaml> \
 
 Device config, artifact store config, cases, elements, data, and fragments are not CLI arguments. They must be referenced by the plan directly or indirectly.
 
+Create an app-log assertion plugin project when a `customAssertAppLog` assertion needs app-specific parsing:
+
+```bash
+soluna scaffold app-log-plugin ./ugreen-audio-log-plugin \
+  --plugin-id ugreen-audio \
+  --package com.ugreen.soluna.applog \
+  --assertion ble-command-ack
+```
+
 For temporary real-device inspection, the installed distribution also exposes a debug command. It starts a managed Appium/WDA session from the plan device/app config, runs one low-level action, and exits without executing cases, reports, uploads, or notifications:
 
 ```bash
@@ -189,6 +209,8 @@ soluna debug <plan.yaml> source --out build/soluna-debug/source.xml
 soluna debug <plan.yaml> screenshot --out build/soluna-debug/screen.png
 soluna debug <plan.yaml> tap --x-ratio 0.50 --y-ratio 0.50
 soluna debug <plan.yaml> tap-element --strategy xpath --locator "//XCUIElementTypeButton[1]" --element-x-ratio 0.50 --element-y-ratio 0.50
+soluna debug <plan.yaml> swipe --start-x-ratio 0.50 --start-y-ratio 0.80 --end-x-ratio 0.50 --end-y-ratio 0.25 --duration-ms 500
+soluna debug <plan.yaml> swipe-element --strategy xpath --locator "//XCUIElementTypeScrollView[1]" --start-x-ratio 0.50 --start-y-ratio 0.90 --end-x-ratio 0.50 --end-y-ratio 0.10
 soluna debug <plan.yaml> input --strategy class --locator XCUIElementTypeTextView --text "debug text" --clear-first true
 soluna debug <plan.yaml> tap-template --template AIot-Tests/apps/com.ugreen.iot/data/common/templates/feedback-back-icon.png --roi 0,0.04,0.2,0.12
 soluna debug <plan.yaml> shell
