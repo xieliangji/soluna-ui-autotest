@@ -104,6 +104,59 @@ class WebDriverActionExecutorsTest {
     }
 
     @Test
+    fun `long press action finds element and presses it`() {
+        val driver = RecordingWebDriverAdapter()
+        val sleeper = RecordingSleeper()
+        val executor = LongPressActionExecutor(driver, sleeper)
+        val action = ActionDefinition(
+            id = "press-device",
+            keyword = "longPress",
+            locator = LocatorDefinition(
+                strategy = "id",
+                value = "device_card",
+            ),
+            args = mapOf(
+                "durationMs" to objectMapper.valueToTree(1200),
+                "elementXRatio" to objectMapper.valueToTree(0.4),
+                "elementYRatio" to objectMapper.valueToTree(0.6),
+            ),
+            wait = WaitDefinition(timeoutMs = 3000, intervalMs = 100),
+        )
+
+        val result = executor.execute(action, context())
+
+        assertEquals(ExecutionStatus.PASSED, result.status)
+        assertEquals(
+            listOf("find:session-1:id=device_card:3000", "longPress:element-1:1200:0.4:0.6"),
+            driver.calls,
+        )
+        assertEquals(listOf(800L), sleeper.delays)
+    }
+
+    @Test
+    fun `long press action can press viewport coordinates by ratio`() {
+        val driver = RecordingWebDriverAdapter()
+        val sleeper = RecordingSleeper()
+        val executor = LongPressActionExecutor(driver, sleeper)
+        val action = ActionDefinition(
+            id = "press-backdrop",
+            keyword = "longPress",
+            args = mapOf(
+                "durationMs" to objectMapper.valueToTree(900),
+                "xRatio" to objectMapper.valueToTree(0.5),
+                "yRatio" to objectMapper.valueToTree(0.3),
+                "settleMs" to objectMapper.valueToTree(0),
+            ),
+        )
+
+        val result = executor.execute(action, context())
+
+        assertEquals(ExecutionStatus.PASSED, result.status)
+        assertEquals(listOf("longPressViewport:session-1:900:0.5:0.3"), driver.calls)
+        assertEquals(emptyList(), sleeper.delays)
+    }
+
+    @Test
     fun `tap visual template action taps matched template point by viewport ratio`() {
         val template = kotlin.io.path.createTempFile(suffix = ".png")
         Files.write(template, byteArrayOf(1, 2, 3))
@@ -1173,6 +1226,25 @@ class WebDriverActionExecutorsTest {
             yRatio: Double,
         ) {
             calls += "tapViewport:$sessionId:$xRatio:$yRatio"
+        }
+
+        override fun longPress(
+            sessionId: String,
+            element: DriverElement,
+            durationMs: Long,
+            xRatio: Double,
+            yRatio: Double,
+        ) {
+            calls += "longPress:${element.elementId}:$durationMs:$xRatio:$yRatio"
+        }
+
+        override fun longPressViewport(
+            sessionId: String,
+            durationMs: Long,
+            xRatio: Double,
+            yRatio: Double,
+        ) {
+            calls += "longPressViewport:$sessionId:$durationMs:$xRatio:$yRatio"
         }
 
         override fun inputText(

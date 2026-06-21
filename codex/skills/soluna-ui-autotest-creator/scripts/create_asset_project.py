@@ -20,6 +20,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--app-id", required=True, help="Target mobile app package or bundle id.")
     parser.add_argument("--app-name", required=True, help="Human-readable app name.")
     parser.add_argument(
+        "--product-model",
+        help="Product model or public app display name shown in reports and DingTalk notifications. Defaults to --app-name.",
+    )
+    parser.add_argument(
         "--platform",
         required=True,
         choices=("android", "ios"),
@@ -73,6 +77,7 @@ def main() -> int:
         "PROJECT_ID": args.project_id,
         "APP_ID": args.app_id,
         "APP_NAME": args.app_name,
+        "PRODUCT_MODEL": args.product_model or args.app_name,
         "PLATFORM": primary_platform,
         "UDID": primary_udid,
         "RUNNER_MIN_VERSION": args.runner_min_version,

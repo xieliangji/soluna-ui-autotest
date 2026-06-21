@@ -94,6 +94,63 @@ class TapActionExecutor(
     }
 }
 
+class LongPressActionExecutor(
+    private val driver: WebDriverAdapter,
+    private val sleeper: Sleeper = ThreadSleeper,
+    private val defaultDurationMs: Long = 1000,
+    private val defaultSettleMs: Long = 800,
+) : ActionExecutor {
+    override val keyword: String = "longPress"
+
+    override fun execute(
+        action: ActionDefinition,
+        context: ExecutionContext,
+    ): ActionExecutionResult {
+        val sessionId = context.requireDriverSessionId()
+        val durationMs = action.args["durationMs"]?.asLongOrNull() ?: defaultDurationMs
+        require(durationMs >= 0) {
+            "Long press action '${action.id ?: action.keyword}' requires durationMs >= 0"
+        }
+        val xRatio = action.args["xRatio"]?.asDoubleOrNull()
+        val yRatio = action.args["yRatio"]?.asDoubleOrNull()
+        if (xRatio != null || yRatio != null) {
+            require(xRatio != null && yRatio != null) {
+                "Long press action '${action.id ?: action.keyword}' requires both args.xRatio and args.yRatio"
+            }
+            driver.longPressViewport(
+                sessionId = sessionId,
+                durationMs = durationMs,
+                xRatio = xRatio,
+                yRatio = yRatio,
+            )
+            sleepAfterPress(action)
+            return ActionExecutionResult.passed("long press viewport executed")
+        }
+
+        val element = driver.findElement(
+            sessionId = sessionId,
+            locator = action.requireLocator(),
+            wait = action.wait.toDriverWaitOptions(),
+        )
+        driver.longPress(
+            sessionId = sessionId,
+            element = element,
+            durationMs = durationMs,
+            xRatio = action.args["elementXRatio"]?.asDoubleOrNull() ?: 0.5,
+            yRatio = action.args["elementYRatio"]?.asDoubleOrNull() ?: 0.5,
+        )
+        sleepAfterPress(action)
+        return ActionExecutionResult.passed("long press executed")
+    }
+
+    private fun sleepAfterPress(action: ActionDefinition) {
+        val settleMs = action.args["settleMs"]?.asLongOrNull() ?: defaultSettleMs
+        if (settleMs > 0) {
+            sleeper.sleep(settleMs)
+        }
+    }
+}
+
 class InputActionExecutor(
     private val driver: com.soluna.ui.autotest.appium.driver.WebDriverAdapter,
 ) : com.soluna.ui.autotest.core.execution.ActionExecutor {
@@ -1096,6 +1153,7 @@ fun defaultWebDriverActionExecutors(
         GetTextActionExecutor(driver),
         SaveElementRectActionExecutor(driver),
         TapActionExecutor(driver),
+        LongPressActionExecutor(driver),
         TapVisualTemplateActionExecutor(driver),
         InputActionExecutor(driver),
         StartScreenRecordingActionExecutor(driver),

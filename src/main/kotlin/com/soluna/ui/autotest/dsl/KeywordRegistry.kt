@@ -21,6 +21,7 @@ object DefaultKeywordRegistry : KeywordRegistry {
     private val delegate = MapKeywordRegistry(
         mapOf(
             "tap" to setOf("click", "点击", "轻点"),
+            "longPress" to setOf("longTap", "pressAndHold", "长按", "长按点击"),
             "tapVisualTemplate" to setOf("tapImage", "tapTemplate", "视觉点击", "模板点击", "图片点击"),
             "input" to setOf("type", "输入", "录入"),
             "restartApp" to setOf("restart", "重启应用", "重启App", "重启APP"),

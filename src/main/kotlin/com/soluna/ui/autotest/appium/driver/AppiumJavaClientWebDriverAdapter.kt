@@ -121,6 +121,39 @@ class AppiumJavaClientWebDriverAdapter(
         driver.performTap(x, y)
     }
 
+    override fun longPress(
+        sessionId: String,
+        element: DriverElement,
+        durationMs: Long,
+        xRatio: Double,
+        yRatio: Double,
+    ) {
+        require(durationMs >= 0) { "durationMs must be >= 0" }
+        require(xRatio in 0.0..1.0) { "xRatio must be between 0.0 and 1.0" }
+        require(yRatio in 0.0..1.0) { "yRatio must be between 0.0 and 1.0" }
+        val driver = requireDriver(sessionId)
+        val webElement = resolveElement(sessionId, element)
+        val visibleRect = webElement.visibleRect(sessionId, driver, clipKeyboard = true)
+        val pressPoint = visibleRect.pointAt(xRatio, yRatio)
+        driver.performLongPress(pressPoint.x, pressPoint.y, durationMs)
+    }
+
+    override fun longPressViewport(
+        sessionId: String,
+        durationMs: Long,
+        xRatio: Double,
+        yRatio: Double,
+    ) {
+        require(durationMs >= 0) { "durationMs must be >= 0" }
+        require(xRatio in 0.0..1.0) { "xRatio must be between 0.0 and 1.0" }
+        require(yRatio in 0.0..1.0) { "yRatio must be between 0.0 and 1.0" }
+        val driver = requireDriver(sessionId)
+        val size = driver.manage().window().size
+        val x = (size.width * xRatio).roundToInt().coerceIn(0, size.width - 1)
+        val y = (size.height * yRatio).roundToInt().coerceIn(0, size.height - 1)
+        driver.performLongPress(x, y, durationMs)
+    }
+
     private fun AppiumDriver.performTap(
         x: Int,
         y: Int,
@@ -133,6 +166,21 @@ class AppiumJavaClientWebDriverAdapter(
             addAction(finger.createPointerUp(PointerInput.MouseButton.LEFT.asArg()))
         }
         perform(listOf(tap))
+    }
+
+    private fun AppiumDriver.performLongPress(
+        x: Int,
+        y: Int,
+        durationMs: Long,
+    ) {
+        val finger = PointerInput(PointerInput.Kind.TOUCH, "finger")
+        val press = Sequence(finger, 0).apply {
+            addAction(finger.createPointerMove(Duration.ZERO, PointerInput.Origin.viewport(), x, y))
+            addAction(finger.createPointerDown(PointerInput.MouseButton.LEFT.asArg()))
+            addAction(Pause(finger, Duration.ofMillis(durationMs)))
+            addAction(finger.createPointerUp(PointerInput.MouseButton.LEFT.asArg()))
+        }
+        perform(listOf(press))
     }
 
     override fun inputText(

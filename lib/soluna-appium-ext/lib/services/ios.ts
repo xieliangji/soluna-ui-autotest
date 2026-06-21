@@ -1,5 +1,6 @@
 import {runCommand, type CommandRunner} from '../cli/exec'
 import {resolveIosCommand} from '../cli/preflight'
+import type {InstalledAppInfo} from '../types/app'
 import type {UnifiedDeviceInfo} from '../types/device'
 import type {IosInstalledApplication, WdaBundleLookupResult} from '../types/ios'
 
@@ -244,6 +245,26 @@ export async function listIosInstalledApps(
 
   const result = await runner(iosCmd, [`--udid=${udid}`, 'apps', '--all', '--list'])
   return parseIosAppsOutput(result.stdout)
+}
+
+export async function findIosInstalledAppById(
+  udid: string,
+  appId: string,
+  runner: CommandRunner = runCommand
+): Promise<InstalledAppInfo | null> {
+  const apps = await listIosInstalledApps(udid, runner)
+  const app = apps.find((item) => item.bundleId === appId)
+  if (!app) {
+    return null
+  }
+
+  return {
+    platform: 'ios',
+    udid,
+    appId,
+    name: app.name,
+    version: app.version,
+  }
 }
 
 export async function findWdaBundleByUdid(

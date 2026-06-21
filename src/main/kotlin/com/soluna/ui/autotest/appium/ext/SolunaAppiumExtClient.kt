@@ -5,6 +5,11 @@ interface SolunaAppiumExtClient {
 
     fun listDevices(): ListDevicesResult
 
+    fun getApp(
+        udid: String,
+        appId: String,
+    ): AppLookupResult
+
     fun getWdaBundle(udid: String): WdaBundleLookupResult
 
     fun executeCommand(request: CommandExecuteRequest): CommandExecuteResult

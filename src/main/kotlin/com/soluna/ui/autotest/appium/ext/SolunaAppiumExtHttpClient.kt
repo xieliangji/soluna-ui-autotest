@@ -37,6 +37,23 @@ class SolunaAppiumExtHttpClient(
         return readValue(response, setOf(200), object : TypeReference<ListDevicesResult>() {})
     }
 
+    override fun getApp(
+        udid: String,
+        appId: String,
+    ): AppLookupResult {
+        val response = transport.exchange(
+            SolunaAppiumExtHttpRequest(
+                method = "GET",
+                path = "/soluna/app",
+                query = mapOf(
+                    "udid" to udid,
+                    "appId" to appId,
+                ),
+            ),
+        )
+        return readValue(response, setOf(200, 404), object : TypeReference<AppLookupResult>() {})
+    }
+
     override fun getWdaBundle(udid: String): WdaBundleLookupResult {
         val response = transport.exchange(
             SolunaAppiumExtHttpRequest(

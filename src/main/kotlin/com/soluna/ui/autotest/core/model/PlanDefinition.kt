@@ -6,6 +6,7 @@ data class PlanDefinition(
     val schemaVersion: String,
     val id: String,
     val name: String,
+    val productModel: String = name,
     val version: String? = null,
     val metadata: Map<String, JsonNode> = emptyMap(),
     val parameters: List<ParameterFileRef> = emptyList(),

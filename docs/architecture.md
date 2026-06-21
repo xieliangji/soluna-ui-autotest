@@ -37,7 +37,7 @@ Plan
 - 单个进程内只绑定一个设备，单设备串行执行。
 - 多设备执行通过多进程或外部调度实现，每个设备使用独立配置文件。
 - 设备配置文件由模板拷贝生成，每个设备实例配置独立存在，推荐用设备 UDID 命名。
-- 设备配置可只声明 UDID；平台、名称、型号、系统版本等设备信息优先通过 `soluna-ext` 获取。
+- 设备配置可只声明 UDID；平台、名称、型号、系统版本等设备信息优先通过 `soluna-ext` 获取。报告和通知展示的设备名称以 `soluna-ext` 返回的真实设备名称为准，配置里的名称只作为扩展不可用时的兜底。计划声明 `app.id` 时，应用名称也优先通过 `soluna-ext` 查询已安装应用元数据，计划中的 `app.name` 只作为兜底展示值。
 - App 默认已安装。
 - 是否重置 App 状态可配置。
 - Appium session 默认按 `Plan` 复用，但必须有健康检查和恢复机制。
@@ -63,7 +63,7 @@ Plan
 文件编排边界：
 
 - 最终执行入口以 `Plan` 文件路径为配置引用根。runner 不应再单独接收 device config、data、element、fragment 等配置文件路径。
-- `Plan` 必须声明 `deviceConfig`，设备配置只声明设备标识、Appium server 和设备级 capabilities，不声明目标 app。
+- `Plan` 必须声明 `deviceConfig` 和 `productModel`。`productModel` 是报告和钉钉通知使用的产品/型号展示名；公共功能计划使用 app 展示名，型号专项计划使用具体产品型号。设备配置只声明设备标识、Appium server 和设备级 capabilities，不声明目标 app。
 - 其它配置文件通过 `Plan` 直接引用，或通过 `Plan -> Stage -> Case` 间接引用。
 - 测试输入资产推荐按 app id 分组，例如 `AIot-Tests/apps/com.ugreen.iot/{plans,cases,elements,data,fragments}`；`AIot-Tests/devices` 这类设备目录保持在 app 资产根之外。
 - 资产项目根可声明 `soluna-project.yaml`，由 `soluna-project.schema.json` 校验。当前 CLI 不强制读取该文件；后续 project resolver 和平台资产管理应以它作为项目发现契约。
@@ -426,8 +426,8 @@ action.before
 - `RecoveringWebDriverAdapter` 维护逻辑 session，可在 managed Appium server、managed iOS WDA 或物理 session 失效后重建底层 session；若 WDA 不健康，恢复流程会先重启 WDA，再用新的 `appium:webDriverAgentUrl` 重建 Appium session。
 - WebDriver 命令需要有有界等待。默认 adapter 在容易被 WDA/Appium 慢响应拖住的截图、source、元素查找、元素矩形、窗口尺寸、输入和 session health check 等命令外层加显式超时；命令超时属于 session 恢复信号，恢复判断不能再依赖一个可能继续卡住的无界 health check。
 - iOS WDA 由 `LocalGoIosWdaManager` 通过 go-ios 管理，iOS 17+ 使用 userspace tunnel，并保证 runwda 重启后 forward 同步重启；go-ios v1.0.x 的 tunnel-info CLI 只传 `--tunnel-info-port`。
-- `soluna-ext` 客户端用于设备元信息、iOS WDA runner bundle 和受控宿主机命令等设备邻近能力。
-- 默认 action executor 覆盖 tap/input/wait/restartApp/clearAppData/getText/saveElementRect/screenshot/screen recording、视觉模板点击、属性/source 断言和录屏文本 OCR 断言；断言可按 `wait` 轮询。元素 tap 会重新定位当前元素、过滤屏幕外元素，并按元素可见区域计算点击点。`clearAppData` 当前是 Android 专用动作，通过 `pm clear` 清理应用数据并重新激活应用；如果当前 Android session 申请了 `autoGrantPermissions`，清理后会重新授予 package runtime permissions，避免首启流程被系统权限弹框打断。`saveElementRect` 可把元素可见矩形保存为像素 rect 或归一化 ROI，供后续步骤通过运行时变量引用。视觉模板点击通过当前截图、data 目录模板资产、归一化 `roi` 和 kt-visual 匹配得到目标区域，再转换为视口比例点击，不暴露平台 back 这类平台敏感动作；其 `roi` 可直接写对象或引用 `saveElementRect` 保存的 ROI，且 action 级 `wait` 会触发重复截图匹配。录屏文本断言默认使用 kt-visual Paddle OCR，也可通过 action 的 `recognizer: multimodal` 切到 OpenAI-compatible kt-visual multimodal OCR；多模态候选帧并发识别，stream 模式按 reasoning/content 输出刷新 idle timeout。动作级显式 `wait` 会覆盖元素查找的隐式等待预算：执行显式轮询期间临时关闭 session implicit wait，结束后恢复。`restartApp` 和 `clearAppData` 在返回前都需要等待目标 app 进入前台，动作级 `wait` 可覆盖默认前台等待预算。FFmpeg 作为项目运行工具解析，优先使用显式配置或分发包内 `tools/ffmpeg/<os>-<arch>/ffmpeg(.exe)`，最后才回退到宿主机 PATH。
+- `soluna-ext` 客户端用于设备元信息、已安装应用元信息、iOS WDA runner bundle 和受控宿主机命令等设备邻近能力。
+- 默认 action executor 覆盖 tap/longPress/input/wait/restartApp/clearAppData/getText/saveElementRect/screenshot/screen recording、视觉模板点击、属性/source 断言和录屏文本 OCR 断言；断言可按 `wait` 轮询。元素 tap 和 longPress 会重新定位当前元素、过滤屏幕外元素，并按元素可见区域计算点击/长按点；`longPress` 支持元素内比例或视口比例目标，默认按压 1000ms。`clearAppData` 当前是 Android 专用动作，通过 `pm clear` 清理应用数据并重新激活应用；如果当前 Android session 申请了 `autoGrantPermissions`，清理后会重新授予 package runtime permissions，避免首启流程被系统权限弹框打断。`saveElementRect` 可把元素可见矩形保存为像素 rect 或归一化 ROI，供后续步骤通过运行时变量引用。视觉模板点击通过当前截图、data 目录模板资产、归一化 `roi` 和 kt-visual 匹配得到目标区域，再转换为视口比例点击，不暴露平台 back 这类平台敏感动作；其 `roi` 可直接写对象或引用 `saveElementRect` 保存的 ROI，且 action 级 `wait` 会触发重复截图匹配。录屏文本断言默认使用 kt-visual Paddle OCR，也可通过 action 的 `recognizer: multimodal` 切到 OpenAI-compatible kt-visual multimodal OCR；多模态候选帧并发识别，stream 模式按 reasoning/content 输出刷新 idle timeout。动作级显式 `wait` 会覆盖元素查找的隐式等待预算：执行显式轮询期间临时关闭 session implicit wait，结束后恢复。`restartApp` 和 `clearAppData` 在返回前都需要等待目标 app 进入前台，动作级 `wait` 可覆盖默认前台等待预算。FFmpeg 作为项目运行工具解析，优先使用显式配置或分发包内 `tools/ffmpeg/<os>-<arch>/ffmpeg(.exe)`，最后才回退到宿主机 PATH。
 - Android/iOS opt-in 真机验证覆盖基础 Appium、session recovery、AIot asset plan 执行、MinIO 上传和钉钉通知链路。
 
 实现细节以代码和 schema 为准；本节只保留边界和能力摘要，避免后续维护两套细粒度说明。
@@ -556,15 +556,13 @@ plan-resource-manifest.json
 
 ```text
 runs/{runId}/report/index.html
-runs/{runId}/report/report-summary.json
-runs/{runId}/report/report-details.json
+runs/{runId}/report/execution-result.json
 runs/{runId}/report/plan-resource-manifest.json
 ```
 
 报告 HTML 中至少引用：
 
-- `report-summary.json`
-- `report-details.json`
+- `execution-result.json`
 - `plan-resource-manifest.json`
 
 报告数据和报告渲染器分离，为后续替换报告器组件预留空间。
@@ -572,8 +570,8 @@ runs/{runId}/report/plan-resource-manifest.json
 当前状态摘要：
 
 - `LocalReportWriter` 写出 `execution-result.json` 和单体 `index.html`。
-- `report-data.schema.json` 定义报告数据视图；它不是内部执行结果模型的直接序列化。当前数据视图包含执行摘要、失败摘要、生命周期 action 列表、action id/keyword/attempt/duration 等动作元数据，以及 trace artifacts。
-- 报告 HTML 引用 `execution-result.json` 和 `plan-resource-manifest.json`，启用上传时链接改写为 MinIO URL。HTML 首屏展示 plan/run/device 信息、stage/case/action 统计、失败摘要、动作时间线和 trace artifact 链接。
+- `report-data.schema.json` 定义报告数据视图；它不是内部执行结果模型的直接序列化。当前数据视图包含产品型号、应用标识/真实应用名称、设备编号/真实设备名称、开始/结束时间、执行摘要、失败摘要、生命周期 action 列表、action id/keyword/attempt/duration 等动作元数据，以及 trace artifacts。
+- 报告 HTML 引用 `execution-result.json` 和 `plan-resource-manifest.json`，启用上传时链接改写为 MinIO URL。HTML 首屏展示 `App UI自动化测试` 概览、plan/run/app/device/start/end 信息、报告资源入口、stage/case/action 统计、可折叠的用例执行概览、失败摘要和 trace 资源；动作执行明细不在首页铺开，只通过用例行或 `操作` 列的 `动作明细` 链接打开弹窗查看。明细弹窗标题区承载阶段/用例上下文，表格只展示动作级字段，关闭控件使用图标按钮，弹窗打开期间锁定首页滚动，且标题栏不随明细表格滚动。
 - 报告必需资源会执行 bounded drain；失败 trace 截图进入 `traceArtifacts`，显式截图进入 manifest。
 
 ## 13. 钉钉通知
@@ -597,7 +595,7 @@ runs/{runId}/report/plan-resource-manifest.json
 当前状态摘要：
 
 - `notification-sender.schema.json` 定义 DingTalk robot sender；webhook/secret 支持直接 YAML 配置，也保留 env 间接引用。
-- `PlanRunner` 支持 `planStarted`、`testFinished`、`reportPublished` 三个生命周期通知点；旧 `planFinished` 兼容映射到 `reportPublished`。生命周期通知包含 plan/run/device/platform、计划规模、执行统计、首批失败 action 摘要、trace artifact 数量、上传状态和报告链接。
+- `PlanRunner` 支持 `planStarted`、`testFinished`、`reportPublished` 三个生命周期通知点；旧 `planFinished` 兼容映射到 `reportPublished`。生命周期通知使用固定标题 `App UI自动化测试`，正文先展示带颜色/字号的标题和引用副标题 `<productModel> UI 自动化测试`，标题与副标题、字段列表之间用分割线隔开。通知项逐行展示并使用中文语义标签，字段列表以 `设备名称`、`设备标识` 开头，执行结束和报告发布通知使用执行 `开始时间`/`结束时间`，不展示报告生成时间。
 - `DingTalkUploadFailureNotifier` 聚合上传失败告警，支持时间窗口、阈值和抑制间隔。
 
 ## 14. Schema First

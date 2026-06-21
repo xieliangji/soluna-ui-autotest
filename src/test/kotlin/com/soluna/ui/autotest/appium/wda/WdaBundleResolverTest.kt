@@ -2,6 +2,7 @@ package com.soluna.ui.autotest.appium.wda
 
 import com.soluna.ui.autotest.appium.ext.CommandExecuteRequest
 import com.soluna.ui.autotest.appium.ext.CommandExecuteResult
+import com.soluna.ui.autotest.appium.ext.AppLookupResult
 import com.soluna.ui.autotest.appium.ext.CreateLogSessionRequest
 import com.soluna.ui.autotest.appium.ext.CreateLogSessionResult
 import com.soluna.ui.autotest.appium.ext.DeleteLogSessionRequest
@@ -110,6 +111,13 @@ class WdaBundleResolverTest {
         }
 
         override fun listDevices(): ListDevicesResult {
+            error("not used")
+        }
+
+        override fun getApp(
+            udid: String,
+            appId: String,
+        ): AppLookupResult {
             error("not used")
         }
 

@@ -6,6 +6,22 @@ import com.soluna.ui.autotest.appium.driver.DriverWaitOptions
 import com.soluna.ui.autotest.appium.driver.ScreenshotData
 import com.soluna.ui.autotest.appium.driver.StartSessionRequest
 import com.soluna.ui.autotest.appium.driver.WebDriverAdapter
+import com.soluna.ui.autotest.appium.ext.CommandExecuteRequest
+import com.soluna.ui.autotest.appium.ext.CommandExecuteResult
+import com.soluna.ui.autotest.appium.ext.AppLookupResult
+import com.soluna.ui.autotest.appium.ext.CreateLogSessionRequest
+import com.soluna.ui.autotest.appium.ext.CreateLogSessionResult
+import com.soluna.ui.autotest.appium.ext.DeleteLogSessionRequest
+import com.soluna.ui.autotest.appium.ext.DeleteLogSessionResult
+import com.soluna.ui.autotest.appium.ext.DeviceLookupResult
+import com.soluna.ui.autotest.appium.ext.InstalledAppInfo
+import com.soluna.ui.autotest.appium.ext.ListDevicesResult
+import com.soluna.ui.autotest.appium.ext.Platform
+import com.soluna.ui.autotest.appium.ext.ReadLogSessionRequest
+import com.soluna.ui.autotest.appium.ext.ReadLogSessionResult
+import com.soluna.ui.autotest.appium.ext.SolunaAppiumExtClient
+import com.soluna.ui.autotest.appium.ext.UnifiedDeviceInfo
+import com.soluna.ui.autotest.appium.ext.WdaBundleLookupResult
 import com.soluna.ui.autotest.appium.server.AppiumServerConfig
 import com.soluna.ui.autotest.appium.server.AppiumServerHandle
 import com.soluna.ui.autotest.appium.server.AppiumServerManager
@@ -22,6 +38,8 @@ import com.soluna.ui.autotest.artifact.ArtifactUploadRequest
 import com.soluna.ui.autotest.artifact.ArtifactUploadStatus
 import com.soluna.ui.autotest.artifact.ArtifactUploadTaskState
 import com.soluna.ui.autotest.artifact.ArtifactUploader
+import com.soluna.ui.autotest.config.DeviceConfigResolver
+import com.soluna.ui.autotest.config.AppMetadataResolver
 import com.soluna.ui.autotest.core.execution.ActionExecutionResult
 import com.soluna.ui.autotest.core.execution.ActionExecutor
 import com.soluna.ui.autotest.core.execution.ExecutionContext
@@ -53,6 +71,8 @@ class PlanRunnerTest {
         val seenSessionIds = mutableListOf<String?>()
         val runner = PlanRunner(
             appiumServerManager = serverManager,
+            deviceConfigResolver = testDeviceConfigResolver(),
+            appMetadataResolver = testAppMetadataResolver(),
             webDriverAdapter = driver,
             actionExecutorFactory = { _, _ -> listOf(RecordingActionExecutor(seenSessionIds)) },
         )
@@ -73,6 +93,7 @@ class PlanRunnerTest {
         assertNull(serverManager.startedConfig?.port)
         assertEquals(listOf("soluna-ext"), serverManager.startedConfig?.usePlugins)
         assertEquals("android-001", driver.startedRequest?.capabilities?.get("appium:udid"))
+        assertEquals("Ext Android Device", driver.startedRequest?.capabilities?.get("appium:deviceName"))
         assertFalse(driver.startedRequest?.capabilities?.containsKey("appium:appPackage") == true)
         assertFalse(driver.startedRequest?.capabilities?.containsKey("appium:appActivity") == true)
         assertEquals("session-001", driver.stoppedSessionId)
@@ -89,6 +110,8 @@ class PlanRunnerTest {
         val seenSessionIds = mutableListOf<String?>()
         val runner = PlanRunner(
             appiumServerManager = serverManager,
+            deviceConfigResolver = testDeviceConfigResolver(),
+            appMetadataResolver = testAppMetadataResolver(),
             webDriverAdapter = driver,
             actionExecutorFactory = { _, _ -> listOf(RecordingActionExecutor(seenSessionIds)) },
         )
@@ -118,6 +141,8 @@ class PlanRunnerTest {
             appiumServerManager = RecordingAppiumServerManager(),
             wdaManager = wdaManager,
             wdaBundleResolver = StaticWdaBundleResolver("com.facebook.WebDriverAgentRunner.xctrunner"),
+            deviceConfigResolver = testDeviceConfigResolver(),
+            appMetadataResolver = testAppMetadataResolver(),
             webDriverAdapter = driver,
             actionExecutorFactory = { _, _ -> listOf(RecordingActionExecutor(mutableListOf())) },
         )
@@ -163,6 +188,8 @@ class PlanRunnerTest {
         val uploader = RecordingArtifactUploader()
         val runner = PlanRunner(
             appiumServerManager = serverManager,
+            deviceConfigResolver = testDeviceConfigResolver(),
+            appMetadataResolver = testAppMetadataResolver(),
             webDriverAdapter = driver,
             actionExecutorFactory = { _, _ -> listOf(RecordingActionExecutor(mutableListOf())) },
         )
@@ -203,6 +230,8 @@ class PlanRunnerTest {
         val uploader = RecordingArtifactUploader()
         val runner = PlanRunner(
             appiumServerManager = serverManager,
+            deviceConfigResolver = testDeviceConfigResolver(),
+            appMetadataResolver = testAppMetadataResolver(),
             webDriverAdapter = driver,
             actionExecutorFactory = { _, _ -> listOf(FailingActionExecutor()) },
         )
@@ -235,6 +264,8 @@ class PlanRunnerTest {
         val executedActionIds = mutableListOf<String>()
         val runner = PlanRunner(
             appiumServerManager = RecordingAppiumServerManager(),
+            deviceConfigResolver = testDeviceConfigResolver(),
+            appMetadataResolver = testAppMetadataResolver(),
             webDriverAdapter = RecordingWebDriverAdapter(),
             actionExecutorFactory = { _, _ ->
                 listOf(
@@ -270,6 +301,8 @@ class PlanRunnerTest {
         val uploader = RecordingArtifactUploader()
         val runner = PlanRunner(
             appiumServerManager = RecordingAppiumServerManager(),
+            deviceConfigResolver = testDeviceConfigResolver(),
+            appMetadataResolver = testAppMetadataResolver(),
             webDriverAdapter = RecordingWebDriverAdapter(),
             actionExecutorFactory = { _, _ -> listOf(RecordingActionExecutor(mutableListOf())) },
         )
@@ -299,6 +332,8 @@ class PlanRunnerTest {
         val uploader = RecordingArtifactUploader(allDrainCompleted = false)
         val runner = PlanRunner(
             appiumServerManager = RecordingAppiumServerManager(),
+            deviceConfigResolver = testDeviceConfigResolver(),
+            appMetadataResolver = testAppMetadataResolver(),
             webDriverAdapter = RecordingWebDriverAdapter(),
             actionExecutorFactory = { _, _ -> listOf(RecordingActionExecutor(mutableListOf())) },
         )
@@ -334,6 +369,8 @@ class PlanRunnerTest {
         val notificationSender = RecordingNotificationSender()
         val runner = PlanRunner(
             appiumServerManager = RecordingAppiumServerManager(),
+            deviceConfigResolver = testDeviceConfigResolver(),
+            appMetadataResolver = testAppMetadataResolver(),
             webDriverAdapter = RecordingWebDriverAdapter(),
             notificationSenderFactory = { notificationSender },
             actionExecutorFactory = { _, _ -> listOf(RecordingActionExecutor(mutableListOf())) },
@@ -352,21 +389,59 @@ class PlanRunnerTest {
         assertEquals(3, result.notifications.size)
         assertEquals(
             listOf(
-                "Soluna plan started",
-                "Soluna test finished: passed",
-                "Soluna report published: passed",
+                "App UI自动化测试",
+                "App UI自动化测试",
+                "App UI自动化测试",
             ),
             notificationSender.messages.map { it.title },
         )
-        assertTrue(notificationSender.messages[1].markdown.contains("- Status: `passed`"))
-        assertTrue(notificationSender.messages[0].markdown.contains("- Planned cases: `1`"))
-        assertTrue(notificationSender.messages[1].markdown.contains("- Cases: `1/1` passed, `0` failed"))
-        assertTrue(notificationSender.messages[2].markdown.contains("- Actions: `1/1` passed, `0` failed"))
+        assertEquals("Ext UGREEN", result.plan.app?.name)
+        assertTrue(
+            notificationSender.messages[0].markdown.contains(
+                """<font color="#00543F" size="4">**App UI自动化测试**</font>""",
+            ),
+        )
+        assertTrue(notificationSender.messages[0].markdown.contains("\n---\n\n> <font"))
+        assertTrue(notificationSender.messages[0].markdown.contains("</font>\n\n---\n\n- **设备名称:** Ext Android Device"))
+        assertTrue(
+            notificationSender.messages[0].markdown.contains(
+                """> <font color="#1AB66A" size="4">Test Product UI 自动化测试</font>""",
+            ),
+        )
+        assertTrue(notificationSender.messages[0].markdown.contains("\n- **设备名称:** Ext Android Device"))
+        assertTrue(notificationSender.messages[0].markdown.contains("\n- **设备标识:** android-001"))
+        assertTrue(notificationSender.messages[0].markdown.contains("\n- **应用名称:** Ext UGREEN"))
+        assertTrue(notificationSender.messages[0].markdown.contains("\n- **计划用例:**"))
+        assertTrue(notificationSender.messages[0].markdown.contains("- **计划用例:** 1"))
+        assertTrue(notificationSender.messages[1].markdown.contains("- **开始时间:**"))
+        assertTrue(notificationSender.messages[1].markdown.contains("- **结束时间:**"))
+        assertTrue(notificationSender.messages[1].markdown.contains("- **执行状态:** 通过"))
+        assertTrue(notificationSender.messages[1].markdown.contains("- **用例结果:** 1/1 通过，0 失败，0 跳过"))
+        assertTrue(notificationSender.messages[2].markdown.contains("\n- **设备名称:** Ext Android Device"))
+        assertTrue(notificationSender.messages[2].markdown.contains("\n- **设备标识:** android-001"))
+        assertTrue(notificationSender.messages[2].markdown.contains("- **开始时间:**"))
+        assertTrue(notificationSender.messages[2].markdown.contains("- **结束时间:**"))
+        assertTrue(notificationSender.messages[2].markdown.contains("- **动作结果:** 1/1 通过，0 失败，0 跳过"))
+        assertFalse(notificationSender.messages.any { it.markdown.contains("报告时间") })
+        assertFalse(notificationSender.messages.any { it.markdown.contains("完成时间") })
+        assertTrue(notificationSender.messages[2].markdown.contains("- **报告链接:** [index.html]("))
         assertTrue(
             notificationSender.messages[2].markdown.contains(
                 "https://artifact.local/soluna/runs/run-notify/report/index.html",
             ),
         )
+    }
+
+    private fun testDeviceConfigResolver(): DeviceConfigResolver {
+        return DeviceConfigResolver {
+            FakeSolunaExtClient()
+        }
+    }
+
+    private fun testAppMetadataResolver(): AppMetadataResolver {
+        return AppMetadataResolver {
+            FakeSolunaExtClient()
+        }
     }
 
     private fun writePlan(
@@ -384,8 +459,10 @@ class PlanRunnerTest {
             schemaVersion: "1.0"
             id: runner-plan
             name: Runner Plan
+            productModel: Test Product
             deviceConfig: ../$deviceConfig$artifactStoreBlock
             app:
+              id: com.example.app
               platform: $platform
               reset: false
             stages:
@@ -415,6 +492,7 @@ class PlanRunnerTest {
             schemaVersion: "1.0"
             id: runner-continue-case-plan
             name: Runner Continue Case Plan
+            productModel: Test Product
             deviceConfig: ../$deviceConfig
             app:
               platform: android
@@ -456,6 +534,7 @@ class PlanRunnerTest {
             schemaVersion: "1.0"
             id: trace-plan
             name: Trace Plan
+            productModel: Test Product
             deviceConfig: ../devices/android.yaml
             app:
               platform: android
@@ -588,6 +667,63 @@ ${serverConfig.prependIndent("                ")}
             """.trimIndent(),
         )
         return devicePath
+    }
+
+    private class FakeSolunaExtClient : SolunaAppiumExtClient {
+        override fun getDevice(udid: String): DeviceLookupResult {
+            val isIos = udid.startsWith("ios", ignoreCase = true)
+            return DeviceLookupResult(
+                exists = true,
+                device = UnifiedDeviceInfo(
+                    platform = if (isIos) Platform.IOS else Platform.ANDROID,
+                    udid = udid,
+                    name = if (isIos) "Ext iPhone" else "Ext Android Device",
+                    model = if (isIos) "iPhone" else "Android Model",
+                    osVersion = if (isIos) "17.2" else "14",
+                ),
+            )
+        }
+
+        override fun listDevices(): ListDevicesResult {
+            error("not used")
+        }
+
+        override fun getApp(
+            udid: String,
+            appId: String,
+        ): AppLookupResult {
+            val isIos = udid.startsWith("ios", ignoreCase = true)
+            return AppLookupResult(
+                exists = true,
+                app = InstalledAppInfo(
+                    platform = if (isIos) Platform.IOS else Platform.ANDROID,
+                    udid = udid,
+                    appId = appId,
+                    name = "Ext UGREEN",
+                    version = "1.0.0",
+                ),
+            )
+        }
+
+        override fun getWdaBundle(udid: String): WdaBundleLookupResult {
+            error("not used")
+        }
+
+        override fun executeCommand(request: CommandExecuteRequest): CommandExecuteResult {
+            error("not used")
+        }
+
+        override fun createLogSession(request: CreateLogSessionRequest): CreateLogSessionResult {
+            error("not used")
+        }
+
+        override fun readLogSession(request: ReadLogSessionRequest): ReadLogSessionResult {
+            error("not used")
+        }
+
+        override fun deleteLogSession(request: DeleteLogSessionRequest): DeleteLogSessionResult {
+            error("not used")
+        }
     }
 
     private class RecordingActionExecutor(

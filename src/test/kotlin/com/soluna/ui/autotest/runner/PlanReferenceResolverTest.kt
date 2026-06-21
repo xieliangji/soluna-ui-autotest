@@ -16,6 +16,7 @@ class PlanReferenceResolverTest {
             schemaVersion: "1.0"
             id: profile-plan
             name: Profile Plan
+            productModel: Test Product
             deviceConfig: ../devices/android.yaml
             fragmentRefs:
               - id: app
@@ -132,6 +133,7 @@ class PlanReferenceResolverTest {
             schemaVersion: "1.0"
             id: profile-plan
             name: Profile Plan
+            productModel: Test Product
             deviceConfig: ../devices/android.yaml
             app:
               platform: android
@@ -190,6 +192,7 @@ class PlanReferenceResolverTest {
             schemaVersion: "1.0"
             id: profile-plan
             name: Profile Plan
+            productModel: Test Product
             deviceConfig: ../devices/ios.yaml
             app:
               platform: ios
@@ -249,6 +252,7 @@ class PlanReferenceResolverTest {
             schemaVersion: "1.0"
             id: app-state-plan
             name: App State Plan
+            productModel: Test Product
             deviceConfig: ../devices/android.yaml
             fragmentRefs:
               - id: common
@@ -324,6 +328,7 @@ class PlanReferenceResolverTest {
             schemaVersion: "1.0"
             id: app-state-plan
             name: App State Plan
+            productModel: Test Product
             deviceConfig: ../devices/ios.yaml
             app:
               platform: ios
@@ -398,6 +403,7 @@ class PlanReferenceResolverTest {
             schemaVersion: "1.0"
             id: common-plan
             name: Common Plan
+            productModel: Test Product
             deviceConfig: ../devices/android.yaml
             fragmentRefs:
               - id: app

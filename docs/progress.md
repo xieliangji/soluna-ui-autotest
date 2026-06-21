@@ -30,7 +30,7 @@ Implemented capabilities:
 - Managed Appium server with runtime port allocation, extension bootstrap, required driver bootstrap, and `/status` probing.
 - Managed iOS WDA through go-ios, including iOS 17+ userspace tunnel handling.
 - Recovering WebDriver adapter with logical session and physical session rebuild.
-- `soluna-ext` client for device metadata, WDA bundle lookup, commands, and logs.
+- `soluna-ext` client for device metadata, installed app metadata, WDA bundle lookup, commands, and logs.
 - Default actions: `tap`, `input`, `wait`, `restartApp`, `clearAppData`, `getText`, `saveElementRect`, `screenshot`, `tapVisualTemplate`, `startScreenRecording`, `stopScreenRecording`, `assertElementAttrEquals`, `assertElementAttrRegexMatch`, `assertSourceRegexMatch`, and `assertScreenRecordingTextRegexMatch`.
 - `tap` resolves the current viewport-visible element, clicks the element-visible-area center by default, supports element-relative click ratios, and settles for 800ms by default.
 - `clearAppData` supports Android app data reset through `adb shell pm clear`, then reactivates the app and waits for foreground state.
@@ -38,7 +38,8 @@ Implemented capabilities:
 - `tapVisualTemplate` supports static ROI objects, runtime-variable ROI objects, and action-level wait retry with fresh screenshots.
 - Assertion actions poll by resolved `wait`; explicit assertion waits isolate each probe from the session implicit wait.
 - Runtime variables via `@{plan.name}` and `@{case.name}`; parameter references via `${...}`.
-- Local JSON/HTML report writer with execution summary, failure summary, action metadata, trace links, and report-resource links.
+- Local JSON/HTML report writer with execution summary, failure summary, action metadata, trace links, report-resource links, and per-case action detail dialogs.
+- App and device display names in reports and lifecycle notifications prefer real `soluna-ext` metadata when available.
 - Explicit resource manifest for screenshots, screen recordings, and retained analysis frames.
 - Failure trace screenshots and page source diagnostics.
 - Async MinIO uploads with compression, retry, bounded drain, and local cleanup after successful upload.
@@ -47,6 +48,48 @@ Implemented capabilities:
 - Debug CLI: `soluna debug <plan.yaml> source|screenshot|tap|tap-element|input|tap-template|shell`.
 
 ## Recent Iterations
+
+### 2026-06-21 Report And DingTalk Final Polish
+
+- Updated `DeviceConfigResolver` so successful `soluna-ext` metadata lookup overrides configured placeholder display names for report, Appium session, and DingTalk display; complete configured device fields still remain as fallback when lookup is unavailable.
+- Added `AppMetadataResolver` so plan `app.name` is also resolved from the installed app metadata returned by `soluna-ext` when `app.id` is available; configured app name remains the fallback.
+- Appium plugin changes: added `/soluna/app?udid=...&appId=...`, Android installed-app lookup through `adb shell pm path` plus `aapt dump badging`, and iOS installed-app lookup through the existing app list helpers.
+- Finalized `LocalReportWriter` HTML: removed the secondary plan subtitle from the hero, removed generated-time display, kept the device label as `设备名称`, placed report resources above execution summary, kept report resource items in left/right label-link layout, made execution overview collapsible, vertically centered action/duration cells, and opened action details from case rows or the `操作` column `动作明细` link instead of showing homepage action details.
+- Refined report action detail modals so stage/case context stays in the modal title area, the detail table no longer repeats stage/case columns, the close control is an icon button, only the modal body scrolls, and opening a modal locks the underlying report page from scrolling.
+- Finalized lifecycle DingTalk Markdown: fixed title remains `App UI自动化测试`, body title/subtitle use styled color/size markup with dividers before and after the blockquote subtitle, field lists start with `设备名称` and `设备标识`, finished/report-published cards use execution start/end time, and report generation time is omitted.
+- Updated architecture, schema docs, and README wording for real app/device metadata, report layout, and DingTalk card behavior; kept the bundled asset-creator skill update limited to `productModel`, report evidence usage, and extension-resolved display metadata that affect asset-project authoring/debugging.
+
+Verification:
+
+- `./gradlew test`
+- `npm test`, `npm run build`, and `npm run lint` under `lib/soluna-appium-ext`
+- `python3 /Users/xieliangji/.codex/skills/.system/skill-creator/scripts/quick_validate.py codex/skills/soluna-ui-autotest-creator`
+- `./gradlew installDist`; confirmed packaged skill and plugin are present under `build/install/soluna`
+- `./gradlew test --tests com.soluna.ui.autotest.report.LocalReportWriterTest`
+- `git diff --check`
+- Android real-device run on `ZT4225X3C2`: `build/install/soluna/bin/soluna run /private/tmp/soluna-android-about-language.yaml --run-id android-about-language-report-notify-20260621-002`; cases `TC001_MINE_ABOUT` and `TC002_MINE_LANGUAGE_SETTINGS` both passed, report upload completed with 3 uploaded and 0 failed/abandoned.
+- Confirmed generated report uses real app name `UgreenAudio`, real device name `moto g - 2025`, includes start/end time, omits old subtitle/generated-time display, places report resources before execution overview, renders the execution overview as collapsible, and exposes `操作` / `动作明细` links with centered action/duration cells.
+- Android real-device rerun on `ZT4225X3C2`: `build/install/soluna/bin/soluna run /private/tmp/soluna-android-about-language-stage-setup-only.yaml --run-id android-about-language-modal-20260621-002`; cases `TC001_MINE_ABOUT` and `TC002_MINE_LANGUAGE_SETTINGS` both passed, report upload completed with 3 uploaded and 0 failed/abandoned. The temporary plan kept `appState.loggedInDevicePage` at stage `setupFragments` and used `appState.restartApp` as `caseSetupFragments`.
+- Confirmed generated modal report has icon-only close buttons, fixed modal header/body scroll separation, page scroll locking, and action detail tables without repeated stage/case columns.
+
+### 2026-06-21 Report Homepage And DingTalk Card Refinement
+
+- Added required plan-level `productModel` to the v1 plan contract for report and DingTalk display; AIot example plans now declare it.
+- Updated the asset-project scaffold to write `productModel`, defaulting to the app name unless `--product-model` is supplied.
+- Reworked `LocalReportWriter` HTML into an overview-first report with product/app/run/device/start/end metadata, summary metrics, dedicated report-resource panel, case overview, failure summary, trace resources, and per-case action detail dialogs instead of a homepage action timeline.
+- Extended `execution-result.json` with product/app display fields, resolved device display name, plan start/end timestamps, plus stage and case display names.
+- Reworked lifecycle DingTalk notifications into compact Chinese Markdown cards with fixed title `App UI自动化测试`, a blockquote summary headed by `<productModel> UI 自动化测试`, and Chinese semantic item labels.
+- Updated schema/design/usage docs and the bundled Codex asset-creator skill guidance for the new plan/report/notification contract.
+
+Verification:
+
+- `./gradlew test --tests com.soluna.ui.autotest.report.LocalReportWriterTest --tests com.soluna.ui.autotest.runner.PlanRunnerTest --tests com.soluna.ui.autotest.dsl.YamlPlanParserTest --tests com.soluna.ui.autotest.schema.JsonSchemaDslValidatorTest`
+- `./gradlew test --tests com.soluna.ui.autotest.report.LocalReportWriterTest --tests com.soluna.ui.autotest.runner.PlanRunnerTest --tests com.soluna.ui.autotest.schema.JsonSchemaDslValidatorTest`
+- `./gradlew test`
+- `python3 /Users/xieliangji/.codex/skills/.system/skill-creator/scripts/quick_validate.py codex/skills/soluna-ui-autotest-creator`
+- `python3 codex/skills/soluna-ui-autotest-creator/scripts/create_asset_project.py --output /private/tmp/soluna-product-model-scaffold-check --project-id product-check --app-id com.example.product --app-name ExampleApp --product-model 'Example Model' --platform android --udid TEST_UDID --force`
+- `git diff --check`
+- `./gradlew installDist`
 
 ### 2026-06-21 Reporter And DingTalk Summary Enrichment
 
@@ -309,6 +352,20 @@ Verification:
 - `git diff --check` passed.
 - `./gradlew test` passed.
 - `./gradlew build` passed.
+
+### 2026-06-21 Long Press Action
+
+- Added a generalized `longPress` WebDriver action with English and Chinese aliases for Appium-backed iOS/Android real-device automation.
+- Added schema, keyword registry, policy validation, adapter forwarding, and focused executor coverage for the new action.
+- Updated framework usage docs and the bundled asset-project creator skill so generated/maintained asset projects can use `longPress` without page-object abstractions.
+
+Verification:
+
+- `./gradlew test --tests com.soluna.ui.autotest.appium.action.WebDriverActionExecutorsTest --tests com.soluna.ui.autotest.schema.JsonSchemaDslValidatorTest --tests com.soluna.ui.autotest.dsl.YamlPlanParserTest` passed.
+- `./gradlew --rerun-tasks processResources installDist` passed.
+- `python3 -m py_compile codex/skills/soluna-ui-autotest-creator/scripts/create_asset_project.py codex/skills/soluna-ui-autotest-creator/scripts/send_dingtalk_gap_notice.py` passed.
+- `ios.yaml` parsed through `YamlPlanParser -> PlanReferenceResolver -> PlanDefaultsResolver -> PlanParameterResolver` without starting Appium.
+- iOS real-device focused runs passed for device rename, delete-cancel, disconnect, and guest rename/delete debug plans.
 
 ## Current Verification Baseline
 

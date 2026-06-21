@@ -43,6 +43,22 @@ data class ListDevicesResult(
     val devices: List<UnifiedDeviceInfo>,
 )
 
+data class InstalledAppInfo(
+    val platform: Platform,
+    val udid: String,
+    val appId: String,
+    val name: String? = null,
+    val version: String? = null,
+    val versionCode: String? = null,
+    val source: String? = null,
+)
+
+data class AppLookupResult(
+    val exists: Boolean,
+    val app: InstalledAppInfo? = null,
+    val message: String? = null,
+)
+
 data class IosInstalledApplication(
     val bundleId: String,
     val name: String? = null,

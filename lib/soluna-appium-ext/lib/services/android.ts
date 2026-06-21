@@ -1,4 +1,9 @@
 import {runCommand, type CommandRunner} from '../cli/exec'
+import {getCommandLookupCommand} from '../cli/preflight'
+import {mkdtemp, rm, readdir, access} from 'node:fs/promises'
+import {join} from 'node:path'
+import {tmpdir} from 'node:os'
+import type {InstalledAppInfo} from '../types/app'
 import type {UnifiedDeviceInfo} from '../types/device'
 
 interface AdbDeviceRecord {
@@ -26,6 +31,32 @@ function parseAndroidProps(output: string): Record<string, string> {
     props[match[1]] = match[2]
   }
   return props
+}
+
+function parsePackagePath(output: string): string | null {
+  for (const rawLine of output.split(/\r?\n/)) {
+    const line = rawLine.trim()
+    if (line.startsWith('package:') && line.endsWith('.apk')) {
+      return line.substring('package:'.length)
+    }
+  }
+  return null
+}
+
+function parseAndroidBadgingOutput(output: string): {
+  name?: string
+  version?: string
+  versionCode?: string
+} {
+  const packageMatch = output.match(/^package:\s+.*\bversionCode='([^']*)'.*\bversionName='([^']*)'/m)
+  const explicitLabel = output.match(/^application-label(?:-[^:]+)?:'([^']*)'/m)
+  const applicationLabel = output.match(/^application:\s+.*\blabel='([^']*)'/m)
+  const name = explicitLabel?.[1] || applicationLabel?.[1]
+  return {
+    name: name?.trim() || undefined,
+    versionCode: packageMatch?.[1]?.trim() || undefined,
+    version: packageMatch?.[2]?.trim() || undefined,
+  }
 }
 
 function toUnifiedAndroidDeviceInfo(udid: string, props: Record<string, string>): UnifiedDeviceInfo {
@@ -68,6 +99,106 @@ export async function findAndroidDeviceByUdid(
   return await fetchAndroidDeviceInfo(udid, runner)
 }
 
+async function exists(path: string): Promise<boolean> {
+  try {
+    await access(path)
+    return true
+  } catch {
+    return false
+  }
+}
+
+async function resolveAaptCommand(
+  runner: CommandRunner,
+  env: NodeJS.ProcessEnv = process.env
+): Promise<string | null> {
+  const roots = [env.ANDROID_HOME, env.ANDROID_SDK_ROOT].filter((item): item is string => Boolean(item))
+  const candidates: string[] = []
+  for (const root of roots) {
+    const buildToolsDir = join(root, 'build-tools')
+    try {
+      const versions = await readdir(buildToolsDir)
+      versions
+        .sort((left, right) => right.localeCompare(left, undefined, {numeric: true}))
+        .forEach((version) => candidates.push(join(buildToolsDir, version, 'aapt')))
+    } catch {
+      // Continue to PATH lookup below.
+    }
+  }
+
+  for (const candidate of candidates) {
+    if (await exists(candidate)) {
+      return candidate
+    }
+  }
+
+  try {
+    const lookup = await runner(getCommandLookupCommand(), ['aapt'])
+    return lookup.stdout.split(/\r?\n/)[0]?.trim() || 'aapt'
+  } catch {
+    return null
+  }
+}
+
+export async function findAndroidInstalledAppById(
+  udid: string,
+  appId: string,
+  runner: CommandRunner = runCommand,
+  options: {
+    aaptCommand?: string | null
+    env?: NodeJS.ProcessEnv
+  } = {}
+): Promise<InstalledAppInfo | null> {
+  let apkPath: string | null
+  try {
+    const pathResult = await runner('adb', ['-s', udid, 'shell', 'pm', 'path', appId])
+    apkPath = parsePackagePath(pathResult.stdout)
+  } catch {
+    return null
+  }
+  if (!apkPath) {
+    return null
+  }
+
+  const aaptCommand = options.aaptCommand === undefined
+    ? await resolveAaptCommand(runner, options.env)
+    : options.aaptCommand
+  if (!aaptCommand) {
+    return {
+      platform: 'android',
+      udid,
+      appId,
+      source: apkPath,
+    }
+  }
+
+  const tempDir = await mkdtemp(join(tmpdir(), 'soluna-app-'))
+  const localApk = join(tempDir, 'base.apk')
+  try {
+    await runner('adb', ['-s', udid, 'pull', apkPath, localApk])
+    const badging = await runner(aaptCommand, ['dump', 'badging', localApk])
+    const parsed = parseAndroidBadgingOutput(badging.stdout)
+    return {
+      platform: 'android',
+      udid,
+      appId,
+      name: parsed.name,
+      version: parsed.version,
+      versionCode: parsed.versionCode,
+      source: apkPath,
+    }
+  } catch {
+    return {
+      platform: 'android',
+      udid,
+      appId,
+      source: apkPath,
+    }
+  } finally {
+    await rm(tempDir, {recursive: true, force: true})
+  }
+}
+
 export async function listAndroidDevices(
   runner: CommandRunner = runCommand
 ): Promise<UnifiedDeviceInfo[]> {
@@ -100,4 +231,6 @@ export async function listAndroidDevices(
 export const __internal = {
   parseAdbDevices,
   parseAndroidProps,
+  parsePackagePath,
+  parseAndroidBadgingOutput,
 }

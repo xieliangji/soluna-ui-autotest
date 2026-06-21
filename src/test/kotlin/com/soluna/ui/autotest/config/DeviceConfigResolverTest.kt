@@ -2,6 +2,7 @@ package com.soluna.ui.autotest.config
 
 import com.soluna.ui.autotest.appium.ext.CommandExecuteRequest
 import com.soluna.ui.autotest.appium.ext.CommandExecuteResult
+import com.soluna.ui.autotest.appium.ext.AppLookupResult
 import com.soluna.ui.autotest.appium.ext.CreateLogSessionRequest
 import com.soluna.ui.autotest.appium.ext.CreateLogSessionResult
 import com.soluna.ui.autotest.appium.ext.DeleteLogSessionRequest
@@ -57,7 +58,7 @@ class DeviceConfigResolverTest {
     }
 
     @Test
-    fun `fills missing os version even when platform is already configured`() {
+    fun `prefers soluna ext device name even when display name is configured`() {
         val resolver = DeviceConfigResolver(
             extClientFactory = {
                 FakeExtClient(
@@ -92,18 +93,59 @@ class DeviceConfigResolverTest {
         )
 
         assertEquals("ios", resolved.device.platform)
-        assertEquals("Configured iPhone", resolved.device.name)
+        assertEquals("Demo iPhone", resolved.device.name)
         assertEquals("17.2", resolved.device.osVersion)
     }
 
-    private class FakeExtClient(
+    @Test
+    fun `keeps complete configured device fields when soluna ext lookup fails`() {
+        val resolver = DeviceConfigResolver(
+            extClientFactory = {
+                object : FakeExtClient(
+                    DeviceLookupResult(exists = false),
+                ) {
+                    override fun getDevice(udid: String): DeviceLookupResult {
+                        error("soluna-ext unavailable")
+                    }
+                }
+            },
+        )
+
+        val resolved = resolver.resolve(
+            config = DeviceConfigDefinition(
+                schemaVersion = "1.0",
+                id = "android-001",
+                device = DeviceDefinition(
+                    platform = "android",
+                    udid = "android-001",
+                    name = "Configured Android",
+                ),
+                appium = DeviceAppiumDefinition(
+                    server = DeviceAppiumServerDefinition(managed = true),
+                ),
+            ),
+            appiumServerUrl = "http://127.0.0.1:4728",
+        )
+
+        assertEquals("android", resolved.device.platform)
+        assertEquals("Configured Android", resolved.device.name)
+    }
+
+    private open class FakeExtClient(
         private val lookup: DeviceLookupResult,
     ) : SolunaAppiumExtClient {
-        override fun getDevice(udid: String): DeviceLookupResult {
+        open override fun getDevice(udid: String): DeviceLookupResult {
             return lookup
         }
 
         override fun listDevices(): ListDevicesResult {
+            error("not used")
+        }
+
+        override fun getApp(
+            udid: String,
+            appId: String,
+        ): AppLookupResult {
             error("not used")
         }
 

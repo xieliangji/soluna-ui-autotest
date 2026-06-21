@@ -36,4 +36,6 @@ Asset projects should not depend on framework source paths. Reference only files
 
 In `execution-result.json`, start with `summary` for stage/case/action totals, then `failures` for the flattened failed action locations. Use action metadata such as `actionId`, `actionKeyword`, `attempt`, and `durationMs` to correlate report rows with case YAML. Use `traceArtifacts` for failed-action screenshot/page-source evidence, and use `plan-resource-manifest.json` for explicit screenshot, screen-recording, and OCR evidence resources.
 
+Use the HTML report as debugging evidence, not as an authoring surface. Start from the case overview and failure summary, then open the related case action details only when action-level evidence is needed. `productModel` is the plan display heading for run outputs; installed app names and device display names should come from Soluna/Appium extension metadata when available instead of being hardcoded for report or notification display.
+
 Use stable run ids for debugging so reports and MinIO paths are easy to correlate.

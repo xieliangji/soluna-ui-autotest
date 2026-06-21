@@ -7,11 +7,17 @@
   "required": [
     "schemaVersion",
     "generatedAt",
+    "startedAt",
+    "finishedAt",
     "runId",
     "planId",
     "planName",
+    "productModel",
+    "appId",
+    "appName",
     "status",
     "deviceId",
+    "deviceName",
     "platform",
     "traceArtifacts",
     "setupActions",
@@ -25,6 +31,12 @@
     "generatedAt": {
       "$ref": "#/$defs/nonEmptyString"
     },
+    "startedAt": {
+      "$ref": "#/$defs/nullableString"
+    },
+    "finishedAt": {
+      "$ref": "#/$defs/nullableString"
+    },
     "runId": {
       "$ref": "#/$defs/nonEmptyString"
     },
@@ -34,10 +46,22 @@
     "planName": {
       "$ref": "#/$defs/nonEmptyString"
     },
+    "productModel": {
+      "$ref": "#/$defs/nonEmptyString"
+    },
+    "appId": {
+      "$ref": "#/$defs/nullableString"
+    },
+    "appName": {
+      "$ref": "#/$defs/nullableString"
+    },
     "status": {
       "$ref": "#/$defs/status"
     },
     "deviceId": {
+      "$ref": "#/$defs/nonEmptyString"
+    },
+    "deviceName": {
       "$ref": "#/$defs/nonEmptyString"
     },
     "platform": {
@@ -256,9 +280,12 @@
     "stage": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["stageId", "status", "setupActions", "teardownActions", "cases"],
+      "required": ["stageId", "stageName", "status", "setupActions", "teardownActions", "cases"],
       "properties": {
         "stageId": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "stageName": {
           "$ref": "#/$defs/nonEmptyString"
         },
         "status": {
@@ -282,9 +309,12 @@
     "case": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["caseId", "status", "setupActions", "teardownActions", "actions"],
+      "required": ["caseId", "caseName", "status", "setupActions", "teardownActions", "actions"],
       "properties": {
         "caseId": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "caseName": {
           "$ref": "#/$defs/nonEmptyString"
         },
         "status": {

@@ -364,32 +364,11 @@ class DslPolicyValidator(
 
         when (canonicalKeyword) {
             "tap" -> {
-                val hasElement = payload.hasNonNullField("element")
-                val hasXRatio = payload.hasNonNullField("xRatio")
-                val hasYRatio = payload.hasNonNullField("yRatio")
-                val hasElementXRatio = payload.hasNonNullField("elementXRatio")
-                val hasElementYRatio = payload.hasNonNullField("elementYRatio")
-                if (hasElement && (hasXRatio || hasYRatio)) {
-                    violations += DslViolation(
-                        path = path,
-                        message = "Tap action must use either element or xRatio/yRatio, not both",
-                    )
-                } else if (!hasElement && !(hasXRatio && hasYRatio)) {
-                    violations += DslViolation(
-                        path = path,
-                        message = "Tap action requires element or both xRatio and yRatio",
-                    )
-                } else if (!hasElement && (hasElementXRatio || hasElementYRatio)) {
-                    violations += DslViolation(
-                        path = path,
-                        message = "Tap action can only use elementXRatio/elementYRatio with element",
-                    )
-                } else if (hasElementXRatio != hasElementYRatio) {
-                    violations += DslViolation(
-                        path = path,
-                        message = "Tap action requires both elementXRatio and elementYRatio when overriding element-relative click position",
-                    )
-                }
+                validatePointerTargetPayload(payload, path, violations, actionName = "Tap")
+            }
+
+            "longPress" -> {
+                validatePointerTargetPayload(payload, path, violations, actionName = "Long press")
             }
 
             "input" -> {
@@ -451,6 +430,40 @@ class DslPolicyValidator(
             "tapVisualTemplate" -> {
                 requireNestedFields(payload, path, violations, "template")
             }
+        }
+    }
+
+    private fun validatePointerTargetPayload(
+        payload: JsonNode,
+        path: String,
+        violations: MutableList<DslViolation>,
+        actionName: String,
+    ) {
+        val hasElement = payload.hasNonNullField("element")
+        val hasXRatio = payload.hasNonNullField("xRatio")
+        val hasYRatio = payload.hasNonNullField("yRatio")
+        val hasElementXRatio = payload.hasNonNullField("elementXRatio")
+        val hasElementYRatio = payload.hasNonNullField("elementYRatio")
+        if (hasElement && (hasXRatio || hasYRatio)) {
+            violations += DslViolation(
+                path = path,
+                message = "$actionName action must use either element or xRatio/yRatio, not both",
+            )
+        } else if (!hasElement && !(hasXRatio && hasYRatio)) {
+            violations += DslViolation(
+                path = path,
+                message = "$actionName action requires element or both xRatio and yRatio",
+            )
+        } else if (!hasElement && (hasElementXRatio || hasElementYRatio)) {
+            violations += DslViolation(
+                path = path,
+                message = "$actionName action can only use elementXRatio/elementYRatio with element",
+            )
+        } else if (hasElementXRatio != hasElementYRatio) {
+            violations += DslViolation(
+                path = path,
+                message = "$actionName action requires both elementXRatio and elementYRatio when overriding element-relative position",
+            )
         }
     }
 

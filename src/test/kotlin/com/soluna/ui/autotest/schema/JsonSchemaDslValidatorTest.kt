@@ -275,11 +275,17 @@ class JsonSchemaDslValidatorTest {
             {
               "schemaVersion": "1.0",
               "generatedAt": "2026-06-13T00:00:00Z",
+              "startedAt": "2026-06-13T00:00:01Z",
+              "finishedAt": "2026-06-13T00:00:04Z",
               "runId": "run-001",
               "planId": "plan-001",
               "planName": "Plan 001",
+              "productModel": "Test Product",
+              "appId": "com.example",
+              "appName": "Example",
               "status": "failed",
               "deviceId": "android-device",
+              "deviceName": "Demo Android",
               "platform": "android",
               "traceArtifacts": [
                 {
@@ -303,12 +309,14 @@ class JsonSchemaDslValidatorTest {
               "stages": [
                 {
                   "stageId": "stage-001",
+                  "stageName": "Stage 001",
                   "status": "failed",
                   "setupActions": [],
                   "teardownActions": [],
                   "cases": [
                     {
                       "caseId": "case-001",
+                      "caseName": "Case 001",
                       "status": "failed",
                       "setupActions": [],
                       "teardownActions": [],
@@ -350,6 +358,7 @@ class JsonSchemaDslValidatorTest {
             "/schemas/v1/fragment-catalog.schema.json" to listOf(
                 Path.of("AIot-Tests/apps/com.ugreen.iot/fragments/app-lifecycle.yaml"),
                 Path.of("AIot-Tests/apps/com.ugreen.iot/fragments/app-state.yaml"),
+                Path.of("AIot-Tests/apps/com.ugreen.iot/fragments/device.yaml"),
             ),
         )
 

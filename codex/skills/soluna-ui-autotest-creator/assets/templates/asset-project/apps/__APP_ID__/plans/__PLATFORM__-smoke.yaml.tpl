@@ -1,6 +1,7 @@
 schemaVersion: "1.0"
 id: {{PROJECT_ID}}-{{PLATFORM}}-smoke
 name: {{APP_NAME}} {{PLATFORM}} Smoke
+productModel: {{PRODUCT_MODEL}}
 version: "0.1.0"
 metadata:
   owner: qa

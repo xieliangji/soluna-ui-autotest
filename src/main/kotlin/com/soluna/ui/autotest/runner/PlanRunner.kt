@@ -34,12 +34,14 @@ import com.soluna.ui.autotest.artifact.PlanResourceManifestWriter
 import com.soluna.ui.autotest.artifact.FailureTraceScreenshotCollector
 import com.soluna.ui.autotest.artifact.PublishedTraceArtifact
 import com.soluna.ui.autotest.artifact.YamlArtifactStoreConfigParser
+import com.soluna.ui.autotest.config.AppMetadataResolver
 import com.soluna.ui.autotest.config.DeviceConfigDefinition
 import com.soluna.ui.autotest.config.DeviceConfigResolver
 import com.soluna.ui.autotest.config.YamlDeviceConfigParser
 import com.soluna.ui.autotest.config.toAppiumServerConfig
 import com.soluna.ui.autotest.config.toWdaConfig
 import com.soluna.ui.autotest.core.execution.ActionExecutor
+import com.soluna.ui.autotest.core.execution.ActionExecutionResult
 import com.soluna.ui.autotest.core.execution.ContinueCaseFailureStrategy
 import com.soluna.ui.autotest.core.execution.DefaultActionExecutorRegistry
 import com.soluna.ui.autotest.core.execution.ExecutionRequest
@@ -71,8 +73,13 @@ import com.soluna.ui.autotest.notification.NotificationSenderConfigDefinition
 import com.soluna.ui.autotest.notification.YamlNotificationSenderConfigParser
 import java.nio.file.Files
 import java.nio.file.Path
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import java.util.Comparator
 import java.util.UUID
+
+private const val APP_UI_AUTOTEST_TITLE = "App UI自动化测试"
 
 class PlanRunner(
     private val planParser: DslParser<PlanDefinition> = YamlPlanParser(),
@@ -83,6 +90,7 @@ class PlanRunner(
     private val wdaManager: WdaManager = LocalGoIosWdaManager(),
     private val wdaBundleResolver: WdaBundleResolver = SolunaExtWdaBundleResolver(),
     private val deviceConfigResolver: DeviceConfigResolver = DeviceConfigResolver(),
+    private val appMetadataResolver: AppMetadataResolver = AppMetadataResolver(),
     private val webDriverAdapter: WebDriverAdapter = AppiumJavaClientWebDriverAdapter(),
     private val sessionRequestFactory: AppiumSessionRequestFactory = AppiumSessionRequestFactory(),
     private val hookBus: HookBus = defaultHookBus(),
@@ -102,6 +110,8 @@ class PlanRunner(
     private val actionExecutorFactory: (WebDriverAdapter, PlanResourceSink) -> List<ActionExecutor> = { driver, resourceSink ->
         defaultWebDriverActionExecutors(driver, resourceSink)
     },
+    private val clock: () -> Instant = { Instant.now() },
+    private val notificationZoneId: ZoneId = ZoneId.systemDefault(),
 ) {
     fun run(request: PlanRunRequest): PlanRunResult {
         val planPath = request.planPath.toAbsolutePath().normalize()
@@ -124,9 +134,6 @@ class PlanRunner(
         }
         val ownsArtifactUploader = request.artifactUploader == null && artifactUploader != null
         val notificationResults = mutableListOf<NotificationSendResult>()
-        lifecycleNotificationSenders.planStarted?.let { sender ->
-            notificationResults += sender.send(parsedPlan.toPlanStartedMessage(request.runId, parsedDeviceConfig))
-        }
         val screenshotSink = LocalExplicitScreenshotSink(
             outputDirectory = request.localArtifactRoot
                 .resolve(request.runId)
@@ -162,7 +169,16 @@ class PlanRunner(
                 plan = planWithDefaults,
                 planPath = planPath,
                 overrides = request.parameterOverrides,
-            )
+            ).let { resolvedPlan ->
+                appMetadataResolver.resolve(
+                    plan = resolvedPlan,
+                    deviceConfig = deviceConfig,
+                    appiumServerUrl = activeServerHandle.url,
+                )
+            }
+            lifecycleNotificationSenders.planStarted?.let { sender ->
+                notificationResults += sender.send(plan.toPlanStartedMessage(request.runId, deviceConfig, clock()))
+            }
             val wdaConfig = wdaConfigIfNeeded(
                 deviceConfig = deviceConfig,
                 request = request,
@@ -235,7 +251,7 @@ class PlanRunner(
                 traceArtifacts = traceCollector.published(),
             )
             lifecycleNotificationSenders.testFinished?.let { sender ->
-                notificationResults += sender.send(result.toTestFinishedMessage())
+                notificationResults += sender.send(result.toTestFinishedMessage(clock()))
             }
             testFinishedNotificationSent = true
             val report = request.reportWriter?.write(result)
@@ -265,7 +281,7 @@ class PlanRunner(
             )
             if (reportWithManifest != null) {
                 lifecycleNotificationSenders.reportPublished?.let { sender ->
-                    notificationResults += sender.send(finalResult.toReportPublishedMessage(artifactUploader))
+                    notificationResults += sender.send(finalResult.toReportPublishedMessage(artifactUploader, clock()))
                 }
             }
             val resultWithNotifications = finalResult.copy(
@@ -284,7 +300,9 @@ class PlanRunner(
         } catch (err: RuntimeException) {
             if (!testFinishedNotificationSent) {
                 lifecycleNotificationSenders.testFinished?.let { sender ->
-                    notificationResults += sender.send(parsedPlan.toTestFinishedErrorMessage(request.runId, parsedDeviceConfig, err))
+                    notificationResults += sender.send(
+                        parsedPlan.toTestFinishedErrorMessage(request.runId, parsedDeviceConfig, err, clock()),
+                    )
                 }
                 testFinishedNotificationSent = true
             }
@@ -559,38 +577,47 @@ class PlanRunner(
     private fun PlanDefinition.toPlanStartedMessage(
         runId: String,
         deviceConfig: DeviceConfigDefinition,
+        sentAt: Instant,
     ): NotificationMessage {
         val plannedCaseCount = stages.sumOf { stage -> stage.cases.size + stage.caseRefs.size }
         return NotificationMessage(
-            title = "Soluna plan started",
-            markdown = """
-                ### Soluna plan started
-                - Plan: ${mdCode(name)} (${mdCode(id)})
-                - Run: ${mdCode(runId)}
-                - Device: ${mdCode(deviceConfig.id)}
-                - Platform: ${mdCode(deviceConfig.device.platform ?: "-")}
-                - Planned stages: ${mdCode(stages.size.toString())}
-                - Planned cases: ${mdCode(plannedCaseCount.toString())}
-            """.trimIndent(),
+            title = APP_UI_AUTOTEST_TITLE,
+            markdown = notificationMarkdown(
+                notificationItem("设备名称", deviceConfig.deviceDisplayName()),
+                notificationItem("设备标识", deviceConfig.deviceIdentifier()),
+                notificationItem("应用名称", appDisplayName()),
+                notificationItem("应用标识", app?.id ?: "-"),
+                notificationItem("产品型号", productModel),
+                notificationItem("运行编号", runId),
+                notificationItem("开始时间", formatNotificationTime(sentAt)),
+                notificationItem("平台类型", app?.platform ?: deviceConfig.device.platform ?: "-"),
+                notificationItem("计划阶段", stages.size.toString()),
+                notificationItem("计划用例", plannedCaseCount.toString()),
+            ),
         )
     }
 
-    private fun PlanRunResult.toTestFinishedMessage(): NotificationMessage {
+    private fun PlanRunResult.toTestFinishedMessage(sentAt: Instant): NotificationMessage {
         val summary = ExecutionReportSummaries.summary(executionResult)
         val failures = ExecutionReportSummaries.failures(executionResult, limit = 3)
         return NotificationMessage(
-            title = "Soluna test finished: ${executionResult.status.name.lowercase()}",
-            markdown = """
-                ### Soluna test finished
-                - Plan: ${mdCode(plan.name)} (${mdCode(plan.id)})
-                - Run: ${mdCode(executionResult.runId)}
-                - Status: ${mdCode(executionResult.status.name.lowercase())}
-                - Device: ${mdCode(deviceConfig.id)}
-                - Platform: ${mdCode(deviceConfig.device.platform ?: "-")}
-                ${summary.toMarkdownBullets().prependIndent("                ").trimStart()}
-                - Trace artifacts: ${mdCode(traceArtifacts.size.toString())}
-                ${failures.toMarkdownFailureBlock().prependIndent("                ").trimStart()}
-            """.trimIndent(),
+            title = APP_UI_AUTOTEST_TITLE,
+            markdown = plan.notificationMarkdown(
+                notificationItem("设备名称", deviceConfig.deviceDisplayName()),
+                notificationItem("设备标识", deviceConfig.deviceIdentifier()),
+                notificationItem("应用名称", plan.appDisplayName()),
+                notificationItem("应用标识", plan.app?.id ?: "-"),
+                notificationItem("产品型号", plan.productModel),
+                notificationItem("运行编号", executionResult.runId),
+                notificationItem("开始时间", formatOptionalNotificationTime(executionStartedAt())),
+                notificationItem("结束时间", formatNotificationTime(executionFinishedAt() ?: sentAt)),
+                notificationItem("执行状态", statusText(executionResult.status.name.lowercase())),
+                notificationItem("平台类型", plan.app?.platform ?: deviceConfig.device.platform ?: "-"),
+                notificationItem("用例结果", summary.caseResultText()),
+                notificationItem("动作结果", summary.actionResultText()),
+                notificationItem("追踪资源", traceArtifacts.size.toString()),
+                notificationItem("失败摘要", failures.failureSummaryText()),
+            ),
         )
     }
 
@@ -598,23 +625,29 @@ class PlanRunner(
         runId: String,
         deviceConfig: DeviceConfigDefinition,
         err: RuntimeException,
+        sentAt: Instant,
     ): NotificationMessage {
         return NotificationMessage(
-            title = "Soluna test finished: error",
-            markdown = """
-                ### Soluna test finished
-                - Plan: ${mdCode(name)} (${mdCode(id)})
-                - Run: ${mdCode(runId)}
-                - Status: `error`
-                - Device: ${mdCode(deviceConfig.id)}
-                - Platform: ${mdCode(deviceConfig.device.platform ?: "-")}
-                - Error: ${mdCode(err.message ?: err::class.simpleName ?: "unknown error")}
-            """.trimIndent(),
+            title = APP_UI_AUTOTEST_TITLE,
+            markdown = notificationMarkdown(
+                notificationItem("设备名称", deviceConfig.deviceDisplayName()),
+                notificationItem("设备标识", deviceConfig.deviceIdentifier()),
+                notificationItem("应用名称", appDisplayName()),
+                notificationItem("应用标识", app?.id ?: "-"),
+                notificationItem("产品型号", productModel),
+                notificationItem("运行编号", runId),
+                notificationItem("开始时间", "-"),
+                notificationItem("结束时间", formatNotificationTime(sentAt)),
+                notificationItem("执行状态", "异常"),
+                notificationItem("平台类型", app?.platform ?: deviceConfig.device.platform ?: "-"),
+                notificationItem("失败摘要", err.message ?: err::class.simpleName ?: "unknown error"),
+            ),
         )
     }
 
     private fun PlanRunResult.toReportPublishedMessage(
         artifactUploader: ArtifactUploader?,
+        sentAt: Instant,
     ): NotificationMessage {
         val runId = executionResult.runId
         val reportUrl = report?.htmlFile?.fileName?.toString()
@@ -626,40 +659,116 @@ class PlanRunner(
             ?: report?.resourceManifestFile?.toAbsolutePath()?.normalize()?.toString()
             ?: "-"
         val uploadSummary = artifactUploads?.let { uploads ->
-            "completed=${uploads.completed}, uploaded=${uploads.uploadedCount}, failed=${uploads.failedCount}, abandoned=${uploads.abandonedCount}"
-        } ?: "not enabled"
+            val state = if (uploads.completed) "已完成" else "未完成"
+            "$state，${uploads.uploadedCount} 成功，${uploads.failedCount} 失败，${uploads.abandonedCount} 放弃"
+        } ?: "未启用"
         val summary = ExecutionReportSummaries.summary(executionResult)
         val failures = ExecutionReportSummaries.failures(executionResult, limit = 3)
         return NotificationMessage(
-            title = "Soluna report published: ${executionResult.status.name.lowercase()}",
-            markdown = """
-                ### Soluna report published
-                - Plan: ${mdCode(plan.name)} (${mdCode(plan.id)})
-                - Run: ${mdCode(runId)}
-                - Status: ${mdCode(executionResult.status.name.lowercase())}
-                - Device: ${mdCode(deviceConfig.id)}
-                ${summary.toMarkdownBullets().prependIndent("                ").trimStart()}
-                ${failures.toMarkdownFailureBlock().prependIndent("                ").trimStart()}
-                - Upload: ${mdCode(uploadSummary)}
-                - Report: [index.html]($reportUrl)
-                - Manifest: [plan-resource-manifest.json]($manifestUrl)
-            """.trimIndent(),
+            title = APP_UI_AUTOTEST_TITLE,
+            markdown = plan.notificationMarkdown(
+                notificationItem("设备名称", deviceConfig.deviceDisplayName()),
+                notificationItem("设备标识", deviceConfig.deviceIdentifier()),
+                notificationItem("应用名称", plan.appDisplayName()),
+                notificationItem("应用标识", plan.app?.id ?: "-"),
+                notificationItem("产品型号", plan.productModel),
+                notificationItem("运行编号", runId),
+                notificationItem("开始时间", formatOptionalNotificationTime(executionStartedAt())),
+                notificationItem("结束时间", formatNotificationTime(executionFinishedAt() ?: sentAt)),
+                notificationItem("执行状态", statusText(executionResult.status.name.lowercase())),
+                notificationItem("用例结果", summary.caseResultText()),
+                notificationItem("动作结果", summary.actionResultText()),
+                notificationItem("失败摘要", failures.failureSummaryText()),
+                notificationItem("上传状态", uploadSummary),
+                notificationLinkItem("报告链接", "index.html", reportUrl),
+                notificationLinkItem("资源清单", "plan-resource-manifest.json", manifestUrl),
+            ),
         )
     }
 
-    private fun ExecutionReportSummary.toMarkdownBullets(): String {
-        return """
-            - Stages: `${stagePassed}/${stageTotal}` passed, `${stageFailed}` failed
-            - Cases: `${casePassed}/${caseTotal}` passed, `${caseFailed}` failed
-            - Actions: `${actionPassed}/${actionTotal}` passed, `${actionFailed}` failed
-        """.trimIndent()
+    private fun PlanDefinition.notificationMarkdown(vararg items: String): String {
+        val itemLines = items.joinToString(separator = "\n") { "- $it" }
+        return buildString {
+            appendLine("""<font color="#00543F" size="4">**$APP_UI_AUTOTEST_TITLE**</font>""")
+            appendLine()
+            appendLine("---")
+            appendLine()
+            appendLine("""> <font color="#1AB66A" size="4">${mdText(productModel)} UI 自动化测试</font>""")
+            appendLine()
+            appendLine("---")
+            appendLine()
+            append(itemLines)
+        }
     }
 
-    private fun List<ExecutionFailureSummary>.toMarkdownFailureBlock(): String {
-        if (isEmpty()) {
-            return ""
+    private fun PlanDefinition.appDisplayName(): String {
+        return app?.name?.takeIf { it.isNotBlank() } ?: productModel
+    }
+
+    private fun notificationItem(
+        label: String,
+        value: String,
+    ): String {
+        return "**$label:** ${mdText(value)}"
+    }
+
+    private fun notificationLinkItem(
+        label: String,
+        text: String,
+        url: String,
+    ): String {
+        return "**$label:** [${mdText(text)}]($url)"
+    }
+
+    private fun DeviceConfigDefinition.deviceDisplayName(): String {
+        return device.name?.takeIf { it.isNotBlank() } ?: device.udid
+    }
+
+    private fun DeviceConfigDefinition.deviceIdentifier(): String {
+        return device.udid
+    }
+
+    private fun PlanRunResult.executionStartedAt(): Instant? {
+        return executionResult.flattenActions()
+            .mapNotNull { it.startedAt.toInstantOrNull() }
+            .minOrNull()
+    }
+
+    private fun PlanRunResult.executionFinishedAt(): Instant? {
+        return executionResult.flattenActions()
+            .mapNotNull { it.finishedAt.toInstantOrNull() }
+            .maxOrNull()
+    }
+
+    private fun PlanExecutionResult.flattenActions(): List<ActionExecutionResult> {
+        return buildList {
+            addAll(setupActions)
+            stages.forEach { stage ->
+                addAll(stage.setupActions)
+                stage.cases.forEach { case ->
+                    addAll(case.setupActions)
+                    addAll(case.actions)
+                    addAll(case.teardownActions)
+                }
+                addAll(stage.teardownActions)
+            }
+            addAll(teardownActions)
         }
-        val rows = joinToString(separator = "\n") { failure ->
+    }
+
+    private fun ExecutionReportSummary.caseResultText(): String {
+        return "${casePassed}/${caseTotal} 通过，${caseFailed} 失败，${caseSkipped} 跳过"
+    }
+
+    private fun ExecutionReportSummary.actionResultText(): String {
+        return "${actionPassed}/${actionTotal} 通过，${actionFailed} 失败，${actionSkipped} 跳过"
+    }
+
+    private fun List<ExecutionFailureSummary>.failureSummaryText(): String {
+        if (isEmpty()) {
+            return "无"
+        }
+        return joinToString(separator = "；") { failure ->
             val location = listOfNotNull(failure.stageId, failure.caseId)
                 .joinToString("/")
                 .ifBlank { "plan" }
@@ -667,13 +776,54 @@ class PlanRunner(
                 .joinToString(" ")
                 .ifBlank { "-" }
             val reason = failure.error ?: failure.message ?: "-"
-            "- Failure: ${mdCode(location)} ${mdCode(failure.phase)} #${failure.index} ${mdCode(action)} ${mdCode(reason)}"
-        }
-        return rows
+            "$location ${phaseText(failure.phase)} #${failure.index} $action $reason"
+        }.let { value -> value.take(300) }
     }
 
-    private fun mdCode(value: String): String {
-        return "`${value.replace("`", "'")}`"
+    private fun phaseText(phase: String): String {
+        return when (phase) {
+            "plan.setup" -> "计划前置"
+            "plan.teardown" -> "计划后置"
+            "stage.setup" -> "阶段前置"
+            "stage.teardown" -> "阶段后置"
+            "case.setup" -> "用例前置"
+            "case.action" -> "用例步骤"
+            "case.teardown" -> "用例后置"
+            else -> phase
+        }
+    }
+
+    private fun statusText(status: String): String {
+        return when (status) {
+            "passed" -> "通过"
+            "failed" -> "失败"
+            "skipped" -> "跳过"
+            "running" -> "运行中"
+            else -> status
+        }
+    }
+
+    private fun formatNotificationTime(instant: Instant): String {
+        return DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
+            .withZone(notificationZoneId)
+            .format(instant)
+    }
+
+    private fun formatOptionalNotificationTime(instant: Instant?): String {
+        return instant?.let { formatNotificationTime(it) } ?: "-"
+    }
+
+    private fun String?.toInstantOrNull(): Instant? {
+        val value = this?.takeIf { it.isNotBlank() } ?: return null
+        return runCatching { Instant.parse(value) }.getOrNull()
+    }
+
+    private fun mdText(value: String): String {
+        return value
+            .replace("\r", " ")
+            .replace("\n", " ")
+            .trim()
+            .ifBlank { "-" }
     }
 }
 

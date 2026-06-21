@@ -112,6 +112,32 @@ class RecoveringWebDriverAdapter(
         }
     }
 
+    override fun longPress(
+        sessionId: String,
+        element: DriverElement,
+        durationMs: Long,
+        xRatio: Double,
+        yRatio: Double,
+    ) {
+        val session = requireSession(sessionId)
+        val recoveringElement = requireElement(sessionId, element)
+        withElementRecovery(session, recoveringElement) { physicalElement ->
+            delegate.longPress(session.physicalSessionId, physicalElement, durationMs, xRatio, yRatio)
+        }
+    }
+
+    override fun longPressViewport(
+        sessionId: String,
+        durationMs: Long,
+        xRatio: Double,
+        yRatio: Double,
+    ) {
+        val session = requireSession(sessionId)
+        withSessionRecovery(session) {
+            delegate.longPressViewport(session.physicalSessionId, durationMs, xRatio, yRatio)
+        }
+    }
+
     override fun inputText(
         sessionId: String,
         element: DriverElement,

@@ -52,6 +52,7 @@ class PlanParameterResolverTest {
             schemaVersion: "1.0"
             id: profile-plan
             name: Profile Plan
+            productModel: Test Product
             deviceConfig: ../devices/android.yaml
             parameters:
               - id: profile
@@ -126,6 +127,7 @@ class PlanParameterResolverTest {
             schemaVersion: "1.0"
             id: profile-plan
             name: Profile Plan
+            productModel: Test Product
             deviceConfig: ../devices/android.yaml
             stages:
               - id: main
@@ -183,6 +185,7 @@ class PlanParameterResolverTest {
             schemaVersion: "1.0"
             id: common-plan
             name: Common Plan
+            productModel: Test Product
             deviceConfig: ../devices/ios.yaml
             stages:
               - id: main
@@ -245,6 +248,7 @@ class PlanParameterResolverTest {
             schemaVersion: "1.0"
             id: common-plan
             name: Common Plan
+            productModel: Test Product
             deviceConfig: ../devices/android.yaml
             parameters:
               - id: appState

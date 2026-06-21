@@ -102,11 +102,12 @@ python3 codex/skills/soluna-ui-autotest-creator/scripts/create_asset_project.py 
   --project-id my-tests \
   --app-id com.example.app \
   --app-name ExampleApp \
+  --product-model ExampleApp \
   --platform android \
   --udid CHANGE_ME_UDID
 ```
 
-The generated project is intentionally minimal. It creates a smoke plan that restarts the app, waits, and captures a screenshot; business locators, state fragments, and test data should be added after real-device debugging through the distributed Soluna CLI validation, run, and debug workflows.
+The generated project is intentionally minimal. It creates a smoke plan with the required `productModel` display field, then restarts the app, waits, and captures a screenshot. Public app-function plans should set `productModel` to the app display name; model-specific plans should set it to the concrete product model shown in reports and DingTalk notifications. Business locators, state fragments, and test data should be added after real-device debugging through the distributed Soluna CLI validation, run, and debug workflows.
 
 The skill also includes `scripts/send_dingtalk_gap_notice.py` for approved capability-gap notifications. It defaults to the built-in Soluna debug DingTalk robot; override it with `SOLUNA_CODEX_DINGTALK_WEBHOOK` and `SOLUNA_CODEX_DINGTALK_SECRET` when another robot should receive notices.
 
@@ -147,9 +148,9 @@ The current runner supports:
 - Plan-rooted YAML execution with schema-first validation, case/data/element/fragment references, and keyword-as-field actions such as `tap: { id, element, desc }`.
 - Linear real-device execution on Android and iOS through Appium Java Client, managed Appium server startup, managed Appium extension/driver bootstrap, session recovery, and managed iOS WDA/go-ios support.
 - Pluggable execution boundaries for parsers, action executors, driver adapters, Appium server management, artifact upload, report writing, notifications, failure strategy, and retry strategy.
-- Default actions for tap/input/wait/restart app/clear app data/get text/save element rect/screenshot/visual-template tap/screen recording and element-attribute, source-regex, or screen-recording OCR assertions. Assertion actions poll by resolved `wait`.
+- Default actions for tap/long press/input/wait/restart app/clear app data/get text/save element rect/screenshot/visual-template tap/screen recording and element-attribute, source-regex, or screen-recording OCR assertions. Assertion actions poll by resolved `wait`.
 - Runtime variables through `@{case.name}` / `@{plan.name}` and parameter references through `${...}`.
-- Local JSON/HTML reporting with summary/failure/action metadata, explicit resource manifest for screenshots/recordings/OCR evidence, failure trace screenshots and page source, MinIO artifact upload, upload-success cleanup, and DingTalk lifecycle/upload-failure notifications with execution statistics.
+- Local JSON/HTML reporting with product-model summary, `soluna-ext` resolved app/device/start/end metadata, failure/action metadata, overview-first HTML, report-resource links, collapsible case overview, case-linked action detail dialogs, explicit resource manifest for screenshots/recordings/OCR evidence, failure trace screenshots and page source, MinIO artifact upload, upload-success cleanup, and compact Chinese DingTalk lifecycle/upload-failure notifications with execution statistics.
 - Debug CLI for source/screenshot/tap/tap-element/input/tap-template/shell inspection from a plan's device and app config.
 
 JUnit is used for framework development tests only. Runtime DSL plan orchestration belongs to the Soluna runner and result model.

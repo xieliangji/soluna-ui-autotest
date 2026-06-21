@@ -13,22 +13,32 @@ class DeviceConfigResolver(
     ): DeviceConfigDefinition {
         val platform = config.device.platform
         val isIos = platform != null && platform.equals("ios", ignoreCase = true)
-        val needsLookup = platform == null ||
-            config.device.name == null ||
+        val requiresLookup = platform == null ||
+            config.device.name.isNullOrBlank() ||
             (isIos && config.device.osVersion == null)
-        if (!needsLookup) {
-            return config
-        }
 
         val client = extClientFactory(URI.create(appiumServerUrl))
-        val lookup = client.getDevice(config.device.udid)
+        val lookup = runCatching { client.getDevice(config.device.udid) }
+            .getOrElse { err ->
+                if (requiresLookup) {
+                    throw err
+                }
+                return config
+            }
         val device = lookup.device
-            ?: error("Device '${config.device.udid}' was not found through soluna-ext: ${lookup.message.orEmpty()}")
+            ?: run {
+                if (requiresLookup) {
+                    error("Device '${config.device.udid}' was not found through soluna-ext: ${lookup.message.orEmpty()}")
+                }
+                return config
+            }
 
         return config.copy(
             device = config.device.copy(
-                platform = config.device.platform ?: device.platform.toWireValue(),
-                name = config.device.name ?: device.name,
+                platform = device.platform.toWireValue(),
+                name = device.name.takeIf { it.isNotBlank() }
+                    ?: config.device.name?.takeIf { it.isNotBlank() }
+                    ?: config.device.udid,
                 osVersion = config.device.osVersion ?: device.osVersion,
             ),
         )

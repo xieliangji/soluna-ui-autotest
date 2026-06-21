@@ -43,11 +43,12 @@ python3 codex/skills/soluna-ui-autotest-creator/scripts/create_asset_project.py 
   --project-id my-tests \
   --app-id com.example.app \
   --app-name ExampleApp \
+  --product-model ExampleApp \
   --platform android \
   --udid CHANGE_ME_UDID
 ```
 
-The scaffold is intentionally minimal: it creates a project contract, one app root, one device template, artifact templates, a restart fragment, an empty element catalog, default data, and a smoke plan/case that restarts the app, waits, and captures a screenshot. Add business locators and state fragments only after real-device debugging.
+The scaffold is intentionally minimal: it creates a project contract, one app root, one device template, artifact templates, a restart fragment, an empty element catalog, default data, and a smoke plan/case with the required `productModel` display field. Add business locators and state fragments only after real-device debugging.
 
 ## Hard Rules
 

@@ -27,6 +27,7 @@ The runner starts from a plan path. Device config, artifact config, parameters, 
 ## YAML Ownership
 
 - Plans own execution orchestration: app identity, platform, device config, parameters, fragment refs, stages, case refs, diagnostics, artifact config, defaults.
+- Every plan must declare `productModel`. Use the app display name for public app-function plans, and use the concrete product model for model-specific plans. If the app display name is unknown, inspect the connected device through Soluna/Appium extension-backed debug evidence before finalizing the plan.
 - Cases own linear user intent: actions, setup references, teardown references, data refs, element refs.
 - Data files own inputs, expected values, environment values, resource dictionaries, and template paths.
 - Element catalogs own locators.

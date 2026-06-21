@@ -21,6 +21,20 @@ describe('device parsers', () => {
     expect(parsed['ro.build.version.release']).to.equal('14')
   })
 
+  it('parses android apk badging output', () => {
+    const parsed = androidInternal.parseAndroidBadgingOutput(
+      [
+        "package: name='com.example.app' versionCode='42' versionName='1.2.3'",
+        "application-label:'Example App'",
+        "application: label='Fallback App'",
+      ].join('\n')
+    )
+
+    expect(parsed.name).to.equal('Example App')
+    expect(parsed.version).to.equal('1.2.3')
+    expect(parsed.versionCode).to.equal('42')
+  })
+
   it('parses go-ios list details output', () => {
     const parsed = iosInternal.parseGoIosListOutput(
       JSON.stringify({

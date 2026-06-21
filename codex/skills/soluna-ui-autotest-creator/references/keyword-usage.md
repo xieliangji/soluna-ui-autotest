@@ -131,6 +131,29 @@ Use for text input into an element.
 
 `clearFirst` defaults to `true`. Values are scalar and may be parameter or runtime references.
 
+### longPress
+
+Use for press-and-hold interactions such as opening a contextual action sheet from a list item. Prefer an element target over viewport coordinates.
+
+```yaml
+- longPress:
+    id: open-device-actions
+    element: device.firstDeviceCard
+    durationMs: 1000
+    wait:
+      timeoutMs: 8000
+      intervalMs: 500
+```
+
+Optional fields:
+
+- `durationMs`: Press duration in milliseconds. Defaults to `1000`.
+- `elementXRatio`, `elementYRatio`: Press inside the visible element area. Defaults to center `0.5`.
+- `settleMs`: Post-press settle delay. Defaults to `800`.
+- `xRatio`, `yRatio`: Viewport press ratios. Use only when no stable element or visual template can model the action.
+
+Aliases are `longTap`, `pressAndHold`, `长按`, and `长按点击`; prefer canonical `longPress` in new assets.
+
 ### wait
 
 Use only for brief UI settling or platform delays that cannot be asserted directly.

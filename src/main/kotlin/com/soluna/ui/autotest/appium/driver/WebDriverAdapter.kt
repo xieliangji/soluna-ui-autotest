@@ -30,6 +30,25 @@ interface WebDriverAdapter {
         error("tapViewport is not supported by this WebDriverAdapter")
     }
 
+    fun longPress(
+        sessionId: String,
+        element: DriverElement,
+        durationMs: Long = 1000,
+        xRatio: Double = 0.5,
+        yRatio: Double = 0.5,
+    ) {
+        error("longPress is not supported by this WebDriverAdapter")
+    }
+
+    fun longPressViewport(
+        sessionId: String,
+        durationMs: Long = 1000,
+        xRatio: Double,
+        yRatio: Double,
+    ) {
+        error("longPressViewport is not supported by this WebDriverAdapter")
+    }
+
     fun inputText(
         sessionId: String,
         element: DriverElement,

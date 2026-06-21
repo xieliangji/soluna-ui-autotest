@@ -53,6 +53,7 @@ class YamlPlanParserTest {
             schemaVersion: "1.0"
             id: nested-actions
             name: Nested Actions
+            productModel: Test Product
             deviceConfig: devices/android.yaml
             stages:
               - id: main
@@ -95,6 +96,7 @@ class YamlPlanParserTest {
             schemaVersion: "1.0"
             id: recording-actions
             name: Recording Actions
+            productModel: Test Product
             deviceConfig: devices/android.yaml
             stages:
               - id: main
@@ -154,6 +156,7 @@ class YamlPlanParserTest {
             schemaVersion: "1.0"
             id: daily-smoke
             name: Daily Smoke
+            productModel: Test Product
             deviceConfig: devices/android.yaml
             stages:
               - id: logged-out
@@ -338,6 +341,7 @@ class YamlPlanParserTest {
             schemaVersion: "1.0"
             id: daily-smoke
             name: Daily Smoke
+            productModel: Test Product
             deviceConfig: devices/android.yaml
             stages:
               - id: logged-out
@@ -367,6 +371,7 @@ class YamlPlanParserTest {
             schemaVersion: "1.0"
             id: daily-smoke
             name: Daily Smoke
+            productModel: Test Product
             deviceConfig: devices/android.yaml
             stages:
               - id: logged-out
@@ -462,6 +467,7 @@ class YamlPlanParserTest {
             schemaVersion: "1.0"
             id: daily-smoke
             name: Daily Smoke
+            productModel: Test Product
             parameters:
               - id: default
                 file: data/default.yaml

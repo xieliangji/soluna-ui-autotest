@@ -104,6 +104,62 @@ class SolunaAppiumExtHttpClientTest {
     }
 
     @Test
+    fun `gets installed app by id`() {
+        val transport = RecordingTransport { request ->
+            assertEquals("GET", request.method)
+            assertEquals("/soluna/app", request.path)
+            assertEquals("abc123", request.query["udid"])
+            assertEquals("com.example.app", request.query["appId"])
+            SolunaAppiumExtHttpResponse(
+                statusCode = 200,
+                body = """
+                    {
+                      "value": {
+                        "exists": true,
+                        "app": {
+                          "platform": "android",
+                          "udid": "abc123",
+                          "appId": "com.example.app",
+                          "name": "Example App",
+                          "version": "1.2.3",
+                          "versionCode": "42"
+                        }
+                      }
+                    }
+                """.trimIndent(),
+            )
+        }
+
+        val result = SolunaAppiumExtHttpClient(transport).getApp("abc123", "com.example.app")
+
+        assertTrue(result.exists)
+        assertEquals("Example App", result.app?.name)
+        assertEquals(Platform.ANDROID, result.app?.platform)
+    }
+
+    @Test
+    fun `returns missing app response for 404`() {
+        val transport = RecordingTransport {
+            SolunaAppiumExtHttpResponse(
+                statusCode = 404,
+                body = """
+                    {
+                      "value": {
+                        "exists": false,
+                        "message": "App not installed"
+                      }
+                    }
+                """.trimIndent(),
+            )
+        }
+
+        val result = SolunaAppiumExtHttpClient(transport).getApp("abc123", "missing")
+
+        assertFalse(result.exists)
+        assertEquals("App not installed", result.message)
+    }
+
+    @Test
     fun `gets WDA bundle by udid`() {
         val transport = RecordingTransport { request ->
             assertEquals("GET", request.method)

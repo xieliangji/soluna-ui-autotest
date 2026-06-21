@@ -650,6 +650,7 @@ class LinearExecutionEngineTest {
             schemaVersion: "1.0"
             id: daily-smoke
             name: Daily Smoke
+            productModel: Test Product
             deviceConfig: devices/android.yaml
             stages:
               - id: logged-out

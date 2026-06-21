@@ -18,6 +18,7 @@ import java.nio.file.Files
 import java.time.Instant
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class LocalReportWriterTest {
@@ -35,15 +36,47 @@ class LocalReportWriterTest {
         assertTrue(Files.exists(result.htmlFile))
         assertTrue(Files.readString(result.dataFile).contains("\"schemaVersion\" : \"1.0\""))
         assertTrue(Files.readString(result.dataFile).contains("\"runId\" : \"run-001\""))
+        assertTrue(Files.readString(result.dataFile).contains("\"productModel\" : \"Plan 001\""))
+        assertTrue(Files.readString(result.dataFile).contains("\"startedAt\" : \"2026-06-13T00:00:01Z\""))
+        assertTrue(Files.readString(result.dataFile).contains("\"finishedAt\" : \"2026-06-13T00:00:01.025Z\""))
+        assertTrue(Files.readString(result.dataFile).contains("\"deviceName\" : \"Demo Android\""))
         assertTrue(Files.readString(result.dataFile).contains("\"summary\""))
         assertTrue(Files.readString(result.dataFile).contains("\"actionKeyword\" : \"tap\""))
         assertTrue(Files.readString(result.dataFile).contains("\"durationMs\" : 25"))
         assertTrue(Files.readString(result.dataFile).contains("\"phase\" : \"case.teardown\""))
-        assertTrue(Files.readString(result.htmlFile).contains("execution-result.json"))
-        assertTrue(Files.readString(result.htmlFile).contains("plan-resource-manifest.json"))
-        assertTrue(Files.readString(result.htmlFile).contains("Action Timeline"))
-        assertTrue(Files.readString(result.htmlFile).contains("tap #open-mine"))
-        assertTrue(Files.readString(result.htmlFile).contains("case.teardown"))
+        val html = Files.readString(result.htmlFile)
+        assertTrue(html.contains("execution-result.json"))
+        assertTrue(html.contains("plan-resource-manifest.json"))
+        assertTrue(html.contains("App UI自动化测试"))
+        assertTrue(html.contains("报告资源"))
+        assertTrue(html.contains("执行概览"))
+        assertTrue(html.contains("设备名称"))
+        assertTrue(html.contains("开始时间"))
+        assertTrue(html.contains("结束时间"))
+        assertFalse(html.contains("生成时间"))
+        assertTrue(html.indexOf("<h2>报告资源</h2>") < html.indexOf("<span class=\"label\">阶段通过</span>"))
+        assertFalse(html.contains("<th>明细</th>"))
+        assertFalse(html.contains("detail-button"))
+        assertTrue(html.contains("<details class=\"panel overview-details\" open>"))
+        assertTrue(html.contains("<th>操作</th>"))
+        assertTrue(html.contains("class=\"numeric-cell\""))
+        assertTrue(html.contains("class=\"detail-link\""))
+        assertTrue(html.contains(">动作明细</button>"))
+        assertTrue(html.contains("body.modal-open { overflow: hidden; }"))
+        assertTrue(html.contains("document.body.classList.add('modal-open')"))
+        assertTrue(html.contains("document.body.classList.remove('modal-open')"))
+        assertTrue(html.contains("class=\"modal-frame\""))
+        assertTrue(html.contains("flex-direction: column"))
+        assertTrue(html.contains("class=\"close-button\" type=\"button\" data-close-dialog aria-label=\"关闭\""))
+        assertTrue(html.contains("<svg viewBox=\"0 0 24 24\""))
+        assertFalse(html.contains("data-close-dialog>关闭</button>"))
+        assertTrue(html.contains("<tr><th>环节</th><th>#</th><th>动作</th><th>状态</th><th>重试</th><th>耗时</th><th>消息</th><th>错误</th></tr>"))
+        assertFalse(html.contains("<tr><th>阶段</th><th>用例</th><th>环节</th>"))
+        assertTrue(html.contains("data-case-dialog"))
+        assertTrue(html.contains("data-dialog-target=\"case-detail-stage-001-case-001\""))
+        assertTrue(html.contains("role=\"button\""))
+        assertTrue(html.contains("tap #open-mine"))
+        assertTrue(html.contains("case.teardown"))
         assertEquals(
             emptyList(),
             JsonSchemaDslValidator().validate(
@@ -65,7 +98,7 @@ class LocalReportWriterTest {
         val html = Files.readString(result.htmlFile)
         val json = Files.readString(result.dataFile)
 
-        assertTrue(html.contains("Failure Summary"))
+        assertTrue(html.contains("失败摘要"))
         assertTrue(html.contains("assertElementExists #assert-home"))
         assertTrue(json.contains("\"failures\""))
         assertTrue(json.contains("\"caseFailed\" : 1"))
@@ -91,6 +124,7 @@ class LocalReportWriterTest {
                 device = DeviceDefinition(
                     platform = "android",
                     udid = "android-001",
+                    name = "Demo Android",
                 ),
                 appium = DeviceAppiumDefinition(
                     server = DeviceAppiumServerDefinition(managed = false),

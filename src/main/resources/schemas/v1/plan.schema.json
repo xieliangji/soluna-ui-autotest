@@ -4,7 +4,7 @@
   "title": "Soluna UI Autotest Plan DSL",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schemaVersion", "id", "name", "deviceConfig", "stages"],
+  "required": ["schemaVersion", "id", "name", "productModel", "deviceConfig", "stages"],
   "properties": {
     "schemaVersion": {
       "const": "1.0"
@@ -13,6 +13,9 @@
       "$ref": "#/$defs/id"
     },
     "name": {
+      "$ref": "#/$defs/nonEmptyString"
+    },
+    "productModel": {
       "$ref": "#/$defs/nonEmptyString"
     },
     "version": {
@@ -486,6 +489,11 @@
         { "allOf": [{ "$ref": "#/$defs/tapAction" }, { "required": ["click"] }] },
         { "allOf": [{ "$ref": "#/$defs/tapAction" }, { "required": ["点击"] }] },
         { "allOf": [{ "$ref": "#/$defs/tapAction" }, { "required": ["轻点"] }] },
+        { "allOf": [{ "$ref": "#/$defs/tapAction" }, { "required": ["longPress"] }] },
+        { "allOf": [{ "$ref": "#/$defs/tapAction" }, { "required": ["longTap"] }] },
+        { "allOf": [{ "$ref": "#/$defs/tapAction" }, { "required": ["pressAndHold"] }] },
+        { "allOf": [{ "$ref": "#/$defs/tapAction" }, { "required": ["长按"] }] },
+        { "allOf": [{ "$ref": "#/$defs/tapAction" }, { "required": ["长按点击"] }] },
         { "allOf": [{ "$ref": "#/$defs/inputAction" }, { "required": ["input"] }] },
         { "allOf": [{ "$ref": "#/$defs/inputAction" }, { "required": ["type"] }] },
         { "allOf": [{ "$ref": "#/$defs/inputAction" }, { "required": ["输入"] }] },
@@ -560,6 +568,11 @@
         "click": { "$ref": "#/$defs/nestedActionBody" },
         "点击": { "$ref": "#/$defs/nestedActionBody" },
         "轻点": { "$ref": "#/$defs/nestedActionBody" },
+        "longPress": { "$ref": "#/$defs/nestedActionBody" },
+        "longTap": { "$ref": "#/$defs/nestedActionBody" },
+        "pressAndHold": { "$ref": "#/$defs/nestedActionBody" },
+        "长按": { "$ref": "#/$defs/nestedActionBody" },
+        "长按点击": { "$ref": "#/$defs/nestedActionBody" },
         "tapVisualTemplate": { "$ref": "#/$defs/nestedActionBody" },
         "tapImage": { "$ref": "#/$defs/nestedActionBody" },
         "tapTemplate": { "$ref": "#/$defs/nestedActionBody" },
