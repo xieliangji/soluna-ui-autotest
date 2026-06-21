@@ -1,0 +1,8 @@
+schemaVersion: "1.0"
+id: TC016_DATA_RECORDING_TRANSLATION_PLACEHOLDER
+name: 个人中心-数据管理-耳机录音-查看译文占位
+actions:
+  - wait:
+      id: placeholder-recording-translation
+      durationMs: 1
+      desc: 占位用例；待准备耳机录音翻译数据和录音详情页元素后实现

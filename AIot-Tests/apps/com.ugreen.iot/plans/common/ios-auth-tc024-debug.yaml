@@ -1,0 +1,49 @@
+schemaVersion: "1.0"
+id: ugreen-common-ios-auth-tc024-debug
+name: UGREEN Common iOS Auth TC024 Debug
+version: "0.1.0"
+metadata:
+  owner: qa
+  suite: common
+  intent: 单步调试 iOS 密码明暗文用例
+parameters:
+  - id: appState
+    file: ../../data/app-state.yaml
+  - id: appStateLocal
+    file: ../../data/app-state.ios.local.yaml
+    required: false
+  - id: auth
+    file: ../../data/common/auth.yaml
+    required: false
+fragmentRefs:
+  - id: appState
+    file: ../../fragments/app-state.yaml
+deviceConfig: ../../../../devices/ios/00008140-001805D80C93801C.yaml
+artifactStore: ../../../../artifacts/minio.local.yaml
+app:
+  id: com.ugreen.iot
+  name: UGREEN
+  platform: ios
+  reset: false
+defaults:
+  implicitWaitMs: 8000
+  failureStrategy: stop-case
+  retryStrategy: no-retry
+trace:
+  screenshots:
+    enabled: true
+    beforeAction: onFailure
+    retainBeforeActionCount: 20
+    upload: onFailure
+localArtifacts:
+  cleanup:
+    mode: never
+stages:
+  - id: login-page
+    name: Login Page
+    setupFragments:
+      - appState.loginPage
+    caseSetupFragments:
+      - appState.loginPage
+    caseRefs:
+      - file: ../../cases/common/TC024_LOGIN_PASSWORD_VISIBILITY_IOS.yaml

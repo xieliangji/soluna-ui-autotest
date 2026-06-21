@@ -25,16 +25,27 @@ actions:
         timeoutMs: 20000
         intervalMs: 500
       desc: 校验意见反馈页可见
+  - saveElementRect:
+      id: save-feedback-title-bar-roi
+      element: common.feedbackTitleText
+      saveAs: feedbackTitleBarRoi
+      asRoi: true
+      fullWidth: true
+      expandTopRatio: 0.35
+      expandBottomRatio: 0.35
+      wait:
+        timeoutMs: 10000
+        intervalMs: 500
+      desc: 保存意见反馈标题栏 ROI
   - tapVisualTemplate:
       id: open-feedback-history-page
       template: "${mine.visualTemplates.feedbackHistoryIcon}"
       threshold: 0.70
-      scales: [0.8, 1.0, 1.2, 1.4]
-      roi:
-        x: 0.82
-        y: 0.06
-        width: 0.16
-        height: 0.12
+      scales: [0.8, 0.9, 1.0, 1.1, 1.2]
+      roi: "@{case.feedbackTitleBarRoi}"
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
       desc: 进入历史反馈页
   - assertElementAttrRegexMatch:
       id: assert-first-history-record-ready

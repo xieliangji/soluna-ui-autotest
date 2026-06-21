@@ -1,0 +1,64 @@
+schemaVersion: "1.0"
+id: ugreen-common-android-auth-debug
+name: UGREEN Common Android Auth Debug
+version: "0.1.0"
+metadata:
+  owner: qa
+  suite: common
+  intent: 调试 Android 登录、注册、验证码和访客限制相关用例
+parameters:
+  - id: appState
+    file: ../../data/app-state.yaml
+  - id: appStateLocal
+    file: ../../data/app-state.android.local.yaml
+    required: false
+  - id: auth
+    file: ../../data/common/auth.yaml
+    required: false
+fragmentRefs:
+  - id: appState
+    file: ../../fragments/app-state.yaml
+deviceConfig: ../../../../devices/android/ZT4225X3C2.yaml
+artifactStore: ../../../../artifacts/minio.local.yaml
+app:
+  id: com.ugreen.iot
+  name: UGREEN
+  platform: android
+  reset: false
+defaults:
+  implicitWaitMs: 8000
+  failureStrategy: continue-case
+  retryStrategy: no-retry
+trace:
+  screenshots:
+    enabled: true
+    beforeAction: onFailure
+    retainBeforeActionCount: 10
+    upload: onFailure
+localArtifacts:
+  cleanup:
+    mode: never
+stages:
+  - id: login-page
+    name: Login Page
+    setupFragments:
+      - appState.loginPage
+    caseSetupFragments:
+      - appState.loginPage
+    caseRefs:
+      - file: ../../cases/common/app-state/login-page.yaml
+      - file: ../../cases/common/TC024_LOGIN_PASSWORD_VISIBILITY_ANDROID.yaml
+      - file: ../../cases/common/TC026_LOGIN_CODE_SEND_CODE_ANDROID.yaml
+      - file: ../../cases/common/TC027_FORGOT_PASSWORD_SEND_CODE_ANDROID.yaml
+      - file: ../../cases/common/TC028_REGISTER_AGREEMENT_UNCHECKED_ANDROID.yaml
+      - file: ../../cases/common/TC029_REGISTER_PHONE_SEND_CODE_ANDROID.yaml
+      - file: ../../cases/common/TC030_REGISTER_EMAIL_SEND_CODE_ANDROID.yaml
+      - file: ../../cases/common/TC025_LOGIN_PASSWORD_SUCCESS_ANDROID.yaml
+  - id: guest-device-page
+    name: Guest Device Page
+    setupFragments:
+      - appState.guestDevicePage
+    caseSetupFragments:
+      - appState.restartApp
+    caseRefs:
+      - file: ../../cases/common/TC031_GUEST_UNSUPPORTED_FEATURES_ANDROID.yaml

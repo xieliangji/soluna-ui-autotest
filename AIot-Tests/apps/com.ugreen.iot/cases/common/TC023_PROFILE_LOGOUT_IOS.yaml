@@ -1,0 +1,32 @@
+schemaVersion: "1.0"
+id: TC023_PROFILE_LOGOUT_IOS
+name: 个人中心-个人信息-退出登录-iOS
+elementRefs:
+  - id: common
+    file: ../../elements/common.yaml
+actions:
+  - tap:
+      id: open-mine-tab
+      element: common.mineTab
+      desc: 进入我的页
+  - tap:
+      id: open-profile-page
+      element: common.profileEntry
+      desc: 进入个人信息页
+  - tap:
+      id: tap-logout-button
+      element: common.logoutButton
+      desc: 点击退出登录
+  - tap:
+      id: confirm-logout
+      element: common.logoutConfirmButton
+      desc: 确认退出登录
+  - assertElementAttrRegexMatch:
+      id: assert-login-page-after-logout
+      element: common.loginUsernameInput
+      attr: enabled
+      pattern: "true"
+      wait:
+        timeoutMs: 10000
+        intervalMs: 500
+      desc: 校验退出后回到登录页

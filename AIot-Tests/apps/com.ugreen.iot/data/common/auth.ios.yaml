@@ -1,0 +1,8 @@
+schemaVersion: "1.0"
+id: common-auth-ios
+description: iOS overrides for common auth-module fixture parameters.
+values:
+  auth:
+    country:
+      domesticDevPattern: "国内测试"
+      overseasTestPattern: "海外测试"

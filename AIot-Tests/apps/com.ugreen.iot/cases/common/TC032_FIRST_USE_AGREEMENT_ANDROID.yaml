@@ -1,0 +1,149 @@
+schemaVersion: "1.0"
+id: TC032_FIRST_USE_AGREEMENT_ANDROID
+name: 其他-首次使用用户协议及隐私政策查看-Android
+dataRefs:
+  - id: auth
+    file: ../../data/common/auth.yaml
+elementRefs:
+  - id: common
+    file: ../../elements/common.yaml
+actions:
+  - clearAppData:
+      id: clear-app-data-for-first-use-agreement
+      appId: "${app.id}"
+      wait:
+        timeoutMs: 30000
+        intervalMs: 500
+      desc: 清除应用数据并启动应用
+  - wait:
+      id: wait-after-clear-app-data
+      durationMs: 5000
+      desc: 等待首次启动弹框稳定
+  - assertElementAttrRegexMatch:
+      id: assert-first-use-dialog-title
+      element: common.titleText
+      attr: text
+      pattern: "${auth.firstUse.titlePattern}"
+      wait:
+        timeoutMs: 20000
+        intervalMs: 500
+      desc: 校验首次使用协议弹框标题
+  - assertElementAttrRegexMatch:
+      id: assert-first-use-dialog-content
+      element: common.authDialogContent
+      attr: text
+      pattern: "${auth.firstUse.contentPattern}"
+      desc: 校验首次使用协议弹框内容
+  - tap:
+      id: cancel-first-use-dialog
+      element: common.dialogNegativeButton
+      desc: 点击取消退出应用
+  - wait:
+      id: wait-after-cancel-first-use-dialog
+      durationMs: 2000
+      desc: 等待应用退出到桌面
+  - restartApp:
+      id: restart-after-first-use-cancel
+      appId: "${app.id}"
+      wait:
+        timeoutMs: 30000
+        intervalMs: 500
+      desc: 再次打开应用
+  - wait:
+      id: wait-after-restart-first-use
+      durationMs: 5000
+      desc: 等待首次协议弹框再次出现
+  - assertElementAttrRegexMatch:
+      id: assert-first-use-dialog-title-after-restart
+      element: common.titleText
+      attr: text
+      pattern: "${auth.firstUse.titlePattern}"
+      wait:
+        timeoutMs: 20000
+        intervalMs: 500
+      desc: 校验重新打开后仍展示首次协议弹框
+  - tap:
+      id: open-first-use-user-agreement
+      element: common.authDialogContent
+      elementXRatio: 0.16
+      elementYRatio: 0.54
+      desc: 点击首次弹框内用户协议链接
+  - assertElementAttrRegexMatch:
+      id: assert-user-agreement-web-title
+      element: common.titleText
+      attr: text
+      pattern: "${auth.firstUse.agreementTitlePattern}"
+      wait:
+        timeoutMs: 20000
+        intervalMs: 500
+      desc: 校验用户协议页面标题
+  - assertElementAttrRegexMatch:
+      id: assert-user-agreement-web-content
+      element: common.webContent
+      attr: enabled
+      pattern: "true"
+      wait:
+        timeoutMs: 20000
+        intervalMs: 500
+      desc: 校验用户协议 WebView 可见
+  - tap:
+      id: back-to-first-use-dialog-from-user-agreement
+      element: common.webBackButton
+      desc: 从用户协议页返回首次弹框
+  - assertElementAttrRegexMatch:
+      id: assert-first-use-dialog-title-after-user-agreement-back
+      element: common.titleText
+      attr: text
+      pattern: "${auth.firstUse.titlePattern}"
+      wait:
+        timeoutMs: 10000
+        intervalMs: 500
+      desc: 校验已返回首次协议弹框
+  - tap:
+      id: open-first-use-privacy-policy
+      element: common.authDialogContent
+      elementXRatio: 0.36
+      elementYRatio: 0.54
+      desc: 点击首次弹框内隐私政策链接
+  - assertElementAttrRegexMatch:
+      id: assert-privacy-policy-web-title
+      element: common.titleText
+      attr: text
+      pattern: "${auth.firstUse.privacyTitlePattern}"
+      wait:
+        timeoutMs: 20000
+        intervalMs: 500
+      desc: 校验隐私政策页面标题
+  - assertElementAttrRegexMatch:
+      id: assert-privacy-policy-web-content
+      element: common.webContent
+      attr: enabled
+      pattern: "true"
+      wait:
+        timeoutMs: 20000
+        intervalMs: 500
+      desc: 校验隐私政策 WebView 可见
+  - tap:
+      id: back-to-first-use-dialog-from-privacy-policy
+      element: common.webBackButton
+      desc: 从隐私政策页返回首次弹框
+  - assertElementAttrRegexMatch:
+      id: assert-first-use-dialog-title-before-accept
+      element: common.titleText
+      attr: text
+      pattern: "${auth.firstUse.titlePattern}"
+      wait:
+        timeoutMs: 10000
+        intervalMs: 500
+      desc: 校验同意前仍在首次协议弹框
+  - tap:
+      id: accept-first-use-dialog
+      element: common.dialogPositiveButton
+      desc: 点击同意并继续
+  - assertElementExists:
+      id: assert-login-page-after-first-use-accept
+      element: common.guestEntryButton
+      wait:
+        timeoutMs: 30000
+        intervalMs: 500
+      desc: 校验同意后进入登录页

@@ -1,0 +1,25 @@
+schemaVersion: "1.0"
+id: common-auth
+description: Common auth-module fixture parameters.
+values:
+  auth:
+    verification:
+      countdownPattern: "^\\d+s$"
+    register:
+      phone: "19900012345"
+      email: "soluna.autotest.19900012345@qq.com"
+      password: "Soluna123456"
+    forgotPassword:
+      newPassword: "Soluna123456"
+    country:
+      domesticDevPattern: "国内开发"
+      overseasTestPattern: "海外测试"
+      switchPromptTitlePattern: "国家/地区切换提示"
+    agreement:
+      contentPattern: "(?s).*用户协议.*隐私政策.*个人信息收集清单.*"
+      positivePattern: "同意并继续"
+    firstUse:
+      titlePattern: "个人信息保护条款"
+      contentPattern: "(?s).*用户协议.*隐私政策.*同意并继续.*"
+      agreementTitlePattern: "用户协议"
+      privacyTitlePattern: "隐私政策"

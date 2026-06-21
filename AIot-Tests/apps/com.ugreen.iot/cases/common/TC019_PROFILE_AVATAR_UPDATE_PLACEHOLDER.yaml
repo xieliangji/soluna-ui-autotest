@@ -1,0 +1,8 @@
+schemaVersion: "1.0"
+id: TC019_PROFILE_AVATAR_UPDATE_PLACEHOLDER
+name: 个人中心-个人信息-用户头像修改占位
+actions:
+  - wait:
+      id: placeholder-avatar-update
+      durationMs: 1
+      desc: 占位用例；待相册/相机权限、测试图片和系统选择器元素稳定后实现

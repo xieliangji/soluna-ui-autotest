@@ -1,0 +1,35 @@
+schemaVersion: "1.0"
+id: TC026_LOGIN_CODE_SEND_CODE_IOS
+name: 登录-验证码登录-发送验证码-iOS
+setupFragments:
+  - appState.loginAgreementChecked
+dataRefs:
+  - id: auth
+    file: ../../data/common/auth.yaml
+elementRefs:
+  - id: common
+    file: ../../elements/common.yaml
+actions:
+  - tap:
+      id: switch-to-code-login
+      element: common.loginCodeTab
+      desc: 切换到验证码登录
+  - input:
+      id: input-code-login-account
+      element: common.loginUsernameInput
+      value: "${appState.login.username}"
+      clearFirst: true
+      desc: 输入验证码登录账号
+  - tap:
+      id: send-code-login-verification-code
+      element: common.loginCodeSendButton
+      desc: 触发验证码登录发送验证码
+  - assertElementAttrRegexMatch:
+      id: assert-code-login-countdown
+      element: common.loginCodeCountdownText
+      attr: name/label/value
+      pattern: "${auth.verification.countdownPattern}"
+      wait:
+        timeoutMs: 10000
+        intervalMs: 500
+      desc: 校验验证码登录发送按钮进入倒计时

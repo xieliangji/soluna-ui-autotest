@@ -1,0 +1,44 @@
+schemaVersion: "1.0"
+id: ugreen-common-android-guest-state-debug
+name: UGREEN Common Android Guest State Debug
+version: "0.1.0"
+metadata:
+  owner: qa
+  suite: common
+  intent: 单步调试 Android 游客态页面结构
+parameters:
+  - id: appState
+    file: ../../data/app-state.yaml
+  - id: appStateLocal
+    file: ../../data/app-state.android.local.yaml
+    required: false
+fragmentRefs:
+  - id: appState
+    file: ../../fragments/app-state.yaml
+deviceConfig: ../../../../devices/android/ZT4225X3C2.yaml
+artifactStore: ../../../../artifacts/minio.local.yaml
+app:
+  id: com.ugreen.iot
+  name: UGREEN
+  platform: android
+  reset: false
+defaults:
+  implicitWaitMs: 8000
+  failureStrategy: stop-case
+  retryStrategy: no-retry
+trace:
+  screenshots:
+    enabled: true
+    beforeAction: onFailure
+    retainBeforeActionCount: 10
+    upload: onFailure
+localArtifacts:
+  cleanup:
+    mode: never
+stages:
+  - id: guest-device-page
+    name: Guest Device Page
+    setupFragments:
+      - appState.guestDevicePage
+    caseRefs:
+      - file: ../../cases/common/app-state/guest-device-page.yaml

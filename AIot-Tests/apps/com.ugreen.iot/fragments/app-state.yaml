@@ -68,9 +68,37 @@ fragments:
                   element: common.logoutConfirmButton
                   desc: 确认退出登录
         else: []
+      - if:
+          assertElementExists:
+            id: detect-login-page-ready-by-guest-entry
+            element: common.guestEntryButton
+            wait:
+              timeoutMs: 3000
+              intervalMs: 500
+            desc: 判断是否已经在登录页
+        then: []
+        else:
+          - if:
+              assertElementExists:
+                id: detect-back-button-before-login-page-ready
+                element: common.backButton
+                wait:
+                  timeoutMs: 2000
+                  intervalMs: 500
+                desc: 判断是否停留在登录子页面
+            then:
+              - tap:
+                  id: back-to-login-page-from-auth-child-page
+                  element: common.backButton
+                  desc: 从注册或忘记密码页返回登录页
+              - wait:
+                  id: wait-after-back-to-login-page
+                  durationMs: 1000
+                  desc: 等待登录页恢复
+            else: []
       - assertElementExists:
           id: assert-login-page-ready
-          element: common.loginAgreementCheckbox
+          element: common.guestEntryButton
           wait:
             timeoutMs: 30000
             intervalMs: 500
@@ -115,7 +143,20 @@ fragments:
                   timeoutMs: 3000
                   intervalMs: 500
                 desc: 未登录态会弹出去登录询问框
-            then: []
+            then:
+              - tap:
+                  id: dismiss-guest-login-prompt-for-guest-device-page
+                  xRatio: 0.5
+                  yRatio: 0.2
+                  desc: 点击空白处关闭去登录询问框
+              - wait:
+                  id: wait-after-dismissing-guest-login-prompt
+                  durationMs: 1000
+                  desc: 等待弹框关闭
+              - tap:
+                  id: back-to-device-tab-after-guest-prompt-check
+                  element: common.deviceTab
+                  desc: 回到设备Tab
             else:
               - tap:
                   id: tap-logout-button-for-guest
@@ -146,22 +187,36 @@ fragments:
         else:
           - if:
               assertElementExists:
-                id: detect-login-agreement-unchecked-before-guest-entry
-                element: common.loginAgreementUncheckedCheckbox
+                id: detect-guest-mine-page-before-guest-entry
+                element: common.mineList
                 wait:
                   timeoutMs: 2000
                   intervalMs: 500
-                desc: 判断登录页同意按钮是否未勾选
+                desc: 判断是否停留在游客我的页
             then:
               - tap:
-                  id: select-login-agreement-before-guest-entry
-                  element: common.loginAgreementCheckbox
-                  desc: 勾选登录页同意按钮
-            else: []
-          - tap:
-              id: enter-guest-device-page-from-login
-              element: common.guestEntryButton
-              desc: 点击立即体验进入游客设备页
+                  id: back-to-device-tab-from-guest-mine-page
+                  element: common.deviceTab
+                  desc: 从游客我的页回到设备Tab
+            else:
+              - if:
+                  assertElementExists:
+                    id: detect-login-agreement-unchecked-before-guest-entry
+                    element: common.loginAgreementUncheckedCheckbox
+                    wait:
+                      timeoutMs: 2000
+                      intervalMs: 500
+                    desc: 判断登录页同意按钮是否未勾选
+                then:
+                  - tap:
+                      id: select-login-agreement-before-guest-entry
+                      element: common.loginAgreementCheckbox
+                      desc: 勾选登录页同意按钮
+                else: []
+              - tap:
+                  id: enter-guest-device-page-from-login
+                  element: common.guestEntryButton
+                  desc: 点击立即体验进入游客设备页
       - if:
           assertElementExists:
             id: assert-guest-device-page-ready-by-device-page
@@ -173,12 +228,157 @@ fragments:
         then: []
         else:
           - assertElementExists:
-              id: assert-guest-device-page-ready-by-login-prompt
-              element: common.dialogPositiveButton
+              id: assert-guest-device-page-ready-after-entry
+              element: common.deviceAddButton
               wait:
                 timeoutMs: 2000
                 intervalMs: 500
-              desc: 校验已停留在游客态去登录询问框
+              desc: 校验已收敛到游客设备页
+
+  loginAgreementChecked:
+    name: Ensure Login Agreement Checked
+    elementRefs:
+      - id: common
+        file: ../elements/common.yaml
+    actions:
+      - if:
+          assertElementExists:
+            id: detect-login-agreement-unchecked-for-setup
+            element: common.loginAgreementUncheckedCheckbox
+            wait:
+              timeoutMs: 2000
+              intervalMs: 500
+            desc: 判断登录页协议是否未勾选
+        then:
+          - tap:
+              id: select-login-agreement-for-setup
+              element: common.loginAgreementCheckbox
+              desc: 勾选登录页协议
+        else: []
+
+  emailRegisterPage:
+    name: Ensure Email Register Page
+    elementRefs:
+      - id: common
+        file: ../elements/common.yaml
+    actions:
+      - tap:
+          id: open-register-page-for-email-region
+          element: common.registerEntryButton
+          desc: 进入注册页
+      - if:
+          assertElementAttrRegexMatch:
+            id: detect-overseas-test-region-for-email-register
+            element: common.authCountryRegionTitle
+            attr: text
+            pattern: "${auth.country.overseasTestPattern}"
+            wait:
+              timeoutMs: 2000
+              intervalMs: 500
+            desc: 判断注册页是否已经是海外测试地区
+        then: []
+        else:
+          - tap:
+              id: open-country-region-dialog-for-email-register
+              element: common.authCountryRegionEntry
+              desc: 打开国家地区选择弹框
+          - tap:
+              id: select-overseas-test-region-for-email-register
+              element: common.countryRegionFourthRow
+              desc: 选择海外测试地区
+          - tap:
+              id: confirm-overseas-test-region-selection
+              element: common.dialogPositiveButton
+              desc: 确认国家地区选择
+          - if:
+              assertElementAttrRegexMatch:
+                id: detect-country-switch-prompt-for-email-register
+                element: common.titleText
+                attr: text
+                pattern: "${auth.country.switchPromptTitlePattern}"
+                wait:
+                  timeoutMs: 5000
+                  intervalMs: 500
+                desc: 判断是否出现国家地区切换提示
+            then:
+              - tap:
+                  id: confirm-country-switch-for-email-register
+                  element: common.dialogPositiveButton
+                  desc: 确认切换国家地区
+              - wait:
+                  id: wait-after-country-switch-for-email-register
+                  durationMs: 3000
+                  desc: 等待切换到海外测试地区
+            else: []
+      - assertElementAttrRegexMatch:
+          id: assert-email-register-region-ready
+          element: common.authCountryRegionTitle
+          attr: text
+          pattern: "${auth.country.overseasTestPattern}"
+          wait:
+            timeoutMs: 10000
+            intervalMs: 500
+          desc: 校验已进入海外测试注册页
+
+  domesticRegisterRegion:
+    name: Ensure Domestic Register Region
+    elementRefs:
+      - id: common
+        file: ../elements/common.yaml
+    actions:
+      - if:
+          assertElementAttrRegexMatch:
+            id: detect-domestic-region-for-register
+            element: common.authCountryRegionTitle
+            attr: text
+            pattern: "${auth.country.domesticDevPattern}"
+            wait:
+              timeoutMs: 2000
+              intervalMs: 500
+            desc: 判断注册页是否已经是国内开发地区
+        then: []
+        else:
+          - tap:
+              id: open-country-region-dialog-for-domestic-register
+              element: common.authCountryRegionEntry
+              desc: 打开国家地区选择弹框
+          - tap:
+              id: select-domestic-dev-region-for-register
+              element: common.countryRegionFirstRow
+              desc: 选择国内开发地区
+          - tap:
+              id: confirm-domestic-dev-region-selection
+              element: common.dialogPositiveButton
+              desc: 确认国家地区选择
+          - if:
+              assertElementAttrRegexMatch:
+                id: detect-country-switch-prompt-for-domestic-register
+                element: common.titleText
+                attr: text
+                pattern: "${auth.country.switchPromptTitlePattern}"
+                wait:
+                  timeoutMs: 5000
+                  intervalMs: 500
+                desc: 判断是否出现国家地区切换提示
+            then:
+              - tap:
+                  id: confirm-country-switch-for-domestic-register
+                  element: common.dialogPositiveButton
+                  desc: 确认切换国家地区
+              - wait:
+                  id: wait-after-country-switch-for-domestic-register
+                  durationMs: 3000
+                  desc: 等待切换到国内开发地区
+            else: []
+      - assertElementAttrRegexMatch:
+          id: assert-domestic-register-region-ready
+          element: common.authCountryRegionTitle
+          attr: text
+          pattern: "${auth.country.domesticDevPattern}"
+          wait:
+            timeoutMs: 10000
+            intervalMs: 500
+          desc: 校验已恢复到国内开发注册页
 
   loggedInDevicePage:
     name: Ensure Logged-in Device Page

@@ -1,11 +1,11 @@
 schemaVersion: "1.0"
-id: ugreen-common-android-feedback-debug
-name: UGREEN Common Android Feedback Debug
+id: ugreen-common-android-feedback-device-debug
+name: UGREEN Common Android Feedback Device Debug
 version: "0.1.0"
 metadata:
   owner: qa
   suite: common
-  intent: 调试意见反馈用例
+  intent: 调试意见反馈设备选择用例，需要账号下存在可选设备
 parameters:
   - id: appState
     file: ../../data/app-state.yaml
@@ -36,7 +36,7 @@ trace:
     upload: onFailure
 localArtifacts:
   cleanup:
-    mode: never
+    mode: after-upload-success
 stages:
   - id: logged-in-device-page
     name: Logged-in Device Page
@@ -45,16 +45,4 @@ stages:
     caseSetupFragments:
       - appState.restartApp
     caseRefs:
-      - file: ../../cases/common/TC010_FEEDBACK_SUBMIT_SUCCESS.yaml
-      - file: ../../cases/common/TC011_FEEDBACK_PROBLEM_TYPE.yaml
-      - file: ../../cases/common/TC013_FEEDBACK_DESCRIPTION_ANDROID.yaml
-      - file: ../../cases/common/TC014_FEEDBACK_HISTORY_LIST.yaml
-      - file: ../../cases/common/TC015_FEEDBACK_HISTORY_DETAIL.yaml
-  - id: guest-device-page
-    name: Guest Device Page
-    setupFragments:
-      - appState.guestDevicePage
-    caseSetupFragments:
-      - appState.restartApp
-    caseRefs:
-      - file: ../../cases/common/TC009_FEEDBACK_GUEST_ACCESS.yaml
+      - file: ../../cases/common/TC012_FEEDBACK_DEVICE.yaml

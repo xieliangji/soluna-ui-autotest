@@ -1,0 +1,52 @@
+schemaVersion: "1.0"
+id: TC031_GUEST_UNSUPPORTED_FEATURES_ANDROID
+name: 访客模式-不支持的功能-Android
+dataRefs:
+  - id: mine
+    file: ../../data/common/mine.yaml
+elementRefs:
+  - id: common
+    file: ../../elements/common.yaml
+actions:
+  - tap:
+      id: open-mine-tab-for-guest-unsupported
+      element: common.mineTab
+      desc: 进入我的页
+  - tap:
+      id: tap-guest-avatar-entry
+      element: common.profileEntry
+      desc: 点击头像区域
+  - assertElementAttrRegexMatch:
+      id: assert-avatar-login-prompt
+      element: common.authDialogContent
+      attr: text
+      pattern: "${mine.guest.loginPromptPattern}"
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+      desc: 校验头像入口提示登录后体验更多功能
+  - tap:
+      id: close-avatar-login-prompt
+      element: common.dialogCloseButton
+      desc: 关闭头像入口登录提示
+  - wait:
+      id: wait-after-close-avatar-login-prompt
+      durationMs: 500
+      desc: 等待头像入口登录提示关闭
+  - tap:
+      id: tap-guest-data-management-entry
+      element: common.mineDataManagementEntry
+      desc: 点击数据管理入口
+  - assertElementAttrRegexMatch:
+      id: assert-data-management-login-prompt
+      element: common.authDialogContent
+      attr: text
+      pattern: "${mine.guest.loginPromptPattern}"
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+      desc: 校验数据管理入口提示登录后体验更多功能
+  - tap:
+      id: close-data-management-login-prompt
+      element: common.dialogCloseButton
+      desc: 关闭数据管理入口登录提示

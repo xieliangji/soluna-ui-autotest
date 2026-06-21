@@ -48,7 +48,7 @@ actions:
       desc: 提交反馈
   - wait:
       id: wait-submit-toast-recording-window
-      durationMs: 3000
+      durationMs: 5000
       desc: 等待提交结果提示完成录制
   - stopScreenRecording:
       id: stop-submit-success-recording
@@ -60,15 +60,15 @@ actions:
       source: "@{case.submitSuccessRecording}"
       pattern: "${mine.feedback.successToastPattern}"
       framesPerSecond: 10
-      maxFrames: 50
-      candidateMaxFrames: 50
+      maxFrames: 80
+      candidateMaxFrames: 80
       candidateStrategy: all
       visualDifferenceThreshold: 0.01
       roi:
-        x: 0.25
-        y: 0.40
-        width: 0.50
-        height: 0.22
+        x: 0.18
+        y: 0.36
+        width: 0.64
+        height: 0.28
       resourceId: feedback-submit-success-toast
       desc: 校验提交成功提示
   - assertElementAttrRegexMatch:

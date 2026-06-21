@@ -1,0 +1,7 @@
+schemaVersion: "1.0"
+id: common-visual-templates-ios
+description: iOS visual template asset overrides for common module flows.
+values:
+  mine:
+    visualTemplates:
+      feedbackHistoryIcon: "templates/feedback-history-icon-ios.png"

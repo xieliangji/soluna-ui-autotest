@@ -1,0 +1,8 @@
+schemaVersion: "1.0"
+id: TC017_DATA_RECORDING_SUMMARY_PLACEHOLDER
+name: 个人中心-数据管理-耳机录音-查看纪要占位
+actions:
+  - wait:
+      id: placeholder-recording-summary
+      durationMs: 1
+      desc: 占位用例；待准备有纪要/无纪要录音数据和录音详情页元素后实现

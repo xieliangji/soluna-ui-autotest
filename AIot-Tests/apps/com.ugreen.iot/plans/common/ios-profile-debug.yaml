@@ -1,11 +1,11 @@
 schemaVersion: "1.0"
-id: ugreen-common-ios-feedback-debug
-name: UGREEN Common iOS Feedback Debug
+id: ugreen-common-ios-profile-debug
+name: UGREEN Common iOS Profile Debug
 version: "0.1.0"
 metadata:
   owner: qa
   suite: common
-  intent: 调试意见反馈用例
+  intent: 调试个人中心个人信息和账号安全用例
 parameters:
   - id: appState
     file: ../../data/app-state.yaml
@@ -14,8 +14,6 @@ parameters:
     required: false
   - id: visualTemplates
     file: ../../data/common/visual-templates.yaml
-  - id: visualTemplatesIos
-    file: ../../data/common/visual-templates.ios.yaml
 fragmentRefs:
   - id: appState
     file: ../../fragments/app-state.yaml
@@ -47,16 +45,9 @@ stages:
     caseSetupFragments:
       - appState.restartApp
     caseRefs:
-      - file: ../../cases/common/TC010_FEEDBACK_SUBMIT_SUCCESS.yaml
-      - file: ../../cases/common/TC011_FEEDBACK_PROBLEM_TYPE.yaml
-      - file: ../../cases/common/TC013_FEEDBACK_DESCRIPTION.yaml
-      - file: ../../cases/common/TC014_FEEDBACK_HISTORY_LIST.yaml
-      - file: ../../cases/common/TC015_FEEDBACK_HISTORY_DETAIL.yaml
-  - id: guest-device-page
-    name: Guest Device Page
-    setupFragments:
-      - appState.guestDevicePage
-    caseSetupFragments:
-      - appState.restartApp
-    caseRefs:
-      - file: ../../cases/common/TC009_FEEDBACK_GUEST_ACCESS.yaml
+      - file: ../../cases/common/TC001_MINE_ABOUT.yaml
+      - file: ../../cases/common/TC018_PROFILE_AVATAR_VIEW_IOS.yaml
+      - file: ../../cases/common/TC020_PROFILE_NICKNAME_DISPLAY_AND_SET_IOS.yaml
+      - file: ../../cases/common/TC021_PROFILE_PASSWORD_SEND_CODE_IOS.yaml
+      - file: ../../cases/common/TC022_PROFILE_ACCOUNT_CANCELLATION_SEND_CODE_IOS.yaml
+      - file: ../../cases/common/TC023_PROFILE_LOGOUT_IOS.yaml

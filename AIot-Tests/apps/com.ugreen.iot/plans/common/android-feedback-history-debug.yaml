@@ -1,34 +1,32 @@
 schemaVersion: "1.0"
-id: ugreen-common-ios-feedback-debug
-name: UGREEN Common iOS Feedback Debug
+id: ugreen-common-android-feedback-history-debug
+name: UGREEN Common Android Feedback History Debug
 version: "0.1.0"
 metadata:
   owner: qa
   suite: common
-  intent: 调试意见反馈用例
+  intent: 调试意见反馈历史入口相关用例
 parameters:
   - id: appState
     file: ../../data/app-state.yaml
   - id: appStateLocal
-    file: ../../data/app-state.ios.local.yaml
+    file: ../../data/app-state.android.local.yaml
     required: false
   - id: visualTemplates
     file: ../../data/common/visual-templates.yaml
-  - id: visualTemplatesIos
-    file: ../../data/common/visual-templates.ios.yaml
 fragmentRefs:
   - id: appState
     file: ../../fragments/app-state.yaml
-deviceConfig: ../../../../devices/ios/00008140-001805D80C93801C.yaml
+deviceConfig: ../../../../devices/android/ZT4225X3C2.yaml
 artifactStore: ../../../../artifacts/minio.local.yaml
 app:
   id: com.ugreen.iot
   name: UGREEN
-  platform: ios
+  platform: android
   reset: false
 defaults:
   implicitWaitMs: 8000
-  failureStrategy: stop-case
+  failureStrategy: continue-case
   retryStrategy: no-retry
 trace:
   screenshots:
@@ -47,16 +45,5 @@ stages:
     caseSetupFragments:
       - appState.restartApp
     caseRefs:
-      - file: ../../cases/common/TC010_FEEDBACK_SUBMIT_SUCCESS.yaml
-      - file: ../../cases/common/TC011_FEEDBACK_PROBLEM_TYPE.yaml
-      - file: ../../cases/common/TC013_FEEDBACK_DESCRIPTION.yaml
       - file: ../../cases/common/TC014_FEEDBACK_HISTORY_LIST.yaml
       - file: ../../cases/common/TC015_FEEDBACK_HISTORY_DETAIL.yaml
-  - id: guest-device-page
-    name: Guest Device Page
-    setupFragments:
-      - appState.guestDevicePage
-    caseSetupFragments:
-      - appState.restartApp
-    caseRefs:
-      - file: ../../cases/common/TC009_FEEDBACK_GUEST_ACCESS.yaml

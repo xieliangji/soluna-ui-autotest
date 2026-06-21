@@ -1,0 +1,44 @@
+schemaVersion: "1.0"
+id: ugreen-common-android-first-use-agreement-debug
+name: UGREEN Common Android First Use Agreement Debug
+version: "0.1.0"
+metadata:
+  owner: qa
+  suite: common
+  intent: 单步调试 Android 首次使用用户协议及隐私政策用例
+parameters:
+  - id: appState
+    file: ../../data/app-state.yaml
+  - id: appStateLocal
+    file: ../../data/app-state.android.local.yaml
+    required: false
+  - id: auth
+    file: ../../data/common/auth.yaml
+fragmentRefs:
+  - id: appState
+    file: ../../fragments/app-state.yaml
+deviceConfig: ../../../../devices/android/ZT4225X3C2.yaml
+artifactStore: ../../../../artifacts/minio.local.yaml
+app:
+  id: com.ugreen.iot
+  name: UGREEN
+  platform: android
+  reset: false
+defaults:
+  implicitWaitMs: 8000
+  failureStrategy: stop-case
+  retryStrategy: no-retry
+trace:
+  screenshots:
+    enabled: true
+    beforeAction: onFailure
+    retainBeforeActionCount: 10
+    upload: onFailure
+localArtifacts:
+  cleanup:
+    mode: never
+stages:
+  - id: first-use-agreement
+    name: First Use Agreement
+    caseRefs:
+      - file: ../../cases/common/TC032_FIRST_USE_AGREEMENT_ANDROID.yaml

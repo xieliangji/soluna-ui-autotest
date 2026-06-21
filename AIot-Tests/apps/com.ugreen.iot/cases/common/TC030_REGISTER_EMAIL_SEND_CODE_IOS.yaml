@@ -1,0 +1,48 @@
+schemaVersion: "1.0"
+id: TC030_REGISTER_EMAIL_SEND_CODE_IOS
+name: 注册-邮箱注册-发送验证码-iOS
+dataRefs:
+  - id: auth
+    file: ../../data/common/auth.yaml
+elementRefs:
+  - id: common
+    file: ../../elements/common.yaml
+setupFragments:
+  - appState.emailRegisterPage
+caseTeardownFragments:
+  - appState.domesticRegisterRegion
+actions:
+  - input:
+      id: input-email-register-account
+      element: common.authAccountInput
+      value: "${auth.register.email}"
+      clearFirst: true
+      desc: 输入未注册邮箱
+  - input:
+      id: input-email-register-password
+      element: common.authNewPasswordInput
+      value: "${auth.register.password}"
+      clearFirst: true
+      desc: 输入注册密码
+  - tap:
+      id: dismiss-email-register-password-keyboard
+      xRatio: 0.92
+      yRatio: 0.63
+      desc: 收起注册密码键盘
+  - tap:
+      id: select-email-register-agreement
+      element: common.loginAgreementCheckbox
+      desc: 勾选注册协议
+  - tap:
+      id: send-email-register-verification-code
+      element: common.authVerificationSendCodeButton
+      desc: 触发邮箱注册发送验证码
+  - assertElementAttrRegexMatch:
+      id: assert-email-register-countdown
+      element: common.authVerificationCountdownText
+      attr: name/label/value
+      pattern: "${auth.verification.countdownPattern}"
+      wait:
+        timeoutMs: 10000
+        intervalMs: 500
+      desc: 校验邮箱注册验证码按钮进入倒计时

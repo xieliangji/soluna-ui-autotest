@@ -9,8 +9,13 @@ metadata:
 parameters:
   - id: appState
     file: ../../data/app-state.yaml
+  - id: appStateLocal
+    file: ../../data/app-state.android.local.yaml
+    required: false
   - id: visualTemplates
     file: ../../data/common/visual-templates.yaml
+  - id: auth
+    file: ../../data/common/auth.yaml
 fragmentRefs:
   - id: appState
     file: ../../fragments/app-state.yaml
@@ -23,7 +28,7 @@ app:
   reset: false
 defaults:
   implicitWaitMs: 8000
-  failureStrategy: stop-case
+  failureStrategy: continue-case
   retryStrategy: no-retry
 trace:
   screenshots:
@@ -41,6 +46,20 @@ stages:
       - appState.loginPage
     caseRefs:
       - file: ../../cases/common/app-state/login-page.yaml
+  - id: auth-login-page
+    name: Auth Login Page
+    setupFragments:
+      - appState.loginPage
+    caseSetupFragments:
+      - appState.loginPage
+    caseRefs:
+      - file: ../../cases/common/TC024_LOGIN_PASSWORD_VISIBILITY_ANDROID.yaml
+      - file: ../../cases/common/TC026_LOGIN_CODE_SEND_CODE_ANDROID.yaml
+      - file: ../../cases/common/TC027_FORGOT_PASSWORD_SEND_CODE_ANDROID.yaml
+      - file: ../../cases/common/TC028_REGISTER_AGREEMENT_UNCHECKED_ANDROID.yaml
+      - file: ../../cases/common/TC029_REGISTER_PHONE_SEND_CODE_ANDROID.yaml
+      - file: ../../cases/common/TC030_REGISTER_EMAIL_SEND_CODE_ANDROID.yaml
+      - file: ../../cases/common/TC025_LOGIN_PASSWORD_SUCCESS_ANDROID.yaml
   - id: logged-in-device-page
     name: Logged-in Device Page
     setupFragments:
@@ -52,8 +71,7 @@ stages:
       - file: ../../cases/common/TC003_MINE_SYSTEM_PERMISSIONS_MANAGEMENT.yaml
       - file: ../../cases/common/TC010_FEEDBACK_SUBMIT_SUCCESS.yaml
       - file: ../../cases/common/TC011_FEEDBACK_PROBLEM_TYPE.yaml
-      - file: ../../cases/common/TC012_FEEDBACK_DEVICE.yaml
-      - file: ../../cases/common/TC013_FEEDBACK_DESCRIPTION.yaml
+      - file: ../../cases/common/TC013_FEEDBACK_DESCRIPTION_ANDROID.yaml
       - file: ../../cases/common/TC014_FEEDBACK_HISTORY_LIST.yaml
       - file: ../../cases/common/TC015_FEEDBACK_HISTORY_DETAIL.yaml
       - file: ../../cases/common/TC004_PERSONAL_INFO_PROTECTION_AGREENMENT.yaml
@@ -62,16 +80,22 @@ stages:
       - file: ../../cases/common/TC007_PERSONAL_INFO_PROTECTION_SHARED_LIST.yaml
       - file: ../../cases/common/TC008_PERSONAL_INFO_PROTECTION_WITHDRAW_CONTENT.yaml
       - file: ../../cases/common/TC002_MINE_LANGUAGE_SETTINGS.yaml
+      - file: ../../cases/common/TC018_PROFILE_AVATAR_VIEW_ANDROID.yaml
+      - file: ../../cases/common/TC020_PROFILE_NICKNAME_DISPLAY_AND_SET_ANDROID.yaml
+      - file: ../../cases/common/TC021_PROFILE_PASSWORD_SEND_CODE_ANDROID.yaml
+      - file: ../../cases/common/TC022_PROFILE_ACCOUNT_CANCELLATION_SEND_CODE_ANDROID.yaml
+      - file: ../../cases/common/TC023_PROFILE_LOGOUT_ANDROID.yaml
   - id: guest-device-page
     name: Guest Device Page
     setupFragments:
       - appState.guestDevicePage
     caseSetupFragments:
-      - appState.guestDevicePage
+      - appState.restartApp
     caseRefs:
       - file: ../../cases/common/TC001_MINE_ABOUT.yaml
       - file: ../../cases/common/TC003_MINE_SYSTEM_PERMISSIONS_MANAGEMENT.yaml
       - file: ../../cases/common/TC009_FEEDBACK_GUEST_ACCESS.yaml
+      - file: ../../cases/common/TC031_GUEST_UNSUPPORTED_FEATURES_ANDROID.yaml
       - file: ../../cases/common/TC004_PERSONAL_INFO_PROTECTION_AGREENMENT.yaml
       - file: ../../cases/common/TC005_PERSONAL_INFO_PROTECTION_PRIVACY.yaml
       - file: ../../cases/common/TC006_PERSONAL_INFO_PROTECTION_COLLECTION_LIST.yaml

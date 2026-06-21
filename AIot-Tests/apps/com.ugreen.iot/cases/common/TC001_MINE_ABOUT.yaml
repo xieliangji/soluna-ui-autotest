@@ -1,6 +1,9 @@
 schemaVersion: "1.0"
 id: TC001_MINE_ABOUT
 name: 我的-关于
+dataRefs:
+  - id: mine
+    file: ../../data/common/mine.yaml
 elementRefs:
   - id: common
     file: ../../elements/common.yaml
@@ -25,6 +28,16 @@ actions:
       attr: enabled
       pattern: "true"
       desc: 校验关于页根容器可见
+  - assertSourceRegexMatch:
+      id: assert-about-app-icon-visible
+      pattern: "${mine.about.appIconSourcePattern}"
+      desc: 校验关于页 App 图标节点存在
+  - assertElementAttrRegexMatch:
+      id: assert-about-version-format
+      element: common.aboutVersionValue
+      attr: name/label/text
+      pattern: "${mine.about.versionPattern}"
+      desc: 校验关于页版本号格式
   - tap:
       id: back-to-mine-page
       element: common.backButton

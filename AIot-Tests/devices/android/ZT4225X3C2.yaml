@@ -11,4 +11,5 @@ appium:
     startupTimeoutMs: 20000
   capabilities:
     automationName: UiAutomator2
+    autoGrantPermissions: true
     newCommandTimeout: 300

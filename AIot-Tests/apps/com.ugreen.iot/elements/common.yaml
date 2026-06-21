@@ -47,6 +47,56 @@ elements:
     ios:
       strategy: class
       value: XCUIElementTypeSecureTextField
+  loginPasswordAnyInput:
+    android:
+      strategy: xpath
+      value: "//*[contains(@resource-id,'passwordInputLayout')]//*[@class='android.widget.EditText']"
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeTextField[@visible='true'] | //XCUIElementTypeSecureTextField[@visible='true'])[2]"
+  loginPasswordVisibleInput:
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeTextField[@visible='true'])[2]"
+  loginPasswordVisibilityButton:
+    android:
+      strategy: xpath
+      value: "(//*[contains(@resource-id,'passwordInputLayout')]//*[@class='android.widget.ImageButton'])[last()]"
+    ios:
+      strategy: xpath
+      value: "((//XCUIElementTypeTextField[@visible='true'] | //XCUIElementTypeSecureTextField[@visible='true'])[2]/following-sibling::XCUIElementTypeOther//XCUIElementTypeButton)[last()]"
+  loginPasswordTab:
+    android:
+      strategy: xpath
+      value: "(//*[@resource-id='com.ugreen.iot:id/stTab']/android.widget.LinearLayout/android.widget.LinearLayout)[1]"
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeButton[@visible='true' and @accessible='true'])[2]"
+  loginCodeTab:
+    android:
+      strategy: xpath
+      value: "(//*[@resource-id='com.ugreen.iot:id/stTab']/android.widget.LinearLayout/android.widget.LinearLayout)[2]"
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeButton[@visible='true' and @accessible='true'])[3]"
+  loginCodeInput:
+    android:
+      strategy: xpath
+      value: "//*[contains(@resource-id,'codeInputLayout')]//*[@class='android.widget.EditText']"
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeTextField[@visible='true'])[2]"
+  loginCodeSendButton:
+    android:
+      strategy: xpath
+      value: "//*[contains(@resource-id,'codeInputLayout')]//*[@class='android.widget.TextView'][1]"
+    ios:
+      strategy: xpath
+      value: "((//XCUIElementTypeTextField[@visible='true'])[2]/following-sibling::XCUIElementTypeOther//XCUIElementTypeButton | (//XCUIElementTypeTextField[@visible='true'])[2]/following-sibling::XCUIElementTypeButton)[1]"
+  loginCodeCountdownText:
+    ios:
+      strategy: xpath
+      value: "((//XCUIElementTypeTextField[@visible='true'])[2]/following-sibling::XCUIElementTypeOther//XCUIElementTypeStaticText | (//XCUIElementTypeTextField[@visible='true'])[2]/following-sibling::XCUIElementTypeStaticText)[1]"
   loginAgreementCheckbox:
     android:
       strategy: id
@@ -75,6 +125,143 @@ elements:
     ios:
       strategy: xpath
       value: "(//XCUIElementTypeOther[count(XCUIElementTypeButton)=3]/XCUIElementTypeButton)[2]"
+  registerEntryButton:
+    android:
+      strategy: id
+      value: com.ugreen.iot:id/tvRegister
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeOther[count(XCUIElementTypeButton)=3]/XCUIElementTypeButton)[1]"
+  forgotPasswordEntryButton:
+    android:
+      strategy: id
+      value: com.ugreen.iot:id/tvForgetPassword
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeOther[count(XCUIElementTypeButton)=3]/XCUIElementTypeButton)[3]"
+  authAccountInput:
+    android:
+      strategy: xpath
+      value: "//*[@resource-id='com.ugreen.iot:id/usiAccount']//*[@class='android.widget.EditText']"
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeTextField[@visible='true'])[1]"
+  authVerificationCodeInput:
+    android:
+      strategy: xpath
+      value: "//*[@resource-id='com.ugreen.iot:id/usiCode']//*[@class='android.widget.EditText']"
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeTextField[@visible='true'])[2]"
+  authVerificationSendCodeButton:
+    android:
+      strategy: xpath
+      value: "//*[@resource-id='com.ugreen.iot:id/usiCode']//*[@class='android.widget.TextView'][1]"
+    ios:
+      strategy: xpath
+      value: "((//XCUIElementTypeTextField[@visible='true'])[2]/following-sibling::XCUIElementTypeOther//XCUIElementTypeButton | (//XCUIElementTypeTextField[@visible='true'])[2]/following-sibling::XCUIElementTypeButton)[1]"
+  authVerificationCountdownText:
+    ios:
+      strategy: xpath
+      value: "((//XCUIElementTypeTextField[@visible='true'])[2]/following-sibling::XCUIElementTypeOther//XCUIElementTypeStaticText | (//XCUIElementTypeTextField[@visible='true'])[2]/following-sibling::XCUIElementTypeStaticText)[1]"
+  authNewPasswordInput:
+    android:
+      strategy: xpath
+      value: "//*[@resource-id='com.ugreen.iot:id/usiPassword']//*[@class='android.widget.EditText']"
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeSecureTextField[@visible='true'])[1]"
+  authNewPasswordVisibilityButton:
+    android:
+      strategy: xpath
+      value: "(//*[@resource-id='com.ugreen.iot:id/usiPassword']//*[@class='android.widget.ImageButton'])[last()]"
+    ios:
+      strategy: xpath
+      value: "((//XCUIElementTypeSecureTextField[@visible='true'] | //XCUIElementTypeTextField[@visible='true'])[last()]/following-sibling::XCUIElementTypeOther//XCUIElementTypeButton)[last()]"
+  authRegisterSubmitButton:
+    android:
+      strategy: id
+      value: com.ugreen.iot:id/btn_terms_action
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeButton[@visible='true' and @accessible='true'])[last()]"
+  authForgotPasswordCompleteButton:
+    android:
+      strategy: id
+      value: com.ugreen.iot:id/tvCompleteReset
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeButton[@visible='true' and @accessible='true'])[last()]"
+  authCountryRegionEntry:
+    android:
+      strategy: id
+      value: com.ugreen.iot:id/livCountryRegion
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeScrollView/XCUIElementTypeOther[XCUIElementTypeStaticText and XCUIElementTypeImage])[1]"
+  authCountryRegionTitle:
+    android:
+      strategy: xpath
+      value: "//*[@resource-id='com.ugreen.iot:id/livCountryRegion']//*[@resource-id='com.ugreen.iot:id/tv_title']"
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeScrollView/XCUIElementTypeOther[XCUIElementTypeStaticText and XCUIElementTypeImage])[1]/XCUIElementTypeStaticText[1]"
+  countryRegionFirstRow:
+    android:
+      strategy: xpath
+      value: "(//*[@resource-id='com.ugreen.iot:id/rv_list']/android.view.ViewGroup)[1]"
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeTable[@visible='true']/XCUIElementTypeCell[@visible='true'])[1]"
+  countryRegionFourthRow:
+    android:
+      strategy: xpath
+      value: "(//*[@resource-id='com.ugreen.iot:id/rv_list']/android.view.ViewGroup)[4]"
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeTable[@visible='true']/XCUIElementTypeCell[@visible='true'])[4]"
+  authDialogRoot:
+    android:
+      strategy: id
+      value: com.ugreen.iot:id/ll_dialog_container
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeTextView[@visible='true'] | //XCUIElementTypeAlert)[1]"
+  authDialogContent:
+    android:
+      strategy: id
+      value: com.ugreen.iot:id/tv_content
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeTextView[@visible='true'] | //XCUIElementTypeAlert//XCUIElementTypeStaticText)[1]"
+  titleText:
+    android:
+      strategy: id
+      value: com.ugreen.iot:id/tv_title
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeNavigationBar | //XCUIElementTypeStaticText[@visible='true' and @accessible='true'])[1]"
+  dialogNegativeButton:
+    android:
+      strategy: id
+      value: com.ugreen.iot:id/btn_negative
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeTextView[@visible='true']/following-sibling::XCUIElementTypeOther[1]//XCUIElementTypeButton[@visible='true' and @accessible='true'])[1]"
+  dialogCloseButton:
+    android:
+      strategy: id
+      value: com.ugreen.iot:id/iv_close
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeTextView[@visible='true']/following::XCUIElementTypeButton[@visible='true' and @accessible='true'])[1]"
+  authTermsText:
+    android:
+      strategy: id
+      value: com.ugreen.iot:id/tv_terms_text
+    ios:
+      strategy: xpath
+      value: "//XCUIElementTypeButton[starts-with(@name,'icon round')]/following-sibling::XCUIElementTypeButton[1]"
   profileEntry:
     android:
       strategy: id
@@ -124,6 +311,13 @@ elements:
     ios:
       strategy: xpath
       value: "(//XCUIElementTypeTable/XCUIElementTypeCell)[7]"
+  mineDataManagementEntry:
+    android:
+      strategy: xpath
+      value: "(//*[@resource-id='com.ugreen.iot:id/recy']/android.view.ViewGroup)[1]"
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeTable/XCUIElementTypeCell)[1]"
   backButton:
     android:
       strategy: id
@@ -176,10 +370,73 @@ elements:
   nicknameValue:
     android:
       strategy: xpath
-      value: "(//*[@resource-id='com.ugreen.iot:id/recyclerView']//*[@resource-id='com.ugreen.iot:id/tv_right_text])[1]"
+      value: "(//*[@resource-id='com.ugreen.iot:id/recyclerView']/android.view.ViewGroup)[2]//*[@resource-id='com.ugreen.iot:id/tv_right_text']"
     ios:
       strategy: xpath
       value: "(//XCUIElementTypeCell)[2]/XCUIElementTypeStaticText[1]"
+  profilePageRoot:
+    android:
+      strategy: id
+      value: com.ugreen.iot:id/recyclerView
+    ios:
+      strategy: class chain
+      value: "**/XCUIElementTypeTable"
+  profileAvatarImage:
+    android:
+      strategy: id
+      value: com.ugreen.iot:id/ivAvatar
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeTable/XCUIElementTypeCell)[1]"
+  profileAccountSecurityEntry:
+    android:
+      strategy: id
+      value: com.ugreen.iot:id/recyclerView
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeTable/XCUIElementTypeCell)[3]"
+  accountSecurityPageRoot:
+    android:
+      strategy: id
+      value: com.ugreen.iot:id/recyclerView
+    ios:
+      strategy: class chain
+      value: "**/XCUIElementTypeTable"
+  changePasswordEntry:
+    android:
+      strategy: xpath
+      value: "(//*[@resource-id='com.ugreen.iot:id/recyclerView']/android.view.ViewGroup)[5]"
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeTable/XCUIElementTypeCell)[5]"
+  accountCancellationEntry:
+    android:
+      strategy: xpath
+      value: "(//*[@resource-id='com.ugreen.iot:id/recyclerView']/android.view.ViewGroup)[6]"
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeTable/XCUIElementTypeCell)[6]"
+  accountCancellationStartButton:
+    android:
+      strategy: id
+      value: com.ugreen.iot:id/tvCancelAccount
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeScrollView/XCUIElementTypeButton[@visible='true'])[1]"
+  profileVerificationCodeInput:
+    android:
+      strategy: xpath
+      value: "(//*[@resource-id='com.ugreen.iot:id/usiCode' or @resource-id='com.ugreen.iot:id/usiVerificationCode']//*[@class='android.widget.EditText'])[1]"
+    ios:
+      strategy: class chain
+      value: "**/XCUIElementTypeTextField"
+  profileVerificationSendCodeButton:
+    android:
+      strategy: xpath
+      value: "(//*[@resource-id='com.ugreen.iot:id/usiCode' or @resource-id='com.ugreen.iot:id/usiVerificationCode']//*[@class='android.widget.TextView'])[1]"
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeTextField/following::XCUIElementTypeButton | //XCUIElementTypeTextField/following::XCUIElementTypeStaticText)[1]"
   pageLargeTitle:
     android:
       strategy: id
@@ -291,7 +548,7 @@ elements:
       value: "//*[@resource-id='com.ugreen.iot:id/about_layout']//*[@resource-id='com.ugreen.iot:id/tv_right_text'][1]"
     ios:
       strategy: xpath
-      value: "((//XCUIElementTypeTable/XCUIElementTypeCell)[1]//XCUIElementTypeStaticText)[2]"
+      value: "((//XCUIElementTypeTable/XCUIElementTypeCell)[1]//XCUIElementTypeStaticText)[1]"
   personalInfoProtectionList:
     android:
       strategy: id
@@ -362,6 +619,13 @@ elements:
     ios:
       strategy: class chain
       value: "**/XCUIElementTypeTextView"
+  feedbackTitleText:
+    android:
+      strategy: xpath
+      value: "(//android.webkit.WebView//android.widget.TextView)[1]"
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeWebView//XCUIElementTypeStaticText[@visible='true' and @accessible='true'])[1]"
   feedbackBackButton:
     android:
       strategy: xpath
@@ -414,7 +678,7 @@ elements:
   feedbackDeviceField:
     android:
       strategy: xpath
-      value: "//android.webkit.WebView//*[@clickable='true' and count(preceding::android.widget.TextView) >= 7 and following::android.widget.EditText]"
+      value: "//android.webkit.WebView//*[@clickable='true' and @class!='android.widget.EditText' and count(preceding::android.widget.TextView) >= 7 and following::android.widget.EditText]"
     ios:
       strategy: xpath
       value: "(//XCUIElementTypeTable/XCUIElementTypeCell)[6]"
@@ -428,7 +692,7 @@ elements:
   feedbackDescriptionCounter:
     android:
       strategy: xpath
-      value: "(//android.webkit.WebView//android.widget.TextView)[9]"
+      value: "(//android.webkit.WebView//android.widget.EditText)[1]/following-sibling::android.widget.TextView[1]"
     ios:
       strategy: xpath
       value: "(//XCUIElementTypeTextView/following-sibling::XCUIElementTypeStaticText[@visible='true' and @accessible='true'])[1]"
@@ -477,14 +741,14 @@ elements:
   feedbackFirstHistoryRecord:
     android:
       strategy: xpath
-      value: "(//android.webkit.WebView//android.view.View)[4]"
+      value: "(//android.webkit.WebView//android.view.View[count(.//android.widget.TextView)=4])[1]"
     ios:
       strategy: xpath
       value: "(//XCUIElementTypeWebView//XCUIElementTypeStaticText[@visible='true' and @accessible='true'])[5]"
   feedbackDetailContent:
     android:
       strategy: xpath
-      value: "(//android.webkit.WebView//android.widget.TextView)[1]"
+      value: "(//android.webkit.WebView//android.widget.TextView)[6]"
     ios:
       strategy: xpath
       value: "((//XCUIElementTypeWebView//XCUIElementTypeOther[count(XCUIElementTypeStaticText) >= 4 and XCUIElementTypeOther/XCUIElementTypeStaticText])[1]/XCUIElementTypeOther[1]/XCUIElementTypeStaticText[@visible='true' and @accessible='true'])[1]"
