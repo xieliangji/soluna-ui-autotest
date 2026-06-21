@@ -35,15 +35,45 @@ class LocalReportWriterTest {
         assertTrue(Files.exists(result.htmlFile))
         assertTrue(Files.readString(result.dataFile).contains("\"schemaVersion\" : \"1.0\""))
         assertTrue(Files.readString(result.dataFile).contains("\"runId\" : \"run-001\""))
+        assertTrue(Files.readString(result.dataFile).contains("\"summary\""))
+        assertTrue(Files.readString(result.dataFile).contains("\"actionKeyword\" : \"tap\""))
+        assertTrue(Files.readString(result.dataFile).contains("\"durationMs\" : 25"))
         assertTrue(Files.readString(result.dataFile).contains("\"phase\" : \"case.teardown\""))
         assertTrue(Files.readString(result.htmlFile).contains("execution-result.json"))
         assertTrue(Files.readString(result.htmlFile).contains("plan-resource-manifest.json"))
+        assertTrue(Files.readString(result.htmlFile).contains("Action Timeline"))
+        assertTrue(Files.readString(result.htmlFile).contains("tap #open-mine"))
         assertTrue(Files.readString(result.htmlFile).contains("case.teardown"))
         assertEquals(
             emptyList(),
             JsonSchemaDslValidator().validate(
                 "/schemas/v1/report-data.schema.json",
                 ObjectMapper().readTree(Files.readString(result.dataFile)),
+            ),
+        )
+    }
+
+    @Test
+    fun `writes failure summary for failed actions`() {
+        val root = Files.createTempDirectory("soluna-report-failure-test")
+        val writer = LocalReportWriter(
+            outputRoot = root,
+            clock = { Instant.parse("2026-06-13T00:00:00Z") },
+        )
+
+        val result = writer.write(planRunResultWithFailure())
+        val html = Files.readString(result.htmlFile)
+        val json = Files.readString(result.dataFile)
+
+        assertTrue(html.contains("Failure Summary"))
+        assertTrue(html.contains("assertElementExists #assert-home"))
+        assertTrue(json.contains("\"failures\""))
+        assertTrue(json.contains("\"caseFailed\" : 1"))
+        assertEquals(
+            emptyList(),
+            JsonSchemaDslValidator().validate(
+                "/schemas/v1/report-data.schema.json",
+                ObjectMapper().readTree(json),
             ),
         )
     }
@@ -84,7 +114,45 @@ class LocalReportWriterTest {
                                 caseId = "case-001",
                                 status = ExecutionStatus.PASSED,
                                 teardownActions = listOf(ActionExecutionResult.passed("cleaned")),
-                                actions = listOf(ActionExecutionResult.passed("ok")),
+                                actions = listOf(
+                                    ActionExecutionResult.passed("ok").copy(
+                                        actionId = "open-mine",
+                                        actionKeyword = "tap",
+                                        startedAt = "2026-06-13T00:00:01Z",
+                                        finishedAt = "2026-06-13T00:00:01.025Z",
+                                        durationMs = 25,
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        )
+    }
+
+    private fun planRunResultWithFailure(): PlanRunResult {
+        val base = planRunResult()
+        return base.copy(
+            executionResult = PlanExecutionResult(
+                runId = "run-002",
+                planId = "plan-001",
+                status = ExecutionStatus.FAILED,
+                stages = listOf(
+                    StageExecutionResult(
+                        stageId = "stage-001",
+                        status = ExecutionStatus.FAILED,
+                        cases = listOf(
+                            CaseExecutionResult(
+                                caseId = "case-001",
+                                status = ExecutionStatus.FAILED,
+                                actions = listOf(
+                                    ActionExecutionResult.failed("home marker missing").copy(
+                                        actionId = "assert-home",
+                                        actionKeyword = "assertElementExists",
+                                        durationMs = 3000,
+                                    ),
+                                ),
                             ),
                         ),
                     ),

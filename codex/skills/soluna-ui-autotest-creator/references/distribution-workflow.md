@@ -34,4 +34,6 @@ Asset projects should not depend on framework source paths. Reference only files
 3. Run broader plans only after focused plans pass.
 4. Inspect report JSON, HTML, trace diagnostics, and `plan-resource-manifest.json` when execution fails or resources are part of the assertion.
 
+In `execution-result.json`, start with `summary` for stage/case/action totals, then `failures` for the flattened failed action locations. Use action metadata such as `actionId`, `actionKeyword`, `attempt`, and `durationMs` to correlate report rows with case YAML. Use `traceArtifacts` for failed-action screenshot/page-source evidence, and use `plan-resource-manifest.json` for explicit screenshot, screen-recording, and OCR evidence resources.
+
 Use stable run ids for debugging so reports and MinIO paths are easy to correlate.

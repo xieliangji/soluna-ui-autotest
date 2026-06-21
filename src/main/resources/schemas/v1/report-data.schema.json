@@ -43,6 +43,16 @@
     "platform": {
       "$ref": "#/$defs/nonEmptyString"
     },
+    "summary": {
+      "$ref": "#/$defs/summary"
+    },
+    "failures": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/failure"
+      },
+      "default": []
+    },
     "traceArtifacts": {
       "type": "array",
       "items": {
@@ -74,6 +84,110 @@
     },
     "status": {
       "enum": ["running", "passed", "failed", "skipped"]
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "stageTotal",
+        "stagePassed",
+        "stageFailed",
+        "stageSkipped",
+        "caseTotal",
+        "casePassed",
+        "caseFailed",
+        "caseSkipped",
+        "actionTotal",
+        "actionPassed",
+        "actionFailed",
+        "actionSkipped"
+      ],
+      "properties": {
+        "status": {
+          "$ref": "#/$defs/status"
+        },
+        "stageTotal": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "stagePassed": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "stageFailed": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "stageSkipped": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "caseTotal": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "casePassed": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "caseFailed": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "caseSkipped": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "actionTotal": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "actionPassed": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "actionFailed": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "actionSkipped": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "failure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["stageId", "caseId", "phase", "index", "actionId", "actionKeyword", "message", "error"],
+      "properties": {
+        "stageId": {
+          "$ref": "#/$defs/nullableString"
+        },
+        "caseId": {
+          "$ref": "#/$defs/nullableString"
+        },
+        "phase": {
+          "$ref": "#/$defs/phase"
+        },
+        "index": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "actionId": {
+          "$ref": "#/$defs/nullableString"
+        },
+        "actionKeyword": {
+          "$ref": "#/$defs/nullableString"
+        },
+        "message": {
+          "$ref": "#/$defs/nullableString"
+        },
+        "error": {
+          "$ref": "#/$defs/nullableString"
+        }
+      }
     },
     "phase": {
       "enum": [
@@ -107,6 +221,29 @@
         },
         "status": {
           "$ref": "#/$defs/status"
+        },
+        "actionId": {
+          "$ref": "#/$defs/nullableString"
+        },
+        "actionKeyword": {
+          "$ref": "#/$defs/nullableString"
+        },
+        "actionName": {
+          "$ref": "#/$defs/nullableString"
+        },
+        "attempt": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "startedAt": {
+          "$ref": "#/$defs/nullableString"
+        },
+        "finishedAt": {
+          "$ref": "#/$defs/nullableString"
+        },
+        "durationMs": {
+          "type": ["integer", "null"],
+          "minimum": 0
         },
         "message": {
           "$ref": "#/$defs/nullableString"

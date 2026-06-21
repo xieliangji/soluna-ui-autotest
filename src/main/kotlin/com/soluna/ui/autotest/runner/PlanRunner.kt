@@ -60,6 +60,9 @@ import com.soluna.ui.autotest.dsl.YamlPlanParser
 import com.soluna.ui.autotest.report.ReportWriteResult
 import com.soluna.ui.autotest.report.ReportLinkRewriter
 import com.soluna.ui.autotest.report.ReportWriter
+import com.soluna.ui.autotest.report.ExecutionFailureSummary
+import com.soluna.ui.autotest.report.ExecutionReportSummaries
+import com.soluna.ui.autotest.report.ExecutionReportSummary
 import com.soluna.ui.autotest.notification.DefaultNotificationSenderFactory
 import com.soluna.ui.autotest.notification.NotificationMessage
 import com.soluna.ui.autotest.notification.NotificationSender
@@ -557,28 +560,36 @@ class PlanRunner(
         runId: String,
         deviceConfig: DeviceConfigDefinition,
     ): NotificationMessage {
+        val plannedCaseCount = stages.sumOf { stage -> stage.cases.size + stage.caseRefs.size }
         return NotificationMessage(
             title = "Soluna plan started",
             markdown = """
                 ### Soluna plan started
-                - Plan: `$name` (`$id`)
-                - Run: `$runId`
-                - Device: `${deviceConfig.id}`
-                - Platform: `${deviceConfig.device.platform ?: "-"}`
+                - Plan: ${mdCode(name)} (${mdCode(id)})
+                - Run: ${mdCode(runId)}
+                - Device: ${mdCode(deviceConfig.id)}
+                - Platform: ${mdCode(deviceConfig.device.platform ?: "-")}
+                - Planned stages: ${mdCode(stages.size.toString())}
+                - Planned cases: ${mdCode(plannedCaseCount.toString())}
             """.trimIndent(),
         )
     }
 
     private fun PlanRunResult.toTestFinishedMessage(): NotificationMessage {
+        val summary = ExecutionReportSummaries.summary(executionResult)
+        val failures = ExecutionReportSummaries.failures(executionResult, limit = 3)
         return NotificationMessage(
             title = "Soluna test finished: ${executionResult.status.name.lowercase()}",
             markdown = """
                 ### Soluna test finished
-                - Plan: `${plan.name}` (`${plan.id}`)
-                - Run: `${executionResult.runId}`
-                - Status: `${executionResult.status.name.lowercase()}`
-                - Device: `${deviceConfig.id}`
-                - Stages: `${executionResult.stages.size}`
+                - Plan: ${mdCode(plan.name)} (${mdCode(plan.id)})
+                - Run: ${mdCode(executionResult.runId)}
+                - Status: ${mdCode(executionResult.status.name.lowercase())}
+                - Device: ${mdCode(deviceConfig.id)}
+                - Platform: ${mdCode(deviceConfig.device.platform ?: "-")}
+                ${summary.toMarkdownBullets().prependIndent("                ").trimStart()}
+                - Trace artifacts: ${mdCode(traceArtifacts.size.toString())}
+                ${failures.toMarkdownFailureBlock().prependIndent("                ").trimStart()}
             """.trimIndent(),
         )
     }
@@ -592,11 +603,12 @@ class PlanRunner(
             title = "Soluna test finished: error",
             markdown = """
                 ### Soluna test finished
-                - Plan: `$name` (`$id`)
-                - Run: `$runId`
+                - Plan: ${mdCode(name)} (${mdCode(id)})
+                - Run: ${mdCode(runId)}
                 - Status: `error`
-                - Device: `${deviceConfig.id}`
-                - Error: `${err.message ?: err::class.simpleName ?: "unknown error"}`
+                - Device: ${mdCode(deviceConfig.id)}
+                - Platform: ${mdCode(deviceConfig.device.platform ?: "-")}
+                - Error: ${mdCode(err.message ?: err::class.simpleName ?: "unknown error")}
             """.trimIndent(),
         )
     }
@@ -616,19 +628,52 @@ class PlanRunner(
         val uploadSummary = artifactUploads?.let { uploads ->
             "completed=${uploads.completed}, uploaded=${uploads.uploadedCount}, failed=${uploads.failedCount}, abandoned=${uploads.abandonedCount}"
         } ?: "not enabled"
+        val summary = ExecutionReportSummaries.summary(executionResult)
+        val failures = ExecutionReportSummaries.failures(executionResult, limit = 3)
         return NotificationMessage(
             title = "Soluna report published: ${executionResult.status.name.lowercase()}",
             markdown = """
                 ### Soluna report published
-                - Plan: `${plan.name}` (`${plan.id}`)
-                - Run: `$runId`
-                - Status: `${executionResult.status.name.lowercase()}`
-                - Device: `${deviceConfig.id}`
-                - Upload: `$uploadSummary`
+                - Plan: ${mdCode(plan.name)} (${mdCode(plan.id)})
+                - Run: ${mdCode(runId)}
+                - Status: ${mdCode(executionResult.status.name.lowercase())}
+                - Device: ${mdCode(deviceConfig.id)}
+                ${summary.toMarkdownBullets().prependIndent("                ").trimStart()}
+                ${failures.toMarkdownFailureBlock().prependIndent("                ").trimStart()}
+                - Upload: ${mdCode(uploadSummary)}
                 - Report: [index.html]($reportUrl)
                 - Manifest: [plan-resource-manifest.json]($manifestUrl)
             """.trimIndent(),
         )
+    }
+
+    private fun ExecutionReportSummary.toMarkdownBullets(): String {
+        return """
+            - Stages: `${stagePassed}/${stageTotal}` passed, `${stageFailed}` failed
+            - Cases: `${casePassed}/${caseTotal}` passed, `${caseFailed}` failed
+            - Actions: `${actionPassed}/${actionTotal}` passed, `${actionFailed}` failed
+        """.trimIndent()
+    }
+
+    private fun List<ExecutionFailureSummary>.toMarkdownFailureBlock(): String {
+        if (isEmpty()) {
+            return ""
+        }
+        val rows = joinToString(separator = "\n") { failure ->
+            val location = listOfNotNull(failure.stageId, failure.caseId)
+                .joinToString("/")
+                .ifBlank { "plan" }
+            val action = listOfNotNull(failure.actionKeyword, failure.actionId?.let { "#$it" })
+                .joinToString(" ")
+                .ifBlank { "-" }
+            val reason = failure.error ?: failure.message ?: "-"
+            "- Failure: ${mdCode(location)} ${mdCode(failure.phase)} #${failure.index} ${mdCode(action)} ${mdCode(reason)}"
+        }
+        return rows
+    }
+
+    private fun mdCode(value: String): String {
+        return "`${value.replace("`", "'")}`"
     }
 }
 

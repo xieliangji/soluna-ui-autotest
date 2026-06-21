@@ -359,6 +359,9 @@ class PlanRunnerTest {
             notificationSender.messages.map { it.title },
         )
         assertTrue(notificationSender.messages[1].markdown.contains("- Status: `passed`"))
+        assertTrue(notificationSender.messages[0].markdown.contains("- Planned cases: `1`"))
+        assertTrue(notificationSender.messages[1].markdown.contains("- Cases: `1/1` passed, `0` failed"))
+        assertTrue(notificationSender.messages[2].markdown.contains("- Actions: `1/1` passed, `0` failed"))
         assertTrue(
             notificationSender.messages[2].markdown.contains(
                 "https://artifact.local/soluna/runs/run-notify/report/index.html",

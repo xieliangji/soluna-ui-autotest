@@ -36,6 +36,13 @@ data class ActionExecutionResult(
     val status: ExecutionStatus,
     val message: String? = null,
     val error: String? = null,
+    val actionId: String? = null,
+    val actionKeyword: String? = null,
+    val actionName: String? = null,
+    val attempt: Int = 1,
+    val startedAt: String? = null,
+    val finishedAt: String? = null,
+    val durationMs: Long? = null,
 ) {
     companion object {
         fun passed(message: String? = null): ActionExecutionResult {

@@ -105,12 +105,14 @@ Asset projects should keep case-specific data close to the case naming conventio
 
 Runtime variables are not parameter data. Actions can write/read `@{plan.name}` and `@{case.name}` values during execution.
 
-`report-data.schema.json` defines the current report data contract written by `LocalReportWriter` as `execution-result.json`. It is a report-consumption view, not a direct serialization of internal `PlanRunResult` or `PlanExecutionResult`. The report data JSON includes `schemaVersion: "1.0"` and lifecycle buckets:
+`report-data.schema.json` defines the current report data contract written by `LocalReportWriter` as `execution-result.json`. It is a report-consumption view, not a direct serialization of internal `PlanRunResult` or `PlanExecutionResult`. The report data JSON includes `schemaVersion: "1.0"`, optional top-level `summary` and `failures` views, and lifecycle buckets:
 
 - plan: `setupActions`, `teardownActions`
 - stage: `setupActions`, `teardownActions`
 - case: `setupActions`, `actions`, `teardownActions`
 - top level: `traceArtifacts`, containing failed-action diagnostic screenshot and page-source links when trace screenshots were published.
+
+The `summary` view contains stage/case/action totals by status for report renderers and notifications. The `failures` view contains flattened failed action locations with stage, case, phase, index, action id, action keyword, message, and error. Action records may include action id, keyword, name, attempt, started/finished timestamps, and duration when the result came from the execution engine.
 
 `device-config.schema.json` currently covers:
 
@@ -150,6 +152,8 @@ This keeps Android text input stable across real devices with different system k
 - direct DingTalk robot `webhook` and optional signing `secret`, with `webhookEnv` / `secretEnv` still supported as optional indirection.
 - optional DingTalk at-list settings.
 - upload-failure alert window, threshold, and suppression interval.
+
+Lifecycle DingTalk notifications currently reuse the report summary view to include stage/case/action totals, first failed action summaries, trace artifact count, upload status, and report/manifest links where available.
 
 `plan-resource-manifest.schema.json` stores plan-level metadata and explicit DSL resources, including screenshots, screen recordings, and screen-recording text match frames. It is written as `plan-resource-manifest.json` beside report files and is not a step execution-detail file.
 

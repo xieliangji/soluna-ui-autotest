@@ -9,6 +9,8 @@ import com.soluna.ui.autotest.core.model.CaseDefinition
 import com.soluna.ui.autotest.core.model.PlanDefinition
 import com.soluna.ui.autotest.core.model.StageDefinition
 import java.time.Clock
+import java.time.Duration
+import java.time.Instant
 
 class LinearExecutionEngine(
     private val actionExecutorRegistry: ActionExecutorRegistry,
@@ -215,6 +217,7 @@ class LinearExecutionEngine(
 
         var attempt = 1
         var result: ActionExecutionResult
+        val startedAt = clock.instant()
 
         while (true) {
             publishActionEvent(HookEventType.ACTION_BEFORE, context, stage, case, action, ExecutionStatus.RUNNING)
@@ -255,17 +258,24 @@ class LinearExecutionEngine(
             attempt += 1
         }
 
+        val finishedAt = clock.instant()
+        val finalResult = result.withActionMetadata(
+            action = action,
+            attempt = attempt,
+            startedAt = startedAt,
+            finishedAt = finishedAt,
+        )
         publishActionEvent(
             type = HookEventType.ACTION_AFTER,
             context = context,
             stage = stage,
             case = case,
             action = action,
-            status = result.status,
-            error = result.error,
+            status = finalResult.status,
+            error = finalResult.error,
         )
-        actionTraceCollector.afterAction(context, stage, case, action, phase, index, result)
-        return result
+        actionTraceCollector.afterAction(context, stage, case, action, phase, index, finalResult)
+        return finalResult
     }
 
     private fun executeIfAction(
@@ -276,6 +286,7 @@ class LinearExecutionEngine(
         phase: String,
         index: Int,
     ): ActionExecutionResult {
+        val startedAt = clock.instant()
         publishActionEvent(HookEventType.ACTION_BEFORE, context, stage, case, action, ExecutionStatus.RUNNING)
         actionTraceCollector.beforeAction(context, stage, case, action, phase, index, attempt = 1)
 
@@ -307,17 +318,24 @@ class LinearExecutionEngine(
             }
         }
 
+        val finishedAt = clock.instant()
+        val finalResult = result.withActionMetadata(
+            action = action,
+            attempt = 1,
+            startedAt = startedAt,
+            finishedAt = finishedAt,
+        )
         publishActionEvent(
             type = HookEventType.ACTION_AFTER,
             context = context,
             stage = stage,
             case = case,
             action = action,
-            status = result.status,
-            error = result.error,
+            status = finalResult.status,
+            error = finalResult.error,
         )
-        actionTraceCollector.afterAction(context, stage, case, action, phase, index, result)
-        return result
+        actionTraceCollector.afterAction(context, stage, case, action, phase, index, finalResult)
+        return finalResult
     }
 
     private fun executeNestedActions(
@@ -419,6 +437,23 @@ class LinearExecutionEngine(
 
     private fun List<ActionExecutionResult>.hasFailure(): Boolean {
         return any { it.status == ExecutionStatus.FAILED }
+    }
+
+    private fun ActionExecutionResult.withActionMetadata(
+        action: ActionDefinition,
+        attempt: Int,
+        startedAt: Instant,
+        finishedAt: Instant,
+    ): ActionExecutionResult {
+        return copy(
+            actionId = action.id,
+            actionKeyword = action.keyword,
+            actionName = action.name,
+            attempt = attempt,
+            startedAt = startedAt.toString(),
+            finishedAt = finishedAt.toString(),
+            durationMs = Duration.between(startedAt, finishedAt).toMillis().coerceAtLeast(0),
+        )
     }
 }
 

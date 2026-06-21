@@ -38,15 +38,29 @@ Implemented capabilities:
 - `tapVisualTemplate` supports static ROI objects, runtime-variable ROI objects, and action-level wait retry with fresh screenshots.
 - Assertion actions poll by resolved `wait`; explicit assertion waits isolate each probe from the session implicit wait.
 - Runtime variables via `@{plan.name}` and `@{case.name}`; parameter references via `${...}`.
-- Local JSON/HTML report writer.
+- Local JSON/HTML report writer with execution summary, failure summary, action metadata, trace links, and report-resource links.
 - Explicit resource manifest for screenshots, screen recordings, and retained analysis frames.
 - Failure trace screenshots and page source diagnostics.
 - Async MinIO uploads with compression, retry, bounded drain, and local cleanup after successful upload.
-- DingTalk lifecycle notifications and aggregated upload-failure alerts.
+- DingTalk lifecycle notifications with execution statistics and failure summaries, plus aggregated upload-failure alerts.
 - CLI runner: `soluna run <plan.yaml>`.
 - Debug CLI: `soluna debug <plan.yaml> source|screenshot|tap|tap-element|input|tap-template|shell`.
 
 ## Recent Iterations
+
+### 2026-06-21 Reporter And DingTalk Summary Enrichment
+
+- Added action result metadata for action id, keyword, name, attempt, start/end timestamps, and duration.
+- Added shared execution summary/failure-summary views used by both local reports and lifecycle DingTalk messages.
+- Enhanced `LocalReportWriter` JSON and HTML output with stage/case/action totals, failure summaries, action timeline metadata, status styling, and trace artifact links.
+- Enriched plan lifecycle DingTalk messages with planned scope, execution totals, first failure summaries, trace artifact count, upload state, and report/manifest links.
+- Extended `report-data.schema.json` and schema docs for optional summary, failure, and action metadata fields.
+- Updated the bundled Codex asset-creator skill distribution workflow reference so Codex agents inspect report summary, failures, action metadata, trace artifacts, and resource manifests in the intended order.
+
+Verification:
+
+- Focused reporter, runner notification, and schema Gradle tests passed during implementation.
+- Bundled skill quick validation passed.
 
 ### 2026-06-21 Appium Plugin Ownership Boundary
 

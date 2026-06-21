@@ -48,6 +48,13 @@ class LinearExecutionEngineTest {
             listOf("tap", "input", "screenshot"),
             executedKeywords,
         )
+        val firstAction = result.stages.single().cases.single().actions.first()
+        assertEquals("tap-login", firstAction.actionId)
+        assertEquals("tap", firstAction.actionKeyword)
+        assertEquals(1, firstAction.attempt)
+        assertEquals("2026-06-12T10:00:00Z", firstAction.startedAt)
+        assertEquals("2026-06-12T10:00:00Z", firstAction.finishedAt)
+        assertEquals(0, firstAction.durationMs)
         assertEquals(
             listOf(
                 "plan.before",

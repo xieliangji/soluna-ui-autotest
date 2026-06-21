@@ -572,8 +572,8 @@ runs/{runId}/report/plan-resource-manifest.json
 当前状态摘要：
 
 - `LocalReportWriter` 写出 `execution-result.json` 和单体 `index.html`。
-- `report-data.schema.json` 定义报告数据视图；它不是内部执行结果模型的直接序列化。
-- 报告 HTML 引用 `execution-result.json` 和 `plan-resource-manifest.json`，启用上传时链接改写为 MinIO URL。
+- `report-data.schema.json` 定义报告数据视图；它不是内部执行结果模型的直接序列化。当前数据视图包含执行摘要、失败摘要、生命周期 action 列表、action id/keyword/attempt/duration 等动作元数据，以及 trace artifacts。
+- 报告 HTML 引用 `execution-result.json` 和 `plan-resource-manifest.json`，启用上传时链接改写为 MinIO URL。HTML 首屏展示 plan/run/device 信息、stage/case/action 统计、失败摘要、动作时间线和 trace artifact 链接。
 - 报告必需资源会执行 bounded drain；失败 trace 截图进入 `traceArtifacts`，显式截图进入 manifest。
 
 ## 13. 钉钉通知
@@ -597,7 +597,7 @@ runs/{runId}/report/plan-resource-manifest.json
 当前状态摘要：
 
 - `notification-sender.schema.json` 定义 DingTalk robot sender；webhook/secret 支持直接 YAML 配置，也保留 env 间接引用。
-- `PlanRunner` 支持 `planStarted`、`testFinished`、`reportPublished` 三个生命周期通知点；旧 `planFinished` 兼容映射到 `reportPublished`。
+- `PlanRunner` 支持 `planStarted`、`testFinished`、`reportPublished` 三个生命周期通知点；旧 `planFinished` 兼容映射到 `reportPublished`。生命周期通知包含 plan/run/device/platform、计划规模、执行统计、首批失败 action 摘要、trace artifact 数量、上传状态和报告链接。
 - `DingTalkUploadFailureNotifier` 聚合上传失败告警，支持时间窗口、阈值和抑制间隔。
 
 ## 14. Schema First

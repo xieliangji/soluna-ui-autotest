@@ -149,7 +149,7 @@ The current runner supports:
 - Pluggable execution boundaries for parsers, action executors, driver adapters, Appium server management, artifact upload, report writing, notifications, failure strategy, and retry strategy.
 - Default actions for tap/input/wait/restart app/clear app data/get text/save element rect/screenshot/visual-template tap/screen recording and element-attribute, source-regex, or screen-recording OCR assertions. Assertion actions poll by resolved `wait`.
 - Runtime variables through `@{case.name}` / `@{plan.name}` and parameter references through `${...}`.
-- Local JSON/HTML reporting, explicit resource manifest for screenshots/recordings/OCR evidence, failure trace screenshots and page source, MinIO artifact upload, upload-success cleanup, and DingTalk lifecycle/upload-failure notifications.
+- Local JSON/HTML reporting with summary/failure/action metadata, explicit resource manifest for screenshots/recordings/OCR evidence, failure trace screenshots and page source, MinIO artifact upload, upload-success cleanup, and DingTalk lifecycle/upload-failure notifications with execution statistics.
 - Debug CLI for source/screenshot/tap/tap-element/input/tap-template/shell inspection from a plan's device and app config.
 
 JUnit is used for framework development tests only. Runtime DSL plan orchestration belongs to the Soluna runner and result model.
