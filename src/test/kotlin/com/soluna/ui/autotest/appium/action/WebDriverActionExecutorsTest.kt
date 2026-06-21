@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.soluna.ui.autotest.appium.driver.DriverElement
 import com.soluna.ui.autotest.appium.driver.DriverSession
 import com.soluna.ui.autotest.appium.driver.DriverWaitOptions
+import com.soluna.ui.autotest.appium.driver.ElementRect
 import com.soluna.ui.autotest.appium.driver.ScreenRecordingData
 import com.soluna.ui.autotest.appium.driver.ScreenRecordingOptions
 import com.soluna.ui.autotest.appium.driver.ScreenshotData
@@ -24,10 +25,13 @@ import java.awt.image.BufferedImage
 import java.io.ByteArrayOutputStream
 import java.nio.file.Files
 import java.nio.file.Path
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 import javax.imageio.ImageIO
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 class WebDriverActionExecutorsTest {
     private val objectMapper = ObjectMapper()
@@ -137,6 +141,112 @@ class WebDriverActionExecutorsTest {
         assertEquals(ExecutionStatus.PASSED, result.status)
         assertEquals(listOf("screenshot:session-1", "tapViewport:session-1:0.25:0.2"), driver.calls)
         assertEquals(listOf(800L), sleeper.delays)
+        Files.deleteIfExists(template)
+    }
+
+    @Test
+    fun `save element rect action can store full-width roi from element y and height`() {
+        val driver = RecordingWebDriverAdapter(
+            elementRect = ElementRect(
+                x = 40,
+                y = 20,
+                width = 30,
+                height = 40,
+                viewportWidth = 100,
+                viewportHeight = 200,
+            ),
+        )
+        val executor = SaveElementRectActionExecutor(driver)
+        val context = context(currentCaseId = "case-1")
+        val action = ActionDefinition(
+            id = "save-title-bar-roi",
+            keyword = "saveElementRect",
+            locator = LocatorDefinition(
+                strategy = "id",
+                value = "title",
+            ),
+            args = mapOf(
+                "saveAs" to objectMapper.valueToTree("titleBarRoi"),
+                "asRoi" to objectMapper.valueToTree(true),
+                "fullWidth" to objectMapper.valueToTree(true),
+            ),
+        )
+
+        val result = executor.execute(action, context)
+        val roi = context.variables.get("case", "titleBarRoi", "_:case-1")
+
+        assertEquals(ExecutionStatus.PASSED, result.status)
+        assertEquals(listOf("find:session-1:id=title:null", "rect:element-1"), driver.calls)
+        assertEquals(0.0, roi?.get("x")?.asDouble())
+        assertEquals(0.1, roi?.get("y")?.asDouble())
+        assertEquals(1.0, roi?.get("width")?.asDouble())
+        assertEquals(0.2, roi?.get("height")?.asDouble())
+    }
+
+    @Test
+    fun `tap visual template action can retry and use runtime roi variable`() {
+        val template = kotlin.io.path.createTempFile(suffix = ".png")
+        Files.write(template, byteArrayOf(1, 2, 3))
+        val driver = RecordingWebDriverAdapter(
+            screenshotData = pngBytes(width = 100, height = 200),
+        )
+        val context = context(currentCaseId = "case-1")
+        context.variables.set(
+            scope = "case",
+            name = "titleBarRoi",
+            value = objectMapper.createObjectNode().also { roi ->
+                roi.put("x", 0.0)
+                roi.put("y", 0.1)
+                roi.put("width", 1.0)
+                roi.put("height", 0.2)
+            },
+            caseId = "_:case-1",
+        )
+        var matchAttempts = 0
+        val matcher = object : VisualTemplateMatcher {
+            override fun find(
+                screenshot: ByteArray,
+                template: ByteArray,
+                targetName: String,
+                threshold: Double,
+                scales: List<Double>,
+                roi: Region?,
+            ): MatchResult? {
+                assertEquals(Region(0, 20, 100, 40), roi)
+                matchAttempts += 1
+                return if (matchAttempts == 1) {
+                    null
+                } else {
+                    MatchResult("tap-template", Region(80, 25, 10, 10), 0.95, 1.0, 0)
+                }
+            }
+        }
+        val sleeper = RecordingSleeper()
+        val executor = TapVisualTemplateActionExecutor(driver, matcher, sleeper)
+        val action = ActionDefinition(
+            id = "tap-template",
+            keyword = "tapVisualTemplate",
+            args = mapOf(
+                "template" to objectMapper.valueToTree(template.toString()),
+                "threshold" to objectMapper.valueToTree(0.9),
+                "roi" to objectMapper.valueToTree("@{case.titleBarRoi}"),
+            ),
+            wait = WaitDefinition(timeoutMs = 1000, intervalMs = 250),
+        )
+
+        val result = executor.execute(action, context)
+
+        assertEquals(ExecutionStatus.PASSED, result.status)
+        assertEquals(2, matchAttempts)
+        assertEquals(
+            listOf(
+                "screenshot:session-1",
+                "screenshot:session-1",
+                "tapViewport:session-1:0.85:0.15",
+            ),
+            driver.calls,
+        )
+        assertEquals(listOf(250L, 800L), sleeper.delays)
         Files.deleteIfExists(template)
     }
 
@@ -415,6 +525,98 @@ class WebDriverActionExecutorsTest {
     }
 
     @Test
+    fun `screen recording text assertion continues after candidate recognizer failure`() {
+        val frames = List(2) { kotlin.io.path.createTempFile(suffix = ".png") }
+        frames.forEachIndexed { index, frame ->
+            java.nio.file.Files.write(frame, byteArrayOf(index.toByte()))
+        }
+        val extractor = RecordingFrameExtractor(frames)
+        val selector = RecordingCandidateSelector(frames)
+        val seen = mutableListOf<Path>()
+        val recognizer = object : VisualTextRecognizer {
+            override fun recognize(imagePath: Path): List<String> {
+                seen.add(imagePath)
+                if (imagePath == frames[0]) {
+                    throw IllegalStateException("stream failed", java.io.InterruptedIOException("timeout"))
+                }
+                return listOf("提交成功")
+            }
+        }
+        val sink = RecordingPlanResourceSink()
+        val action = ActionDefinition(
+            id = "assert-toast",
+            keyword = "assertScreenRecordingTextRegexMatch",
+            resourceId = "toast-match",
+            value = objectMapper.valueToTree("提交成功"),
+            args = mapOf(
+                "source" to objectMapper.valueToTree(frames.first().toString()),
+            ),
+        )
+
+        val result = AssertScreenRecordingTextRegexMatchActionExecutor(
+            frameExtractor = extractor,
+            candidateSelector = selector,
+            textRecognizer = recognizer,
+            sink = sink,
+        ).execute(action, context())
+
+        assertEquals(ExecutionStatus.PASSED, result.status)
+        assertEquals(frames, seen)
+        assertEquals("screen_recording_text_match_frame", sink.resources.single().purpose)
+        frames.forEach { java.nio.file.Files.deleteIfExists(it) }
+    }
+
+    @Test
+    fun `screen recording text assertion recognizes multimodal candidates concurrently`() {
+        val frames = List(2) { kotlin.io.path.createTempFile(suffix = ".png") }
+        frames.forEachIndexed { index, frame ->
+            java.nio.file.Files.write(frame, byteArrayOf(index.toByte()))
+        }
+        val extractor = RecordingFrameExtractor(frames)
+        val selector = RecordingCandidateSelector(frames)
+        val firstStarted = CountDownLatch(1)
+        val releaseFirst = CountDownLatch(1)
+        val recognizer = object : VisualTextRecognizer {
+            override fun recognize(imagePath: Path): List<String> {
+                if (imagePath == frames[0]) {
+                    firstStarted.countDown()
+                    releaseFirst.await(2, TimeUnit.SECONDS)
+                    return emptyList()
+                }
+                assertTrue(firstStarted.await(1, TimeUnit.SECONDS))
+                releaseFirst.countDown()
+                return listOf("提交成功")
+            }
+        }
+        val sink = RecordingPlanResourceSink()
+        val action = ActionDefinition(
+            id = "assert-toast",
+            keyword = "assertScreenRecordingTextRegexMatch",
+            resourceId = "toast-match",
+            value = objectMapper.valueToTree("提交成功"),
+            args = mapOf(
+                "source" to objectMapper.valueToTree(frames.first().toString()),
+                "recognizer" to objectMapper.valueToTree("multimodal"),
+            ),
+        )
+
+        val startedAt = System.nanoTime()
+        val result = AssertScreenRecordingTextRegexMatchActionExecutor(
+            frameExtractor = extractor,
+            candidateSelector = selector,
+            textRecognizer = recognizer,
+            sink = sink,
+            multimodalCandidateParallelism = 2,
+        ).execute(action, context())
+        val elapsedMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startedAt)
+
+        assertEquals(ExecutionStatus.PASSED, result.status)
+        assertTrue(elapsedMs < 1_500, "expected concurrent recognition, elapsed=${elapsedMs}ms")
+        assertEquals("screen_recording_text_match_frame", sink.resources.single().purpose)
+        frames.forEach { java.nio.file.Files.deleteIfExists(it) }
+    }
+
+    @Test
     fun `screen recording text assertion passes candidate strategy to selector`() {
         val frames = List(3) { kotlin.io.path.createTempFile(suffix = ".png") }
         frames.forEachIndexed { index, frame ->
@@ -449,6 +651,39 @@ class WebDriverActionExecutorsTest {
     }
 
     @Test
+    fun `screen recording text assertion can select multimodal recognizer`() {
+        val frame = kotlin.io.path.createTempFile(suffix = ".png")
+        java.nio.file.Files.write(frame, byteArrayOf(1, 2, 3))
+        val extractor = RecordingFrameExtractor(listOf(frame))
+        val selector = RecordingCandidateSelector(listOf(frame))
+        val recognizer = RecordingTextRecognizer(mapOf(frame to listOf("问题描述不能超过200个字符")))
+        val provider = RecordingTextRecognizerProvider(recognizer)
+        val sink = RecordingPlanResourceSink()
+        val action = ActionDefinition(
+            id = "assert-toast",
+            keyword = "assertScreenRecordingTextRegexMatch",
+            resourceId = "toast-match",
+            value = objectMapper.valueToTree("问题描述.*200"),
+            args = mapOf(
+                "source" to objectMapper.valueToTree(frame.toString()),
+                "recognizer" to objectMapper.valueToTree("multimodal"),
+            ),
+        )
+
+        val result = AssertScreenRecordingTextRegexMatchActionExecutor(
+            frameExtractor = extractor,
+            candidateSelector = selector,
+            textRecognizerProvider = provider,
+            sink = sink,
+        ).execute(action, context())
+
+        assertEquals(ExecutionStatus.PASSED, result.status)
+        assertEquals(listOf(ScreenRecordingTextRecognizer.MULTIMODAL), provider.requested)
+        assertEquals(listOf(frame), recognizer.seen)
+        java.nio.file.Files.deleteIfExists(frame)
+    }
+
+    @Test
     fun `restart app action delegates app lifecycle command`() {
         val driver = RecordingWebDriverAdapter()
         val executor = RestartAppActionExecutor(driver)
@@ -479,6 +714,39 @@ class WebDriverActionExecutorsTest {
 
         assertEquals(ExecutionStatus.PASSED, result.status)
         assertEquals(listOf("restart:session-1:com.example.demo:DriverWaitOptions(timeoutMs=12000, intervalMs=250)"), driver.calls)
+    }
+
+    @Test
+    fun `clear app data action delegates app data reset command`() {
+        val driver = RecordingWebDriverAdapter()
+        val executor = ClearAppDataActionExecutor(driver)
+        val action = ActionDefinition(
+            id = "clear-app-data",
+            keyword = "clearAppData",
+            args = mapOf("appId" to objectMapper.valueToTree("com.example.demo")),
+        )
+
+        val result = executor.execute(action, context())
+
+        assertEquals(ExecutionStatus.PASSED, result.status)
+        assertEquals(listOf("clearData:session-1:com.example.demo:null"), driver.calls)
+    }
+
+    @Test
+    fun `clear app data action passes explicit wait to driver`() {
+        val driver = RecordingWebDriverAdapter()
+        val executor = ClearAppDataActionExecutor(driver)
+        val action = ActionDefinition(
+            id = "clear-app-data",
+            keyword = "clearAppData",
+            args = mapOf("appId" to objectMapper.valueToTree("com.example.demo")),
+            wait = WaitDefinition(timeoutMs = 20_000, intervalMs = 500),
+        )
+
+        val result = executor.execute(action, context())
+
+        assertEquals(ExecutionStatus.PASSED, result.status)
+        assertEquals(listOf("clearData:session-1:com.example.demo:DriverWaitOptions(timeoutMs=20000, intervalMs=500)"), driver.calls)
     }
 
     @Test
@@ -806,6 +1074,17 @@ class WebDriverActionExecutorsTest {
         }
     }
 
+    private class RecordingTextRecognizerProvider(
+        private val recognizer: VisualTextRecognizer,
+    ) : VisualTextRecognizerProvider {
+        val requested = mutableListOf<ScreenRecordingTextRecognizer>()
+
+        override fun recognizerFor(kind: ScreenRecordingTextRecognizer): VisualTextRecognizer {
+            requested += kind
+            return recognizer
+        }
+    }
+
     private object PassThroughCandidateSelector : VisualFrameCandidateSelector {
         override fun selectCandidates(
             frames: List<Path>,
@@ -846,6 +1125,7 @@ class WebDriverActionExecutorsTest {
         private val pageSource: String = "",
         private val pageSources: List<String> = emptyList(),
         private val screenshotData: ByteArray = byteArrayOf(1, 2, 3),
+        private val elementRect: ElementRect = ElementRect(0, 0, 10, 10, 100, 100),
         private val findFailuresBeforeSuccess: Int = 0,
     ) : WebDriverAdapter {
         val calls = mutableListOf<String>()
@@ -926,6 +1206,14 @@ class WebDriverActionExecutorsTest {
             return attributes[name]
         }
 
+        override fun getElementRect(
+            sessionId: String,
+            element: DriverElement,
+        ): ElementRect {
+            calls += "rect:${element.elementId}"
+            return elementRect
+        }
+
         override fun getPageSource(sessionId: String): String {
             calls += "source:$sessionId"
             if (pageSources.isNotEmpty()) {
@@ -942,6 +1230,14 @@ class WebDriverActionExecutorsTest {
             wait: DriverWaitOptions?,
         ) {
             calls += "restart:$sessionId:$appId:$wait"
+        }
+
+        override fun clearAppData(
+            sessionId: String,
+            appId: String,
+            wait: DriverWaitOptions?,
+        ) {
+            calls += "clearData:$sessionId:$appId:$wait"
         }
 
         override fun takeScreenshot(sessionId: String): ScreenshotData {

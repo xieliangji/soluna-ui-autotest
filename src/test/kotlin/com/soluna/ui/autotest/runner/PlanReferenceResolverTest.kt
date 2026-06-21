@@ -182,6 +182,65 @@ class PlanReferenceResolverTest {
     }
 
     @Test
+    fun `skips element catalog entries that do not support current platform`() {
+        val root = Files.createTempDirectory("soluna-platform-element-skip-test")
+        write(
+            root.resolve("plans/profile.yaml"),
+            """
+            schemaVersion: "1.0"
+            id: profile-plan
+            name: Profile Plan
+            deviceConfig: ../devices/ios.yaml
+            app:
+              platform: ios
+            stages:
+              - id: main
+                name: Main
+                caseRefs:
+                  - file: ../cases/profile.yaml
+            """.trimIndent(),
+        )
+        write(
+            root.resolve("cases/profile.yaml"),
+            """
+            schemaVersion: "1.0"
+            id: edit-profile
+            name: Edit Profile
+            elementRefs:
+              - id: common
+                file: ../elements/common.yaml
+            actions:
+              - tap: tap-profile
+                element: common.entry
+            """.trimIndent(),
+        )
+        write(
+            root.resolve("elements/common.yaml"),
+            """
+            schemaVersion: "1.0"
+            id: common-elements
+            elements:
+              entry:
+                ios:
+                  strategy: accessibility id
+                  value: profile_entry
+              androidOnlyPasswordToggle:
+                android:
+                  strategy: id
+                  value: com.example.android:id/toggle
+            """.trimIndent(),
+        )
+
+        val planPath = root.resolve("plans/profile.yaml")
+        val parsed = YamlPlanParser().parse(Files.readString(planPath))
+        val assembled = PlanReferenceResolver().resolve(parsed, planPath)
+        val action = assembled.stages.single().cases.single().actions.single()
+
+        assertEquals("accessibility id", action.locator?.strategy)
+        assertEquals("profile_entry", action.locator?.value)
+    }
+
+    @Test
     fun `resolves element references inside fragment control flow`() {
         val root = Files.createTempDirectory("soluna-fragment-if-resolver-test")
         write(
@@ -254,6 +313,80 @@ class PlanReferenceResolverTest {
         assertEquals(null, ifAction.conditionAction?.element)
         assertEquals("com.example:id/mine_tab", ifAction.elseActions.single().locator?.value)
         assertEquals(null, ifAction.elseActions.single().element)
+    }
+
+    @Test
+    fun `does not resolve unreferenced fragments for current platform`() {
+        val root = Files.createTempDirectory("soluna-unreferenced-fragment-platform-test")
+        write(
+            root.resolve("plans/app-state.yaml"),
+            """
+            schemaVersion: "1.0"
+            id: app-state-plan
+            name: App State Plan
+            deviceConfig: ../devices/ios.yaml
+            app:
+              platform: ios
+            fragmentRefs:
+              - id: app
+                file: ../fragments/app-state.yaml
+            stages:
+              - id: main
+                name: Main
+                setupFragments:
+                  - app.iosReady
+                cases:
+                  - id: noop
+                    name: Noop
+                    actions:
+                      - wait: noop
+                        durationMs: 0
+            """.trimIndent(),
+        )
+        write(
+            root.resolve("fragments/app-state.yaml"),
+            """
+            schemaVersion: "1.0"
+            id: app-state
+            fragments:
+              iosReady:
+                elementRefs:
+                  - id: common
+                    file: ../elements/common.yaml
+                actions:
+                  - tap: open-ios-entry
+                    element: common.iosEntry
+              androidOnlySetup:
+                elementRefs:
+                  - id: common
+                    file: ../elements/common.yaml
+                actions:
+                  - tap: open-android-entry
+                    element: common.androidEntry
+            """.trimIndent(),
+        )
+        write(
+            root.resolve("elements/common.yaml"),
+            """
+            schemaVersion: "1.0"
+            id: app-state-elements
+            elements:
+              iosEntry:
+                ios:
+                  strategy: accessibility id
+                  value: ios_entry
+              androidEntry:
+                android:
+                  strategy: id
+                  value: com.example.android:id/entry
+            """.trimIndent(),
+        )
+
+        val planPath = root.resolve("plans/app-state.yaml")
+        val parsed = YamlPlanParser().parse(Files.readString(planPath))
+        val assembled = PlanReferenceResolver().resolve(parsed, planPath)
+
+        assertEquals("ios_entry", assembled.stages.single().setupActions.single().locator?.value)
     }
 
     @Test

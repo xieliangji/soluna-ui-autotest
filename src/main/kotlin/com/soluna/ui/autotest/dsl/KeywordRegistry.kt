@@ -24,7 +24,9 @@ object DefaultKeywordRegistry : KeywordRegistry {
             "tapVisualTemplate" to setOf("tapImage", "tapTemplate", "视觉点击", "模板点击", "图片点击"),
             "input" to setOf("type", "输入", "录入"),
             "restartApp" to setOf("restart", "重启应用", "重启App", "重启APP"),
+            "clearAppData" to setOf("clearApplicationData", "清除应用数据", "清理应用数据"),
             "getText" to setOf("readText", "saveText", "获取文本", "读取文本", "保存文本"),
+            "saveElementRect" to setOf("getElementRect", "saveElementRegion", "获取元素矩形", "保存元素矩形", "保存元素区域"),
             "wait" to setOf("sleep", "pause", "等待", "暂停"),
             "assertElementExists" to setOf(
                 "elementExists",

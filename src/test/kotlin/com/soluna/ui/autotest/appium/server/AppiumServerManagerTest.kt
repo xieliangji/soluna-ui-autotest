@@ -4,6 +4,7 @@ import com.soluna.ui.autotest.tool.FfmpegToolResolution
 import com.soluna.ui.autotest.tool.FfmpegToolResolver
 import com.soluna.ui.autotest.tool.FfmpegToolSource
 import com.soluna.ui.autotest.tool.NoOpFfmpegToolResolver
+import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -81,11 +82,13 @@ class AppiumServerManagerTest {
         val process = FakeAppiumServerProcess(pid = 101)
         val launcher = RecordingAppiumProcessLauncher(process)
         val probe = RecordingStatusProbe(true)
+        val extensionInstaller = RecordingAppiumExtensionInstaller()
         val manager = LocalProcessAppiumServerManager(
             processLauncher = launcher,
             statusProbe = probe,
             portAllocator = FixedPortAllocator(49123),
             ffmpegToolResolver = NoOpFfmpegToolResolver,
+            extensionInstaller = extensionInstaller,
             sleeper = {},
         )
 
@@ -114,6 +117,9 @@ class AppiumServerManagerTest {
         assertEquals(101, handle.processId)
         assertTrue(handle.managed)
         assertEquals("/Users/demo/Library/Android/sdk", launcher.environment["ANDROID_HOME"])
+        assertEquals("appium", extensionInstaller.appiumExecutable)
+        assertEquals(listOf("soluna-ext"), extensionInstaller.pluginNames)
+        assertEquals(listOf("uiautomator2", "xcuitest"), extensionInstaller.driverNames)
         assertEquals(1, probe.urls.size)
         assertTrue(manager.isRunning(handle))
 
@@ -124,12 +130,50 @@ class AppiumServerManagerTest {
     }
 
     @Test
+    fun `local process manager bootstraps configured plugins and drivers before launch`() {
+        val process = FakeAppiumServerProcess(pid = 102)
+        val launcher = RecordingAppiumProcessLauncher(process)
+        val extensionInstaller = RecordingAppiumExtensionInstaller()
+        val manager = LocalProcessAppiumServerManager(
+            processLauncher = launcher,
+            statusProbe = RecordingStatusProbe(true),
+            portAllocator = FixedPortAllocator(49125),
+            ffmpegToolResolver = NoOpFfmpegToolResolver,
+            extensionInstaller = extensionInstaller,
+            sleeper = {},
+        )
+
+        manager.ensureRunning(
+            AppiumServerConfig(
+                managed = true,
+                usePlugins = listOf("soluna-ext", "images"),
+                ensureDrivers = listOf("uiautomator2", "xcuitest"),
+            ),
+        )
+
+        assertEquals(listOf("soluna-ext", "images"), extensionInstaller.pluginNames)
+        assertEquals(listOf("uiautomator2", "xcuitest"), extensionInstaller.driverNames)
+        assertEquals(
+            listOf(
+                "appium",
+                "--address",
+                "127.0.0.1",
+                "--port",
+                "49125",
+                "--use-plugins=soluna-ext,images",
+            ),
+            launcher.command,
+        )
+    }
+
+    @Test
     fun `local process manager does not launch process for external server`() {
         val launcher = RecordingAppiumProcessLauncher(FakeAppiumServerProcess(pid = 101))
         val manager = LocalProcessAppiumServerManager(
             processLauncher = launcher,
             statusProbe = RecordingStatusProbe(true),
             ffmpegToolResolver = NoOpFfmpegToolResolver,
+            extensionInstaller = NoOpAppiumExtensionInstaller,
             sleeper = {},
         )
 
@@ -153,6 +197,7 @@ class AppiumServerManagerTest {
             processLauncher = RecordingAppiumProcessLauncher(process),
             statusProbe = RecordingStatusProbe(false),
             ffmpegToolResolver = NoOpFfmpegToolResolver,
+            extensionInstaller = NoOpAppiumExtensionInstaller,
             probeIntervalMs = 1,
             sleeper = {},
         )
@@ -178,6 +223,7 @@ class AppiumServerManagerTest {
             processLauncher = RecordingAppiumProcessLauncher(process),
             statusProbe = RecordingStatusProbe(false),
             ffmpegToolResolver = NoOpFfmpegToolResolver,
+            extensionInstaller = NoOpAppiumExtensionInstaller,
             sleeper = {},
         )
 
@@ -202,6 +248,7 @@ class AppiumServerManagerTest {
             statusProbe = RecordingStatusProbe(true),
             portAllocator = FixedPortAllocator(49124),
             ffmpegToolResolver = FixedFfmpegToolResolver(Path.of("/opt/soluna/tools/ffmpeg/macos-arm64")),
+            extensionInstaller = NoOpAppiumExtensionInstaller,
             sleeper = {},
         )
 
@@ -215,6 +262,127 @@ class AppiumServerManagerTest {
         assertEquals(
             "/opt/soluna/tools/ffmpeg/macos-arm64${java.io.File.pathSeparator}/usr/bin",
             launcher.environment["PATH"],
+        )
+    }
+
+    @Test
+    fun `extension installer installs missing soluna plugin and drivers`() {
+        val sourceDir = tempPluginSource()
+        val runner = RecordingAppiumExtensionCommandRunner(
+            AppiumExtensionCommandResult(exitCode = 0, stdout = "{}"),
+            AppiumExtensionCommandResult(exitCode = 0, stdout = "{}"),
+            AppiumExtensionCommandResult(exitCode = 0),
+            AppiumExtensionCommandResult(exitCode = 0),
+            AppiumExtensionCommandResult(exitCode = 0),
+            AppiumExtensionCommandResult(exitCode = 0),
+            AppiumExtensionCommandResult(exitCode = 0),
+        )
+        val installer = LocalAppiumExtensionInstaller(
+            commandRunner = runner,
+            sourceResolver = FixedPluginSourceResolver(sourceDir),
+        )
+
+        installer.ensureExtensions(
+            appiumExecutable = "/opt/homebrew/bin/appium",
+            pluginNames = listOf("soluna-ext"),
+            driverNames = listOf("uiautomator2", "xcuitest"),
+        )
+
+        assertEquals(
+            listOf(
+                listOf("/opt/homebrew/bin/appium", "plugin", "list", "--installed", "--json", "--verbose"),
+                listOf("npm", "ci"),
+                listOf("npm", "run", "build"),
+                listOf("/opt/homebrew/bin/appium", "plugin", "install", "--source=local", sourceDir.toString()),
+                listOf("/opt/homebrew/bin/appium", "driver", "list", "--installed", "--json", "--verbose"),
+                listOf("/opt/homebrew/bin/appium", "driver", "install", "uiautomator2"),
+                listOf("/opt/homebrew/bin/appium", "driver", "install", "xcuitest"),
+            ),
+            runner.commands,
+        )
+    }
+
+    @Test
+    fun `extension installer reinstalls soluna plugin when installed source is not project source`() {
+        val sourceDir = tempPluginSource()
+        val runner = RecordingAppiumExtensionCommandRunner(
+            AppiumExtensionCommandResult(
+                exitCode = 0,
+                stdout = """
+                    {
+                      "soluna-ext": {
+                        "installType": "local",
+                        "installSpec": "/tmp/old-soluna-appium-ext",
+                        "installPath": "/Users/demo/.appium/node_modules/soluna-appium-ext",
+                        "installed": true
+                      }
+                    }
+                """.trimIndent(),
+            ),
+            AppiumExtensionCommandResult(exitCode = 0),
+            AppiumExtensionCommandResult(exitCode = 0),
+            AppiumExtensionCommandResult(exitCode = 0),
+            AppiumExtensionCommandResult(exitCode = 0),
+            AppiumExtensionCommandResult(exitCode = 0, stdout = "{}"),
+        )
+        val installer = LocalAppiumExtensionInstaller(
+            commandRunner = runner,
+            sourceResolver = FixedPluginSourceResolver(sourceDir),
+        )
+
+        installer.ensureExtensions(
+            appiumExecutable = "/opt/homebrew/bin/appium",
+            pluginNames = listOf("soluna-ext"),
+            driverNames = emptyList(),
+        )
+
+        assertEquals(
+            listOf(
+                listOf("/opt/homebrew/bin/appium", "plugin", "list", "--installed", "--json", "--verbose"),
+                listOf("/opt/homebrew/bin/appium", "plugin", "uninstall", "soluna-ext"),
+                listOf("npm", "ci"),
+                listOf("npm", "run", "build"),
+                listOf("/opt/homebrew/bin/appium", "plugin", "install", "--source=local", sourceDir.toString()),
+            ),
+            runner.commands.take(5),
+        )
+    }
+
+    @Test
+    fun `extension installer keeps soluna plugin when installed source is project source`() {
+        val sourceDir = tempPluginSource()
+        val runner = RecordingAppiumExtensionCommandRunner(
+            AppiumExtensionCommandResult(
+                exitCode = 0,
+                stdout = """
+                    {
+                      "soluna-ext": {
+                        "installType": "local",
+                        "installSpec": "$sourceDir",
+                        "installPath": "$sourceDir",
+                        "installed": true
+                      }
+                    }
+                """.trimIndent(),
+            ),
+            AppiumExtensionCommandResult(exitCode = 0, stdout = "{}"),
+        )
+        val installer = LocalAppiumExtensionInstaller(
+            commandRunner = runner,
+            sourceResolver = FixedPluginSourceResolver(sourceDir),
+        )
+
+        installer.ensureExtensions(
+            appiumExecutable = "/opt/homebrew/bin/appium",
+            pluginNames = listOf("soluna-ext"),
+            driverNames = emptyList(),
+        )
+
+        assertEquals(
+            listOf(
+                listOf("/opt/homebrew/bin/appium", "plugin", "list", "--installed", "--json", "--verbose"),
+            ),
+            runner.commands,
         )
     }
 
@@ -232,6 +400,55 @@ class AppiumServerManagerTest {
             this.environment = environment
             return process
         }
+    }
+
+    private class RecordingAppiumExtensionInstaller : AppiumExtensionInstaller {
+        var appiumExecutable: String? = null
+        var pluginNames: List<String> = emptyList()
+        var driverNames: List<String> = emptyList()
+        var environment: Map<String, String> = emptyMap()
+
+        override fun ensureExtensions(
+            appiumExecutable: String,
+            pluginNames: List<String>,
+            driverNames: List<String>,
+            environment: Map<String, String>,
+        ) {
+            this.appiumExecutable = appiumExecutable
+            this.pluginNames = pluginNames
+            this.driverNames = driverNames
+            this.environment = environment
+        }
+    }
+
+    private class RecordingAppiumExtensionCommandRunner(
+        private vararg val results: AppiumExtensionCommandResult,
+    ) : AppiumExtensionCommandRunner {
+        val commands = mutableListOf<List<String>>()
+
+        override fun run(
+            command: List<String>,
+            workingDirectory: Path?,
+            environment: Map<String, String>,
+            timeoutMs: Long,
+        ): AppiumExtensionCommandResult {
+            commands += command
+            return results.getOrElse(commands.lastIndex) { AppiumExtensionCommandResult(exitCode = 0) }
+        }
+    }
+
+    private class FixedPluginSourceResolver(
+        private val sourceDir: Path,
+    ) : AppiumPluginSourceResolver {
+        override fun sourceFor(pluginName: String): Path? {
+            return if (pluginName == "soluna-ext") sourceDir else null
+        }
+    }
+
+    private fun tempPluginSource(): Path {
+        val sourceDir = Files.createTempDirectory("soluna-appium-ext-test")
+        Files.writeString(sourceDir.resolve("package.json"), """{"name":"soluna-appium-ext"}""")
+        return sourceDir.toAbsolutePath().normalize()
     }
 
     private class RecordingStatusProbe(

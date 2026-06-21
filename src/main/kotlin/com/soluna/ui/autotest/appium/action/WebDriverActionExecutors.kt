@@ -1,6 +1,7 @@
 package com.soluna.ui.autotest.appium.action
 
 import com.fasterxml.jackson.databind.JsonNode
+import com.fasterxml.jackson.databind.node.JsonNodeFactory
 import com.fasterxml.jackson.databind.node.TextNode
 import com.soluna.ktvisual.api.Visual
 import com.soluna.ktvisual.model.MatchOptions
@@ -17,6 +18,7 @@ import com.soluna.ui.autotest.appium.action.resolveRuntimeText
 import com.soluna.ui.autotest.appium.action.toDriverWaitOptions
 import com.soluna.ui.autotest.appium.driver.DriverElement
 import com.soluna.ui.autotest.appium.driver.DriverWaitOptions
+import com.soluna.ui.autotest.appium.driver.ElementRect
 import com.soluna.ui.autotest.appium.driver.ScreenRecordingOptions
 import com.soluna.ui.autotest.appium.driver.ScreenshotData
 import com.soluna.ui.autotest.appium.driver.WebDriverAdapter
@@ -34,6 +36,12 @@ import java.io.ByteArrayInputStream
 import java.awt.image.BufferedImage
 import java.nio.file.Files
 import java.nio.file.Path
+import java.util.concurrent.Callable
+import java.util.concurrent.ExecutionException
+import java.util.concurrent.ExecutorCompletionService
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 import javax.imageio.ImageIO
 
 class TapActionExecutor(
@@ -145,39 +153,62 @@ class TapVisualTemplateActionExecutor(
         }
 
         val sessionId = context.requireDriverSessionId()
-        val screenshot = driver.takeScreenshot(sessionId)
-        val screenshotImage = ImageIO.read(ByteArrayInputStream(screenshot.bytes))
-            ?: error("Tap visual template action '${action.id ?: action.keyword}' could not read current screenshot")
-        val roi = action.args["roi"]?.toFrameRoi(action.id ?: action.keyword)
-        val match = runCatching {
-            matcher.find(
-                screenshot = screenshot.bytes,
-                template = Files.readAllBytes(templatePath),
-                targetName = action.id ?: templatePath.fileName.toString(),
-                threshold = threshold,
-                scales = scales,
-                roi = roi?.toRegion(screenshotImage.width, screenshotImage.height),
-            )
-        }.getOrElse { err ->
-            return ActionExecutionResult.failed("Visual template match failed: ${err.message ?: err::class.simpleName}")
-        } ?: return ActionExecutionResult.failed("Visual template '${templatePath.fileName}' was not found")
-        if (match.score < threshold) {
-            return ActionExecutionResult.failed(
-                "Visual template '${templatePath.fileName}' score ${match.score} is below threshold $threshold",
-            )
+        val templateBytes = Files.readAllBytes(templatePath)
+        val roi = action.args["roi"]?.toFrameRoi(action.id ?: action.keyword, context)
+        val timeoutMs = action.wait?.timeoutMs ?: 0
+        val intervalMs = action.wait?.intervalMs?.takeIf { it > 0 } ?: 500
+        val attempts = if (timeoutMs <= 0) {
+            1
+        } else {
+            ((timeoutMs + intervalMs - 1) / intervalMs + 1)
+                .coerceAtMost(Int.MAX_VALUE.toLong())
+                .toInt()
+        }.coerceAtLeast(1)
+
+        var lastFailure = "Visual template '${templatePath.fileName}' was not found"
+        repeat(attempts) { attempt ->
+            val screenshot = driver.takeScreenshot(sessionId)
+            val screenshotImage = ImageIO.read(ByteArrayInputStream(screenshot.bytes))
+                ?: error("Tap visual template action '${action.id ?: action.keyword}' could not read current screenshot")
+            var matcherFailure: String? = null
+            val match = runCatching {
+                matcher.find(
+                    screenshot = screenshot.bytes,
+                    template = templateBytes,
+                    targetName = action.id ?: templatePath.fileName.toString(),
+                    threshold = threshold,
+                    scales = scales,
+                    roi = roi?.toRegion(screenshotImage.width, screenshotImage.height),
+                )
+            }.getOrElse { err ->
+                matcherFailure = "Visual template match failed: ${err.message ?: err::class.simpleName}"
+                null
+            }
+            if (matcherFailure != null) {
+                lastFailure = matcherFailure
+            } else if (match == null) {
+                lastFailure = "Visual template '${templatePath.fileName}' was not found"
+            } else if (match.score < threshold) {
+                lastFailure = "Visual template '${templatePath.fileName}' score ${match.score} is below threshold $threshold"
+            } else {
+                val targetX = match.bounds.x + match.bounds.width * targetXRatio
+                val targetY = match.bounds.y + match.bounds.height * targetYRatio
+                driver.tapViewport(
+                    sessionId = sessionId,
+                    xRatio = targetX / screenshotImage.width,
+                    yRatio = targetY / screenshotImage.height,
+                )
+                val settleMs = action.args["settleMs"]?.asLongOrNull() ?: defaultSettleMs
+                if (settleMs > 0) {
+                    sleeper.sleep(settleMs)
+                }
+                return ActionExecutionResult.passed("visual template tapped with score ${match.score}")
+            }
+            if (attempt < attempts - 1) {
+                sleeper.sleep(intervalMs)
+            }
         }
-        val targetX = match.bounds.x + match.bounds.width * targetXRatio
-        val targetY = match.bounds.y + match.bounds.height * targetYRatio
-        driver.tapViewport(
-            sessionId = sessionId,
-            xRatio = targetX / screenshotImage.width,
-            yRatio = targetY / screenshotImage.height,
-        )
-        val settleMs = action.args["settleMs"]?.asLongOrNull() ?: defaultSettleMs
-        if (settleMs > 0) {
-            sleeper.sleep(settleMs)
-        }
-        return ActionExecutionResult.passed("visual template tapped with score ${match.score}")
+        return ActionExecutionResult.failed(lastFailure)
     }
 }
 
@@ -315,8 +346,10 @@ class StopScreenRecordingActionExecutor(
 class AssertScreenRecordingTextRegexMatchActionExecutor(
     private val frameExtractor: VideoFrameExtractor = FfmpegVideoFrameExtractor(),
     private val candidateSelector: VisualFrameCandidateSelector = KtVisualFrameCandidateSelector,
-    private val textRecognizer: VisualTextRecognizer = KtVisualTextRecognizer,
+    private val textRecognizer: VisualTextRecognizer? = null,
+    private val textRecognizerProvider: VisualTextRecognizerProvider = DefaultVisualTextRecognizerProvider,
     private val sink: PlanResourceSink = NoOpPlanResourceSink,
+    private val multimodalCandidateParallelism: Int = defaultMultimodalCandidateParallelism(),
 ) : ActionExecutor {
     override val keyword: String = "assertScreenRecordingTextRegexMatch"
 
@@ -337,6 +370,10 @@ class AssertScreenRecordingTextRegexMatchActionExecutor(
         val candidateStrategy = action.args["candidateStrategy"]?.asTextOrNull()
             ?.let { FrameCandidateStrategy.fromExternalName(it, action.id ?: action.keyword) }
             ?: FrameCandidateStrategy.VISUAL_DIFF
+        val recognizerKind = action.args["recognizer"]?.asTextOrNull()
+            ?.let { ScreenRecordingTextRecognizer.fromExternalName(it, action.id ?: action.keyword) }
+            ?: ScreenRecordingTextRecognizer.PADDLE
+        val recognizer = textRecognizer ?: textRecognizerProvider.recognizerFor(recognizerKind)
         val visualDifferenceThreshold = action.args["visualDifferenceThreshold"]?.asDoubleOrNull() ?: 0.01
         require(candidateMaxFrames > 0) {
             "Screen recording text assertion action '${action.id ?: action.keyword}' requires candidateMaxFrames > 0"
@@ -345,7 +382,7 @@ class AssertScreenRecordingTextRegexMatchActionExecutor(
             "Screen recording text assertion action '${action.id ?: action.keyword}' requires visualDifferenceThreshold >= 0"
         }
         val frameDir = videoPath.parent.resolve("${videoPath.fileName.toString().substringBeforeLast('.')}-frames")
-        val roi = action.args["roi"]?.toFrameRoi(action.id ?: action.keyword)
+        val roi = action.args["roi"]?.toFrameRoi(action.id ?: action.keyword, context)
         val roiDir = roi?.let {
             Files.createDirectories(frameDir.resolve("roi"))
         }
@@ -372,17 +409,13 @@ class AssertScreenRecordingTextRegexMatchActionExecutor(
             differenceThreshold = visualDifferenceThreshold,
             strategy = candidateStrategy,
         )
-        val observations = mutableListOf<String>()
-        val match = candidates.firstNotNullOfOrNull { analysisFrame ->
-            val texts = textRecognizer.recognize(analysisFrame)
-            val combined = texts.joinToString(separator = "\n")
-            observations += combined
-            if (pattern.containsMatchIn(combined)) {
-                analysisFrame
-            } else {
-                null
-            }
-        }
+        val recognition = recognizeCandidates(
+            candidates = candidates,
+            recognizer = recognizer,
+            pattern = pattern,
+            parallelism = recognitionParallelism(recognizerKind, candidates.size),
+        )
+        val match = recognition.match
 
         if (match != null) {
             sink.accept(
@@ -402,12 +435,168 @@ class AssertScreenRecordingTextRegexMatchActionExecutor(
             return ActionExecutionResult.passed("screen recording text regex match passed")
         }
 
+        val observedText = recognition.observations.joinToString(separator = "\n---\n").take(1000)
+        val observedErrors = recognition.errors.joinToString(separator = "\n---\n").take(1000)
+        val detail = listOfNotNull(
+            observedText.takeIf { it.isNotBlank() }?.let { "OCR text was: $it" },
+            observedErrors.takeIf { it.isNotBlank() }?.let { "OCR errors were: $it" },
+        ).joinToString(separator = "; ").ifBlank { "OCR produced no text or errors" }
         return ActionExecutionResult.failed(
-            "Expected screen recording candidate frames to match '${pattern.pattern}', OCR text was: " +
-                observations.joinToString(separator = "\n---\n").take(1000),
+            "Expected screen recording candidate frames to match '${pattern.pattern}', $detail",
         )
     }
+
+    private fun recognitionParallelism(
+        recognizerKind: ScreenRecordingTextRecognizer,
+        candidateCount: Int,
+    ): Int =
+        when (recognizerKind) {
+            ScreenRecordingTextRecognizer.PADDLE -> 1
+            ScreenRecordingTextRecognizer.MULTIMODAL -> multimodalCandidateParallelism.coerceIn(1, candidateCount)
+        }
+
+    private fun recognizeCandidates(
+        candidates: List<Path>,
+        recognizer: VisualTextRecognizer,
+        pattern: Regex,
+        parallelism: Int,
+    ): CandidateRecognitionSummary {
+        if (parallelism <= 1 || candidates.size <= 1) {
+            return recognizeCandidatesSequentially(candidates, recognizer, pattern)
+        }
+        return recognizeCandidatesConcurrently(candidates, recognizer, pattern, parallelism)
+    }
+
+    private fun recognizeCandidatesSequentially(
+        candidates: List<Path>,
+        recognizer: VisualTextRecognizer,
+        pattern: Regex,
+    ): CandidateRecognitionSummary {
+        val observations = mutableListOf<String>()
+        val errors = mutableListOf<String>()
+        candidates.forEach { candidate ->
+            val result = recognizeCandidate(candidate, recognizer)
+            if (result.error != null) {
+                errors += result.errorMessage()
+                return@forEach
+            }
+            val combined = result.combinedText.orEmpty()
+            observations += combined
+            if (pattern.containsMatchIn(combined)) {
+                return CandidateRecognitionSummary(
+                    match = candidate,
+                    observations = observations,
+                    errors = errors,
+                )
+            }
+        }
+        return CandidateRecognitionSummary(match = null, observations = observations, errors = errors)
+    }
+
+    private fun recognizeCandidatesConcurrently(
+        candidates: List<Path>,
+        recognizer: VisualTextRecognizer,
+        pattern: Regex,
+        parallelism: Int,
+    ): CandidateRecognitionSummary {
+        val threadIndex = AtomicInteger()
+        val executor = Executors.newFixedThreadPool(parallelism) { runnable ->
+            Thread(runnable, "soluna-screen-recording-ocr-${threadIndex.incrementAndGet()}").apply {
+                isDaemon = true
+            }
+        }
+        val completion = ExecutorCompletionService<CandidateRecognitionResult>(executor)
+        val futures = candidates.map { candidate ->
+            completion.submit(Callable { recognizeCandidate(candidate, recognizer) })
+        }
+        val observations = mutableListOf<String>()
+        val errors = mutableListOf<String>()
+        try {
+            repeat(candidates.size) {
+                val result = try {
+                    completion.take().get()
+                } catch (err: InterruptedException) {
+                    Thread.currentThread().interrupt()
+                    throw IllegalStateException("Interrupted while waiting for OCR candidate recognition", err)
+                } catch (err: ExecutionException) {
+                    CandidateRecognitionResult(
+                        frame = Path.of("<unknown>"),
+                        combinedText = null,
+                        error = err.cause ?: err,
+                    )
+                }
+                if (result.error != null) {
+                    errors += result.errorMessage()
+                    return@repeat
+                }
+                val combined = result.combinedText.orEmpty()
+                observations += combined
+                if (pattern.containsMatchIn(combined)) {
+                    futures.forEach { it.cancel(true) }
+                    return CandidateRecognitionSummary(
+                        match = result.frame,
+                        observations = observations,
+                        errors = errors,
+                    )
+                }
+            }
+            return CandidateRecognitionSummary(match = null, observations = observations, errors = errors)
+        } finally {
+            executor.shutdownNow()
+            executor.awaitTermination(250, TimeUnit.MILLISECONDS)
+        }
+    }
+
+    private fun recognizeCandidate(
+        candidate: Path,
+        recognizer: VisualTextRecognizer,
+    ): CandidateRecognitionResult =
+        try {
+            CandidateRecognitionResult(
+                frame = candidate,
+                combinedText = recognizer.recognize(candidate).joinToString(separator = "\n"),
+                error = null,
+            )
+        } catch (err: Exception) {
+            CandidateRecognitionResult(frame = candidate, combinedText = null, error = err)
+        }
+
+    private fun CandidateRecognitionResult.errorMessage(): String =
+        "Candidate frame '$frame' OCR failed: ${error?.shortCauseChain() ?: "unknown error"}"
+
+    private fun Throwable.shortCauseChain(): String =
+        generateSequence(this) { it.cause }
+            .joinToString(separator = " <- ") { err ->
+                "${err::class.java.simpleName}: ${err.message ?: "no message"}"
+            }
+            .take(1000)
+
+    private data class CandidateRecognitionSummary(
+        val match: Path?,
+        val observations: List<String>,
+        val errors: List<String>,
+    )
+
+    private data class CandidateRecognitionResult(
+        val frame: Path,
+        val combinedText: String?,
+        val error: Throwable?,
+    )
 }
+
+private fun defaultMultimodalCandidateParallelism(): Int =
+    optionalRuntimeConfig(
+        property = "soluna.visual.ocr.multimodal.parallelism",
+        env = "SOLUNA_VISUAL_OCR_MULTIMODAL_PARALLELISM",
+    )?.toIntOrNull()
+        ?.coerceAtLeast(1)
+        ?.coerceAtMost(16)
+        ?: 4
+
+private fun optionalRuntimeConfig(property: String, env: String): String? =
+    System.getProperty(property)
+        ?.takeIf { it.isNotBlank() }
+        ?: System.getenv(env)?.takeIf { it.isNotBlank() }
 
 interface VisualFrameCandidateSelector {
     fun selectCandidates(
@@ -576,6 +765,28 @@ class RestartAppActionExecutor(
     }
 }
 
+class ClearAppDataActionExecutor(
+    private val driver: WebDriverAdapter,
+) : ActionExecutor {
+    override val keyword: String = "clearAppData"
+
+    override fun execute(
+        action: ActionDefinition,
+        context: ExecutionContext,
+    ): ActionExecutionResult {
+        val sessionId = context.requireDriverSessionId()
+        val appId = action.args["appId"]?.asTextOrNull()
+            ?: action.value?.takeIf { it.isTextual }?.asText()
+            ?: error("Clear app data action '${action.id ?: action.keyword}' requires args.appId or string value")
+        driver.clearAppData(
+            sessionId = sessionId,
+            appId = appId,
+            wait = action.wait.toDriverWaitOptions(),
+        )
+        return ActionExecutionResult.passed("app data cleared")
+    }
+}
+
 class GetTextActionExecutor(
     private val driver: WebDriverAdapter,
 ) : ActionExecutor {
@@ -602,6 +813,107 @@ class GetTextActionExecutor(
             caseId = context.caseVariableScopeId(),
         )
         return ActionExecutionResult.passed("saved text to $scope.$saveAs")
+    }
+}
+
+class SaveElementRectActionExecutor(
+    private val driver: WebDriverAdapter,
+) : ActionExecutor {
+    override val keyword: String = "saveElementRect"
+
+    override fun execute(
+        action: ActionDefinition,
+        context: ExecutionContext,
+    ): ActionExecutionResult {
+        val sessionId = context.requireDriverSessionId()
+        val saveAs = action.args["saveAs"]?.asTextOrNull()
+            ?: error("Save element rect action '${action.id ?: action.keyword}' requires args.saveAs")
+        val scope = action.args["scope"]?.asTextOrNull() ?: "case"
+        val element = driver.findElement(
+            sessionId = sessionId,
+            locator = action.requireLocator(),
+            wait = action.wait.toDriverWaitOptions(),
+        )
+        val rect = driver.getElementRect(sessionId, element)
+        val value = if (action.args["asRoi"]?.asBooleanOrNull() == true) {
+            rect.toRoiNode(action)
+        } else {
+            rect.toRectNode()
+        }
+        context.variables.set(
+            scope = scope,
+            name = saveAs,
+            value = value,
+            caseId = context.caseVariableScopeId(),
+        )
+        return ActionExecutionResult.passed("saved element rect to $scope.$saveAs")
+    }
+
+    private fun ElementRect.toRectNode(): JsonNode {
+        return JsonNodeFactory.instance.objectNode().also { node ->
+            node.put("x", x)
+            node.put("y", y)
+            node.put("width", width)
+            node.put("height", height)
+            node.put("viewportWidth", viewportWidth)
+            node.put("viewportHeight", viewportHeight)
+        }
+    }
+
+    private fun ElementRect.toRoiNode(action: ActionDefinition): JsonNode {
+        require(viewportWidth > 0 && viewportHeight > 0) {
+            "Save element rect action '${action.id ?: action.keyword}' requires positive viewport size"
+        }
+        require(width > 0 && height > 0) {
+            "Save element rect action '${action.id ?: action.keyword}' requires an element with positive visible area"
+        }
+        val fullWidth = action.args["fullWidth"]?.asBooleanOrNull() ?: false
+        val fullHeight = action.args["fullHeight"]?.asBooleanOrNull() ?: false
+        val expandLeft = width * action.nonNegativeRatioArg("expandLeftRatio")
+        val expandRight = width * action.nonNegativeRatioArg("expandRightRatio")
+        val expandTop = height * action.nonNegativeRatioArg("expandTopRatio")
+        val expandBottom = height * action.nonNegativeRatioArg("expandBottomRatio")
+
+        val viewportRight = viewportWidth.toDouble()
+        val viewportBottom = viewportHeight.toDouble()
+        val left = if (fullWidth) {
+            0.0
+        } else {
+            (x - expandLeft).coerceIn(0.0, viewportRight)
+        }
+        val right = if (fullWidth) {
+            viewportRight
+        } else {
+            (x + width + expandRight).coerceIn(0.0, viewportRight)
+        }
+        val top = if (fullHeight) {
+            0.0
+        } else {
+            (y - expandTop).coerceIn(0.0, viewportBottom)
+        }
+        val bottom = if (fullHeight) {
+            viewportBottom
+        } else {
+            (y + height + expandBottom).coerceIn(0.0, viewportBottom)
+        }
+        require(right > left && bottom > top) {
+            "Save element rect action '${action.id ?: action.keyword}' produced an empty ROI"
+        }
+
+        return JsonNodeFactory.instance.objectNode().also { node ->
+            node.put("x", left / viewportWidth)
+            node.put("y", top / viewportHeight)
+            node.put("width", (right - left) / viewportWidth)
+            node.put("height", (bottom - top) / viewportHeight)
+        }
+    }
+
+    private fun ActionDefinition.nonNegativeRatioArg(name: String): Double {
+        val value = args[name]?.asDoubleOrNull() ?: return 0.0
+        require(value >= 0.0) {
+            "Save element rect action '${id ?: keyword}' requires $name to be >= 0"
+        }
+        return value
     }
 }
 
@@ -780,7 +1092,9 @@ fun defaultWebDriverActionExecutors(
     val screenshotSink = resourceSink as? ScreenshotSink ?: NoOpScreenshotSink
     return listOf(
         RestartAppActionExecutor(driver),
+        ClearAppDataActionExecutor(driver),
         GetTextActionExecutor(driver),
+        SaveElementRectActionExecutor(driver),
         TapActionExecutor(driver),
         TapVisualTemplateActionExecutor(driver),
         InputActionExecutor(driver),
@@ -960,7 +1274,17 @@ private fun JsonNode.toDoubleListOrNull(): List<Double>? {
     }
 }
 
-private fun JsonNode.toFrameRoi(actionName: String): FrameRoi {
+private fun JsonNode.toFrameRoi(
+    actionName: String,
+    context: ExecutionContext,
+): FrameRoi {
+    if (isTextual) {
+        val reference = asText()
+        val match = runtimeVariableReference.matchEntire(reference)
+            ?: error("Visual action '$actionName' requires textual roi to be an exact runtime variable reference")
+        return context.lookupRuntimeVariable(match.groupValues[1], match.groupValues[2])
+            .toFrameRoi(actionName, context)
+    }
     require(isObject) {
         "Visual action '$actionName' requires roi to be an object"
     }

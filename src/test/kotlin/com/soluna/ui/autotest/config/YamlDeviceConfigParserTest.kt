@@ -20,6 +20,7 @@ class YamlDeviceConfigParserTest {
         assertNull(config.appium.server.host)
         assertNull(config.appium.server.port)
         assertEquals("appium", config.appium.server.executable)
+        assertEquals(listOf("uiautomator2", "xcuitest"), config.appium.server.ensureDrivers)
         assertEquals(emptyMap(), config.appium.server.environment)
         assertEquals("UiAutomator2", config.appium.capabilities["automationName"]?.asText())
     }

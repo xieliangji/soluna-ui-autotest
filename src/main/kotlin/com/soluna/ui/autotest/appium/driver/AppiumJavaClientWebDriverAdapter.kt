@@ -180,6 +180,24 @@ class AppiumJavaClientWebDriverAdapter(
         }
     }
 
+    override fun getElementRect(
+        sessionId: String,
+        element: DriverElement,
+    ): ElementRect {
+        val driver = requireDriver(sessionId)
+        val webElement = resolveElement(sessionId, element)
+        val rect = webElement.visibleRect(sessionId, driver, clipKeyboard = false)
+        val viewport = driver.viewportSize(sessionId)
+        return ElementRect(
+            x = rect.left,
+            y = rect.top,
+            width = rect.width,
+            height = rect.height,
+            viewportWidth = viewport.width,
+            viewportHeight = viewport.height,
+        )
+    }
+
     override fun getPageSource(sessionId: String): String {
         return runCommandWithTimeout(sessionId, "getPageSource") {
             requireDriver(sessionId).pageSource.orEmpty()
@@ -199,6 +217,41 @@ class AppiumJavaClientWebDriverAdapter(
                 "bundleId" to appId,
             ),
         )
+        driver.executeScript(
+            "mobile: activateApp",
+            mapOf(
+                "appId" to appId,
+                "bundleId" to appId,
+            ),
+        )
+        driver.waitForAppForeground(appId, wait ?: defaultAppForegroundWait)
+    }
+
+    override fun clearAppData(
+        sessionId: String,
+        appId: String,
+        wait: DriverWaitOptions?,
+    ) {
+        val session = sessionViews[sessionId] ?: error("Unknown session '$sessionId'")
+        require(session.platformName() == "android") {
+            "clearAppData is only supported for Android sessions"
+        }
+        val udid = session.udid() ?: error("clearAppData requires appium:udid capability")
+        val adb = AndroidAdb.resolve()
+        AndroidAdb.run(
+            adb = adb,
+            udid = udid,
+            args = listOf("shell", "pm", "clear", appId),
+            timeoutMs = 15_000,
+        )
+        if (session.autoGrantPermissionsRequested()) {
+            AndroidAdb.grantRuntimePermissions(
+                adb = adb,
+                udid = udid,
+                appId = appId,
+            )
+        }
+        val driver = requireDriver(sessionId)
         driver.executeScript(
             "mobile: activateApp",
             mapOf(
@@ -397,14 +450,7 @@ class AppiumJavaClientWebDriverAdapter(
         ) {
             rect
         }
-        val viewport = sessionWindowSizes[sessionId]
-            ?: runCommandWithTimeout(
-                sessionId = sessionId,
-                commandName = "getWindowSize",
-                timeoutOverride = Duration.ofMillis(3_000),
-            ) {
-                driver.manage().window().size
-            }.also { sessionWindowSizes[sessionId] = it }
+        val viewport = driver.viewportSize(sessionId)
         val visibleBottom = if (clipKeyboard) {
             driver.visibleViewportBottom(sessionId, viewport.height)
         } else {
@@ -420,6 +466,17 @@ class AppiumJavaClientWebDriverAdapter(
             right = right,
             bottom = bottom,
         )
+    }
+
+    private fun AppiumDriver.viewportSize(sessionId: String): org.openqa.selenium.Dimension {
+        return sessionWindowSizes[sessionId]
+            ?: runCommandWithTimeout(
+                sessionId = sessionId,
+                commandName = "getWindowSize",
+                timeoutOverride = Duration.ofMillis(3_000),
+            ) {
+                manage().window().size
+            }.also { sessionWindowSizes[sessionId] = it }
     }
 
     private fun AppiumDriver.visibleViewportBottom(
@@ -532,6 +589,21 @@ private fun DriverSession.udid(): String? {
         ?.takeIf { it.isNotBlank() }
 }
 
+private fun DriverSession.autoGrantPermissionsRequested(): Boolean {
+    val value = capabilities.entries
+        .firstOrNull { (key, _) ->
+            key.equals("appium:autoGrantPermissions", ignoreCase = true) ||
+                key.equals("autoGrantPermissions", ignoreCase = true)
+        }
+        ?.value
+        ?: return false
+    return when (value) {
+        is Boolean -> value
+        is String -> value.equals("true", ignoreCase = true)
+        else -> value.toString().equals("true", ignoreCase = true)
+    }
+}
+
 private class AndroidScreenRecordingProcess(
     private val adb: String,
     private val udid: String,
@@ -541,9 +613,9 @@ private class AndroidScreenRecordingProcess(
 ) {
     fun stopAndRead(): ByteArray {
         stop()
-        runAdb(adb, udid, listOf("pull", remotePath, localPath.toString()), timeoutMs = 15_000)
+        AndroidAdb.run(adb, udid, listOf("pull", remotePath, localPath.toString()), timeoutMs = 15_000)
         runCatching {
-            runAdb(adb, udid, listOf("shell", "rm", "-f", remotePath), timeoutMs = 5_000)
+            AndroidAdb.run(adb, udid, listOf("shell", "rm", "-f", remotePath), timeoutMs = 5_000)
         }
         return Files.readAllBytes(localPath)
     }
@@ -551,7 +623,7 @@ private class AndroidScreenRecordingProcess(
     fun stop() {
         if (process.isAlive) {
             runCatching {
-                runAdb(
+                AndroidAdb.run(
                     adb = adb,
                     udid = udid,
                     args = listOf("shell", "sh", "-c", "pkill -2 screenrecord || kill -2 $(pidof screenrecord)"),
@@ -573,7 +645,7 @@ private class AndroidScreenRecordingProcess(
             udid: String,
             timeLimit: Duration,
         ): AndroidScreenRecordingProcess {
-            val adb = resolveAdb()
+            val adb = AndroidAdb.resolve()
             val remotePath = "/sdcard/soluna-recording-${sessionId.filter { it.isLetterOrDigit() }.take(16)}.mp4"
             val localPath = Files.createTempFile("soluna-android-recording-", ".mp4")
             val seconds = timeLimit.seconds.coerceAtLeast(1).coerceAtMost(180)
@@ -596,38 +668,94 @@ private class AndroidScreenRecordingProcess(
             return AndroidScreenRecordingProcess(adb, udid, remotePath, localPath, process)
         }
 
-        private fun resolveAdb(): String {
-            val androidHome = System.getenv("ANDROID_HOME") ?: System.getenv("ANDROID_SDK_ROOT")
-            val candidates = listOfNotNull(
-                androidHome?.let { Path.of(it, "platform-tools", "adb").toString() },
-                Path.of(System.getProperty("user.home"), "Library", "Android", "sdk", "platform-tools", "adb").toString(),
-                "adb",
-            )
-            return candidates.firstOrNull { candidate ->
-                runCatching {
-                    val process = ProcessBuilder(candidate, "version")
-                        .redirectErrorStream(true)
-                        .start()
-                    process.waitFor(2, TimeUnit.SECONDS) && process.exitValue() == 0
-                }.getOrDefault(false)
-            } ?: error("adb executable was not found for Android screen recording")
-        }
+    }
+}
 
-        private fun runAdb(
-            adb: String,
-            udid: String,
-            args: List<String>,
-            timeoutMs: Long,
-        ) {
-            val process = ProcessBuilder(listOf(adb, "-s", udid) + args)
-                .redirectErrorStream(true)
-                .start()
-            val completed = process.waitFor(timeoutMs, TimeUnit.MILLISECONDS)
-            val output = process.inputStream.bufferedReader().readText()
-            check(completed && process.exitValue() == 0) {
-                "adb ${args.joinToString(" ")} failed: $output"
+private object AndroidAdb {
+    fun resolve(): String {
+        val androidHome = System.getenv("ANDROID_HOME") ?: System.getenv("ANDROID_SDK_ROOT")
+        val candidates = listOfNotNull(
+            androidHome?.let { Path.of(it, "platform-tools", "adb").toString() },
+            Path.of(System.getProperty("user.home"), "Library", "Android", "sdk", "platform-tools", "adb").toString(),
+            "adb",
+        )
+        return candidates.firstOrNull { candidate ->
+            runCatching {
+                val process = ProcessBuilder(candidate, "version")
+                    .redirectErrorStream(true)
+                    .start()
+                process.waitFor(2, TimeUnit.SECONDS) && process.exitValue() == 0
+            }.getOrDefault(false)
+        } ?: error("adb executable was not found")
+    }
+
+    fun run(
+        adb: String,
+        udid: String,
+        args: List<String>,
+        timeoutMs: Long,
+    ): String {
+        val process = ProcessBuilder(listOf(adb, "-s", udid) + args)
+            .redirectErrorStream(true)
+            .start()
+        val completed = process.waitFor(timeoutMs, TimeUnit.MILLISECONDS)
+        val output = process.inputStream.bufferedReader().readText()
+        check(completed && process.exitValue() == 0) {
+            "adb ${args.joinToString(" ")} failed: $output"
+        }
+        return output
+    }
+
+    fun grantRuntimePermissions(
+        adb: String,
+        udid: String,
+        appId: String,
+    ) {
+        val output = run(
+            adb = adb,
+            udid = udid,
+            args = listOf("shell", "dumpsys", "package", appId),
+            timeoutMs = 10_000,
+        )
+        parseRuntimePermissions(output).forEach { permission ->
+            runCatching {
+                run(
+                    adb = adb,
+                    udid = udid,
+                    args = listOf("shell", "pm", "grant", appId, permission),
+                    timeoutMs = 5_000,
+                )
             }
         }
+    }
+
+    private fun parseRuntimePermissions(output: String): List<String> {
+        val result = linkedSetOf<String>()
+        var inRuntimePermissions = false
+        output.lineSequence().forEach { line ->
+            val trimmed = line.trim()
+            if (trimmed == "runtime permissions:") {
+                inRuntimePermissions = true
+                return@forEach
+            }
+            if (!inRuntimePermissions) {
+                return@forEach
+            }
+            if (trimmed.isBlank()) {
+                inRuntimePermissions = false
+                return@forEach
+            }
+            val permission = Regex("""^([A-Za-z0-9_.]+):\s+granted=""")
+                .find(trimmed)
+                ?.groupValues
+                ?.getOrNull(1)
+            if (permission != null) {
+                result += permission
+            } else if (!line.startsWith(" ")) {
+                inRuntimePermissions = false
+            }
+        }
+        return result.toList()
     }
 }
 
@@ -637,8 +765,8 @@ private data class ViewportRect(
     val right: Int,
     val bottom: Int,
 ) {
-    private val width: Int = right - left
-    private val height: Int = bottom - top
+    val width: Int = right - left
+    val height: Int = bottom - top
 
     fun hasArea(): Boolean {
         return width > 0 && height > 0

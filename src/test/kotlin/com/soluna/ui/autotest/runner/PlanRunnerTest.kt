@@ -126,6 +126,7 @@ class PlanRunnerTest {
             PlanRunRequest(
                 planPath = planPath,
                 runId = "run-ios-wda",
+                localArtifactRoot = root.resolve("runs"),
             ),
         )
 
@@ -137,6 +138,15 @@ class PlanRunnerTest {
         assertEquals("com.facebook.WebDriverAgentRunner.xctrunner", result.deviceConfig.ios.wda.bundleId)
         assertEquals("com.facebook.WebDriverAgentRunner.xctrunner", result.deviceConfig.ios.wda.testRunnerBundleId)
         assertEquals("WebDriverAgentRunner.xctest", result.deviceConfig.ios.wda.xctestConfig)
+        assertEquals(
+            root.resolve("runs")
+                .resolve("run-ios-wda")
+                .resolve("diagnostics")
+                .resolve("wda")
+                .toAbsolutePath()
+                .normalize(),
+            wdaManager.startedConfig?.logDirectory,
+        )
         assertEquals("http://127.0.0.1:18100", driver.startedRequest?.capabilities?.get("appium:webDriverAgentUrl"))
         assertEquals("http://127.0.0.1:18100", result.wdaHandle?.url)
         assertTrue(wdaManager.stopped)
@@ -215,6 +225,40 @@ class PlanRunnerTest {
         assertTrue(uploader.requests.any { it.objectKey.startsWith("soluna/runs/run-trace/diagnostics/trace-") })
         assertTrue(Files.readString(report.dataFile).contains("\"traceArtifacts\""))
         assertTrue(Files.readString(report.dataFile).contains("https://artifact.local/soluna/runs/run-trace/diagnostics/trace-"))
+    }
+
+    @Test
+    fun `uses continue case failure strategy configured by plan defaults`() {
+        val root = Files.createTempDirectory("soluna-runner-continue-case-test")
+        val planPath = writeContinueCasePlan(root, "devices/android.yaml")
+        writeAndroidDeviceConfig(root.resolve("devices"))
+        val executedActionIds = mutableListOf<String>()
+        val runner = PlanRunner(
+            appiumServerManager = RecordingAppiumServerManager(),
+            webDriverAdapter = RecordingWebDriverAdapter(),
+            actionExecutorFactory = { _, _ ->
+                listOf(
+                    ConditionalFailingActionExecutor(
+                        executedActionIds = executedActionIds,
+                        failingActionIds = setOf("fail-first-case"),
+                    ),
+                )
+            },
+        )
+
+        val result = runner.run(
+            PlanRunRequest(
+                planPath = planPath,
+                runId = "run-continue-case",
+            ),
+        )
+
+        assertEquals(ExecutionStatus.FAILED, result.executionResult.status)
+        assertEquals(2, result.executionResult.stages.single().cases.size)
+        assertEquals(
+            listOf("fail-first-case", "pass-second-case"),
+            executedActionIds,
+        )
     }
 
     @Test
@@ -351,6 +395,47 @@ class PlanRunnerTest {
                       - tap: tap-home
                         xRatio: 0.5
                         yRatio: 0.5
+            """.trimIndent(),
+        )
+        return planPath
+    }
+
+    private fun writeContinueCasePlan(
+        root: Path,
+        deviceConfig: String,
+    ): Path {
+        val planPath = root.resolve("plans/continue-case.yaml")
+        Files.createDirectories(planPath.parent)
+        Files.writeString(
+            planPath,
+            """
+            schemaVersion: "1.0"
+            id: runner-continue-case-plan
+            name: Runner Continue Case Plan
+            deviceConfig: ../$deviceConfig
+            app:
+              platform: android
+              reset: false
+            defaults:
+              failureStrategy: continue-case
+            stages:
+              - id: main
+                name: Main
+                cases:
+                  - id: failing-case
+                    name: Failing Case
+                    actions:
+                      - tap:
+                          id: fail-first-case
+                          xRatio: 0.5
+                          yRatio: 0.5
+                  - id: passing-case
+                    name: Passing Case
+                    actions:
+                      - tap:
+                          id: pass-second-case
+                          xRatio: 0.5
+                          yRatio: 0.5
             """.trimIndent(),
         )
         return planPath
@@ -649,6 +734,26 @@ ${serverConfig.prependIndent("                ")}
             context: ExecutionContext,
         ): ActionExecutionResult {
             return ActionExecutionResult.failed("failed by test")
+        }
+    }
+
+    private class ConditionalFailingActionExecutor(
+        private val executedActionIds: MutableList<String>,
+        private val failingActionIds: Set<String>,
+    ) : ActionExecutor {
+        override val keyword: String = "tap"
+
+        override fun execute(
+            action: ActionDefinition,
+            context: ExecutionContext,
+        ): ActionExecutionResult {
+            val actionId = action.id ?: "<anonymous>"
+            executedActionIds += actionId
+            return if (actionId in failingActionIds) {
+                ActionExecutionResult.failed("failed by test")
+            } else {
+                ActionExecutionResult.passed("ok")
+            }
         }
     }
 

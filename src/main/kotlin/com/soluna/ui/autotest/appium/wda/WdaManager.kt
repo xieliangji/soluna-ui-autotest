@@ -1,6 +1,7 @@
 package com.soluna.ui.autotest.appium.wda
 
 import org.slf4j.LoggerFactory
+import java.net.InetSocketAddress
 import java.net.URI
 import java.net.ServerSocket
 import java.net.http.HttpClient
@@ -342,10 +343,7 @@ class LocalGoIosWdaManager(
 
     private fun tunnelInfoArgs(config: WdaConfig): List<String> {
         val port = config.tunnelInfoPort ?: return emptyList()
-        return listOf(
-            "--tunnel-info-host=${config.tunnelInfoHost}",
-            "--tunnel-info-port=$port",
-        )
+        return listOf("--tunnel-info-port=$port")
     }
 
     private fun launch(
@@ -468,8 +466,8 @@ interface WdaPortAllocator {
 
 object ServerSocketWdaPortAllocator : WdaPortAllocator {
     override fun findAvailablePort(): Int {
-        return ServerSocket(0).use { socket ->
-            socket.reuseAddress = true
+        return ServerSocket().use { socket ->
+            socket.bind(InetSocketAddress("127.0.0.1", 0))
             socket.localPort
         }
     }

@@ -137,6 +137,79 @@ class LinearExecutionEngineTest {
     }
 
     @Test
+    fun `continue case strategy stops failed case but continues later cases and stages`() {
+        val executedActionIds = mutableListOf<String>()
+        val engine = LinearExecutionEngine(
+            actionExecutorRegistry = DefaultActionExecutorRegistry(
+                listOf(
+                    ConditionalFailingActionExecutor(
+                        keyword = "tap",
+                        executedActionIds = executedActionIds,
+                        failingActionIds = setOf("fail-main"),
+                    ),
+                ),
+            ),
+            failureStrategy = ContinueCaseFailureStrategy,
+            hookBus = SimpleHookBus(),
+            clock = fixedClock,
+        )
+
+        val result = engine.execute(
+            PlanDefinition(
+                schemaVersion = "1.0",
+                id = "plan-continue-case",
+                name = "Plan Continue Case",
+                stages = listOf(
+                    StageDefinition(
+                        id = "stage-001",
+                        name = "Stage 001",
+                        cases = listOf(
+                            CaseDefinition(
+                                id = "case-failed",
+                                name = "Case Failed",
+                                actions = listOf(
+                                    ActionDefinition(id = "fail-main", keyword = "tap"),
+                                    ActionDefinition(id = "skip-after-failure", keyword = "tap"),
+                                ),
+                            ),
+                            CaseDefinition(
+                                id = "case-after-failure",
+                                name = "Case After Failure",
+                                actions = listOf(ActionDefinition(id = "pass-after-failure", keyword = "tap")),
+                            ),
+                        ),
+                    ),
+                    StageDefinition(
+                        id = "stage-002",
+                        name = "Stage 002",
+                        cases = listOf(
+                            CaseDefinition(
+                                id = "case-next-stage",
+                                name = "Case Next Stage",
+                                actions = listOf(ActionDefinition(id = "pass-next-stage", keyword = "tap")),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+            ExecutionRequest(runId = "run-continue-case"),
+        )
+
+        assertEquals(ExecutionStatus.FAILED, result.status)
+        assertEquals(2, result.stages.size)
+        assertEquals(ExecutionStatus.FAILED, result.stages[0].status)
+        assertEquals(ExecutionStatus.PASSED, result.stages[1].status)
+        assertEquals(2, result.stages[0].cases.size)
+        assertEquals(ExecutionStatus.FAILED, result.stages[0].cases[0].status)
+        assertEquals(ExecutionStatus.PASSED, result.stages[0].cases[1].status)
+        assertEquals(1, result.stages[0].cases[0].actions.size)
+        assertEquals(
+            listOf("fail-main", "pass-after-failure", "pass-next-stage"),
+            executedActionIds,
+        )
+    }
+
+    @Test
     fun `executes case teardown after failed case action`() {
         val recorder = RecordingHookConsumer()
         val executedKeywords = mutableListOf<String>()
@@ -521,6 +594,25 @@ class LinearExecutionEngineTest {
                 ActionExecutionResult.passed()
             } else {
                 ActionExecutionResult.failed("attempt $currentAttempt failed")
+            }
+        }
+    }
+
+    private class ConditionalFailingActionExecutor(
+        override val keyword: String,
+        private val executedActionIds: MutableList<String>,
+        private val failingActionIds: Set<String>,
+    ) : ActionExecutor {
+        override fun execute(
+            action: ActionDefinition,
+            context: ExecutionContext,
+        ): ActionExecutionResult {
+            val actionId = action.id ?: "<anonymous>"
+            executedActionIds += actionId
+            return if (actionId in failingActionIds) {
+                ActionExecutionResult.failed("failed by test")
+            } else {
+                ActionExecutionResult.passed()
             }
         }
     }

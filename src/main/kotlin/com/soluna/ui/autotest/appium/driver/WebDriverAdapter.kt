@@ -52,6 +52,13 @@ interface WebDriverAdapter {
         error("getElementAttribute is not supported by this WebDriverAdapter")
     }
 
+    fun getElementRect(
+        sessionId: String,
+        element: DriverElement,
+    ): ElementRect {
+        error("getElementRect is not supported by this WebDriverAdapter")
+    }
+
     fun getPageSource(sessionId: String): String {
         error("getPageSource is not supported by this WebDriverAdapter")
     }
@@ -62,6 +69,14 @@ interface WebDriverAdapter {
         wait: DriverWaitOptions? = null,
     ) {
         error("restartApp is not supported by this WebDriverAdapter")
+    }
+
+    fun clearAppData(
+        sessionId: String,
+        appId: String,
+        wait: DriverWaitOptions? = null,
+    ) {
+        error("clearAppData is not supported by this WebDriverAdapter")
     }
 
     fun takeScreenshot(sessionId: String): ScreenshotData
@@ -97,6 +112,15 @@ data class DriverElement(
     val elementId: String,
     val locator: LocatorDefinition? = null,
     val wait: DriverWaitOptions? = null,
+)
+
+data class ElementRect(
+    val x: Int,
+    val y: Int,
+    val width: Int,
+    val height: Int,
+    val viewportWidth: Int,
+    val viewportHeight: Int,
 )
 
 data class DriverWaitOptions(

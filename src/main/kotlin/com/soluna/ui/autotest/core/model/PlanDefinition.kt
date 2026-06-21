@@ -169,13 +169,18 @@ data class ElementDefinition(
     val ios: LocatorDefinition? = null,
 ) {
     fun locatorFor(platform: String?): LocatorDefinition {
+        return locatorForOrNull(platform)
+            ?: error("Element does not define locator for platform '${platform ?: "default"}'")
+    }
+
+    fun locatorForOrNull(platform: String?): LocatorDefinition? {
         val normalizedPlatform = platform?.lowercase()
         return when (normalizedPlatform) {
             "android" -> android ?: commonLocator()
             "ios" -> ios ?: commonLocator()
             null -> commonLocator()
             else -> error("Unsupported element platform '$platform'")
-        } ?: error("Element does not define locator for platform '${platform ?: "default"}'")
+        }
     }
 
     private fun commonLocator(): LocatorDefinition? {

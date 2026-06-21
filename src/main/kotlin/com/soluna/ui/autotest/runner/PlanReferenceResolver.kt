@@ -30,22 +30,22 @@ class PlanReferenceResolver(
     ): PlanDefinition {
         val planBaseDir = planPath.parent ?: Path.of(".").toAbsolutePath().normalize()
         val planAssetBaseDirs = plan.parameters.resolvedDirectories(planBaseDir) + planBaseDir
-        val fragments = loadFragments(plan, planBaseDir, platform, planAssetBaseDirs)
+        val fragments = loadFragments(plan, planBaseDir)
         val planCaseSetupActions =
-            resolveFragments(plan.caseSetupFragments, fragments) + plan.caseSetupActions.map { action ->
+            resolveFragments(plan.caseSetupFragments, fragments, platform, planAssetBaseDirs) + plan.caseSetupActions.map { action ->
                 resolveAction(action, emptyMap(), planAssetBaseDirs)
             }
         val planCaseTeardownActions =
-            resolveFragments(plan.caseTeardownFragments, fragments) + plan.caseTeardownActions.map { action ->
+            resolveFragments(plan.caseTeardownFragments, fragments, platform, planAssetBaseDirs) + plan.caseTeardownActions.map { action ->
                 resolveAction(action, emptyMap(), planAssetBaseDirs)
             }
         return plan.copy(
-            setupActions = resolveFragments(plan.setupFragments, fragments) + plan.setupActions.map { action ->
+            setupActions = resolveFragments(plan.setupFragments, fragments, platform, planAssetBaseDirs) + plan.setupActions.map { action ->
                 resolveAction(action, emptyMap(), planAssetBaseDirs)
             },
             caseSetupActions = planCaseSetupActions,
             caseTeardownActions = planCaseTeardownActions,
-            teardownActions = resolveFragments(plan.teardownFragments, fragments) + plan.teardownActions.map { action ->
+            teardownActions = resolveFragments(plan.teardownFragments, fragments, platform, planAssetBaseDirs) + plan.teardownActions.map { action ->
                 resolveAction(action, emptyMap(), planAssetBaseDirs)
             },
             stages = plan.stages.map { stage ->
@@ -66,17 +66,17 @@ class PlanReferenceResolver(
         stage: StageDefinition,
         planBaseDir: Path,
         platform: String?,
-        fragments: Map<String, FragmentDefinition>,
+        fragments: Map<String, FragmentSource>,
         planAssetBaseDirs: List<Path>,
         inheritedCaseSetupActions: List<ActionDefinition>,
         inheritedCaseTeardownActions: List<ActionDefinition>,
     ): StageDefinition {
         val stageCaseSetupActions =
-            resolveFragments(stage.caseSetupFragments, fragments) + stage.caseSetupActions.map { action ->
+            resolveFragments(stage.caseSetupFragments, fragments, platform, planAssetBaseDirs) + stage.caseSetupActions.map { action ->
                 resolveAction(action, emptyMap(), planAssetBaseDirs)
             }
         val stageCaseTeardownActions =
-            resolveFragments(stage.caseTeardownFragments, fragments) + stage.caseTeardownActions.map { action ->
+            resolveFragments(stage.caseTeardownFragments, fragments, platform, planAssetBaseDirs) + stage.caseTeardownActions.map { action ->
                 resolveAction(action, emptyMap(), planAssetBaseDirs)
             }
         val inlineCases = stage.cases.map { case ->
@@ -117,12 +117,12 @@ class PlanReferenceResolver(
 
         val cases = inlineCases + referencedCases
         return stage.copy(
-            setupActions = resolveFragments(stage.setupFragments, fragments) + stage.setupActions.map { action ->
+            setupActions = resolveFragments(stage.setupFragments, fragments, platform, planAssetBaseDirs) + stage.setupActions.map { action ->
                 resolveAction(action, emptyMap(), planAssetBaseDirs)
             },
             caseSetupActions = stageCaseSetupActions,
             caseTeardownActions = stageCaseTeardownActions,
-            teardownActions = resolveFragments(stage.teardownFragments, fragments) + stage.teardownActions.map { action ->
+            teardownActions = resolveFragments(stage.teardownFragments, fragments, platform, planAssetBaseDirs) + stage.teardownActions.map { action ->
                 resolveAction(action, emptyMap(), planAssetBaseDirs)
             },
             cases = cases,
@@ -133,7 +133,7 @@ class PlanReferenceResolver(
         case: CaseDefinition,
         caseBaseDir: Path,
         platform: String?,
-        fragments: Map<String, FragmentDefinition>,
+        fragments: Map<String, FragmentSource>,
         planAssetBaseDirs: List<Path>,
         inheritedCaseSetupActions: List<ActionDefinition> = emptyList(),
         inheritedCaseTeardownActions: List<ActionDefinition> = emptyList(),
@@ -143,22 +143,18 @@ class PlanReferenceResolver(
             if (Path.of(ref.file).isAbsolute) ref else ref.withResolvedPath(caseBaseDir)
         }
         val caseAssetBaseDirs = (resolvedDataRefs.resolvedDirectories(caseBaseDir) + planAssetBaseDirs + caseBaseDir).distinct()
-        val setupActions = resolveFragments(case.setupFragments, fragments).map { action ->
-            resolveAction(action, elements, caseAssetBaseDirs)
-        }
-        val caseSetupActions = resolveFragments(case.caseSetupFragments, fragments).map { action ->
-            resolveAction(action, elements, caseAssetBaseDirs)
-        } + case.caseSetupActions.map { action ->
-            resolveAction(action, elements, caseAssetBaseDirs)
-        }
-        val teardownActions = resolveFragments(case.teardownFragments, fragments).map { action ->
-            resolveAction(action, elements, caseAssetBaseDirs)
-        }
-        val caseTeardownActions = resolveFragments(case.caseTeardownFragments, fragments).map { action ->
-            resolveAction(action, elements, caseAssetBaseDirs)
-        } + case.caseTeardownActions.map { action ->
-            resolveAction(action, elements, caseAssetBaseDirs)
-        }
+        val setupActions = resolveFragments(case.setupFragments, fragments, platform, caseAssetBaseDirs)
+        val caseSetupActions =
+            resolveFragments(case.caseSetupFragments, fragments, platform, caseAssetBaseDirs) +
+                case.caseSetupActions.map { action ->
+                    resolveAction(action, elements, caseAssetBaseDirs)
+                }
+        val teardownActions = resolveFragments(case.teardownFragments, fragments, platform, caseAssetBaseDirs)
+        val caseTeardownActions =
+            resolveFragments(case.caseTeardownFragments, fragments, platform, caseAssetBaseDirs) +
+                case.caseTeardownActions.map { action ->
+                    resolveAction(action, elements, caseAssetBaseDirs)
+                }
         val actions = case.actions.map { action ->
             resolveAction(action, elements, caseAssetBaseDirs)
         }
@@ -225,10 +221,8 @@ class PlanReferenceResolver(
     private fun loadFragments(
         plan: PlanDefinition,
         planBaseDir: Path,
-        platform: String?,
-        planAssetBaseDirs: List<Path>,
-    ): Map<String, FragmentDefinition> {
-        val result = linkedMapOf<String, FragmentDefinition>()
+    ): Map<String, FragmentSource> {
+        val result = linkedMapOf<String, FragmentSource>()
         plan.fragmentRefs.forEach { ref ->
             val path = resolvePath(planBaseDir, ref.file)
             if (!Files.exists(path)) {
@@ -240,13 +234,9 @@ class PlanReferenceResolver(
             val catalog = fragmentCatalogParser.parse(Files.readString(path))
             catalog.fragments.forEach { (fragmentId, fragment) ->
                 val fragmentBaseDir = path.parent ?: planBaseDir
-                val elements = loadElements(fragment.elementRefs, fragmentBaseDir, platform)
-                val fragmentAssetBaseDirs = (planAssetBaseDirs + fragmentBaseDir).distinct()
-                val resolvedFragment = fragment.copy(
-                    actions = fragment.actions.map { action -> resolveAction(action, elements, fragmentAssetBaseDirs) },
-                )
-                putUnique(result, "${ref.id}.$fragmentId", resolvedFragment, "fragment")
-                putUnique(result, "${catalog.id}.$fragmentId", resolvedFragment, "fragment")
+                val source = FragmentSource(fragment, fragmentBaseDir)
+                putUnique(result, "${ref.id}.$fragmentId", source, "fragment")
+                putUnique(result, "${catalog.id}.$fragmentId", source, "fragment")
             }
         }
         return result
@@ -254,10 +244,15 @@ class PlanReferenceResolver(
 
     private fun resolveFragments(
         refs: List<String>,
-        fragments: Map<String, FragmentDefinition>,
+        fragments: Map<String, FragmentSource>,
+        platform: String?,
+        assetBaseDirs: List<Path>,
     ): List<ActionDefinition> {
         return refs.flatMap { ref ->
-            fragments[ref]?.actions ?: error("Fragment '$ref' is not defined")
+            val source = fragments[ref] ?: error("Fragment '$ref' is not defined")
+            val elements = loadElements(source.fragment.elementRefs, source.baseDir, platform)
+            val fragmentAssetBaseDirs = (assetBaseDirs + source.baseDir).distinct()
+            source.fragment.actions.map { action -> resolveAction(action, elements, fragmentAssetBaseDirs) }
         }
     }
 
@@ -277,7 +272,7 @@ class PlanReferenceResolver(
             }
             val catalog = elementCatalogParser.parse(Files.readString(path))
             catalog.elements.forEach { (elementId, element) ->
-                val locator = element.locatorFor(platform)
+                val locator = element.locatorForOrNull(platform) ?: return@forEach
                 putUnique(result, "${ref.id}.$elementId", locator, "element")
                 putUnique(result, "${catalog.id}.$elementId", locator, "element")
             }
@@ -336,4 +331,9 @@ class PlanReferenceResolver(
         require(!values.containsKey(key)) { "Duplicate $type reference '$key'" }
         values[key] = value
     }
+
+    private data class FragmentSource(
+        val fragment: FragmentDefinition,
+        val baseDir: Path,
+    )
 }

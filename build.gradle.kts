@@ -34,6 +34,7 @@ dependencies {
     implementation("com.soluna:kt-visual:0.3.1")
     implementation("com.soluna:kt-visual-ocr-paddle:0.3.1:with-models@jar")
     implementation("com.soluna:kt-visual-ocr-multimodal:0.3.1")
+    implementation("com.openai:openai-java-client-okhttp:4.39.1")
     implementation("com.microsoft.onnxruntime:onnxruntime:1.20.0")
     implementation("org.openpnp:opencv:4.9.0-0")
 
@@ -58,6 +59,11 @@ distributions {
         contents {
             from("tools") {
                 into("tools")
+                includeEmptyDirs = true
+            }
+            from("lib/soluna-appium-ext") {
+                into("plugins/soluna-appium-ext")
+                exclude("node_modules/**", "build/**")
                 includeEmptyDirs = true
             }
             from("codex/skills") {

@@ -20,6 +20,7 @@ class DslPolicyValidator(
     private val parameterReference = Regex("""\$\{[^}]+}""")
     private val actionFields = setOf(
         "appId",
+        "asRoi",
         "candidateMaxFrames",
         "candidateStrategy",
         "clearFirst",
@@ -28,12 +29,19 @@ class DslPolicyValidator(
         "element",
         "elementXRatio",
         "elementYRatio",
+        "expandBottomRatio",
+        "expandLeftRatio",
+        "expandRightRatio",
+        "expandTopRatio",
         "expected",
         "framesPerSecond",
+        "fullHeight",
+        "fullWidth",
         "attr",
         "id",
         "maxFrames",
         "pattern",
+        "recognizer",
         "resourceId",
         "roi",
         "saveAs",
@@ -393,6 +401,10 @@ class DslPolicyValidator(
             }
 
             "getText" -> {
+                requireNestedFields(payload, path, violations, "element", "saveAs")
+            }
+
+            "saveElementRect" -> {
                 requireNestedFields(payload, path, violations, "element", "saveAs")
             }
 

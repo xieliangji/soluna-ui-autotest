@@ -14,6 +14,7 @@ import com.soluna.ui.autotest.appium.wda.LocalGoIosWdaManager
 import com.soluna.ui.autotest.appium.wda.SolunaExtWdaBundleResolver
 import com.soluna.ui.autotest.appium.wda.WdaBundleResolveRequest
 import com.soluna.ui.autotest.appium.wda.WdaBundleResolver
+import com.soluna.ui.autotest.appium.wda.WdaConfig
 import com.soluna.ui.autotest.appium.wda.WdaHandle
 import com.soluna.ui.autotest.appium.wda.WdaManager
 import com.soluna.ui.autotest.appium.action.PlanResourceSink
@@ -39,6 +40,7 @@ import com.soluna.ui.autotest.config.YamlDeviceConfigParser
 import com.soluna.ui.autotest.config.toAppiumServerConfig
 import com.soluna.ui.autotest.config.toWdaConfig
 import com.soluna.ui.autotest.core.execution.ActionExecutor
+import com.soluna.ui.autotest.core.execution.ContinueCaseFailureStrategy
 import com.soluna.ui.autotest.core.execution.DefaultActionExecutorRegistry
 import com.soluna.ui.autotest.core.execution.ExecutionRequest
 import com.soluna.ui.autotest.core.execution.FailFastFailureStrategy
@@ -158,9 +160,12 @@ class PlanRunner(
                 planPath = planPath,
                 overrides = request.parameterOverrides,
             )
-            wdaHandle = ensureWdaIfNeeded(
+            val wdaConfig = wdaConfigIfNeeded(
                 deviceConfig = deviceConfig,
                 request = request,
+            )
+            wdaHandle = ensureWdaIfNeeded(
+                wdaConfig = wdaConfig,
             )
 
             recoveringDriver = if (request.enableSessionRecovery && request.driverSessionId == null) {
@@ -170,7 +175,7 @@ class PlanRunner(
                     serverConfig = serverConfig,
                     initialServerHandle = activeServerHandle,
                     wdaManager = wdaManager,
-                    wdaConfig = wdaHandle?.let { deviceConfig.toWdaConfig() },
+                    wdaConfig = wdaConfig,
                     initialWdaHandle = wdaHandle,
                     recoveryPolicy = sessionRecoveryPolicy,
                 )
@@ -204,7 +209,7 @@ class PlanRunner(
             val engine = LinearExecutionEngine(
                 actionExecutorRegistry = DefaultActionExecutorRegistry(actionExecutorFactory(runtimeDriver, screenshotSink)),
                 hookBus = hookBus,
-                failureStrategy = failureStrategy,
+                failureStrategy = resolveFailureStrategy(plan.defaults.failureStrategy),
                 retryStrategy = retryStrategy,
                 actionTraceCollector = traceCollector,
                 sleeper = ThreadSleeper,
@@ -300,9 +305,15 @@ class PlanRunner(
     }
 
     private fun ensureWdaIfNeeded(
+        wdaConfig: WdaConfig?,
+    ): WdaHandle? {
+        return wdaConfig?.let { wdaManager.ensureRunning(it) }
+    }
+
+    private fun wdaConfigIfNeeded(
         deviceConfig: DeviceConfigDefinition,
         request: PlanRunRequest,
-    ): WdaHandle? {
+    ): WdaConfig? {
         if (request.driverSessionId != null) {
             return null
         }
@@ -312,7 +323,14 @@ class PlanRunner(
         if (!deviceConfig.ios.wda.enabled) {
             return null
         }
-        return wdaManager.ensureRunning(deviceConfig.toWdaConfig())
+        return deviceConfig.toWdaConfig().copy(
+            logDirectory = request.localArtifactRoot
+                .resolve(request.runId)
+                .resolve("diagnostics")
+                .resolve("wda")
+                .toAbsolutePath()
+                .normalize(),
+        )
     }
 
     private fun resolveWdaBundleIfNeeded(
@@ -418,6 +436,15 @@ class PlanRunner(
             configuredPath.normalize()
         } else {
             baseDir.resolve(configuredPath).normalize()
+        }
+    }
+
+    private fun resolveFailureStrategy(name: String?): FailureStrategy {
+        return when (name?.trim()?.lowercase()) {
+            null, "" -> failureStrategy
+            "stop-case", "fail-fast" -> FailFastFailureStrategy
+            "continue-case" -> ContinueCaseFailureStrategy
+            else -> error("Unsupported failureStrategy '$name'")
         }
     }
 

@@ -14,6 +14,7 @@ data class AppiumServerConfig(
     val host: String? = null,
     val port: Int? = null,
     val usePlugins: List<String> = listOf("soluna-ext"),
+    val ensureDrivers: List<String> = listOf("uiautomator2", "xcuitest"),
     val executable: String = "appium",
     val extraArgs: List<String> = emptyList(),
     val environment: Map<String, String> = emptyMap(),

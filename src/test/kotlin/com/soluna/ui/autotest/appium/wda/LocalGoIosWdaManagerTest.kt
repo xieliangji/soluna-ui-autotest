@@ -35,7 +35,6 @@ class LocalGoIosWdaManagerTest {
                 listOf(
                     "ios",
                     "--udid=ios-001",
-                    "--tunnel-info-host=127.0.0.1",
                     "--tunnel-info-port=28100",
                     "tunnel",
                     "start",
@@ -45,14 +44,12 @@ class LocalGoIosWdaManagerTest {
                 listOf(
                     "ios",
                     "--udid=ios-001",
-                    "--tunnel-info-host=127.0.0.1",
                     "--tunnel-info-port=28100",
                     "runwda",
                 ),
                 listOf(
                     "ios",
                     "--udid=ios-001",
-                    "--tunnel-info-host=127.0.0.1",
                     "--tunnel-info-port=28100",
                     "forward",
                     "18100",
@@ -133,7 +130,6 @@ class LocalGoIosWdaManagerTest {
             listOf(
                 "ios",
                 "--udid=ios-001",
-                "--tunnel-info-host=127.0.0.1",
                 "--tunnel-info-port=28104",
                 "runwda",
                 "--bundleid=com.facebook.WebDriverAgentRunner.xctrunner",

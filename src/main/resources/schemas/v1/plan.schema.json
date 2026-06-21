@@ -495,6 +495,10 @@
         { "allOf": [{ "$ref": "#/$defs/restartAppAction" }, { "required": ["重启应用"] }] },
         { "allOf": [{ "$ref": "#/$defs/restartAppAction" }, { "required": ["重启App"] }] },
         { "allOf": [{ "$ref": "#/$defs/restartAppAction" }, { "required": ["重启APP"] }] },
+        { "allOf": [{ "$ref": "#/$defs/clearAppDataAction" }, { "required": ["clearAppData"] }] },
+        { "allOf": [{ "$ref": "#/$defs/clearAppDataAction" }, { "required": ["clearApplicationData"] }] },
+        { "allOf": [{ "$ref": "#/$defs/clearAppDataAction" }, { "required": ["清除应用数据"] }] },
+        { "allOf": [{ "$ref": "#/$defs/clearAppDataAction" }, { "required": ["清理应用数据"] }] },
         { "allOf": [{ "$ref": "#/$defs/getTextAction" }, { "required": ["getText"] }] },
         { "allOf": [{ "$ref": "#/$defs/getTextAction" }, { "required": ["readText"] }] },
         { "allOf": [{ "$ref": "#/$defs/getTextAction" }, { "required": ["saveText"] }] },
@@ -571,12 +575,22 @@
         "重启应用": { "$ref": "#/$defs/nestedActionBody" },
         "重启App": { "$ref": "#/$defs/nestedActionBody" },
         "重启APP": { "$ref": "#/$defs/nestedActionBody" },
+        "clearAppData": { "$ref": "#/$defs/nestedActionBody" },
+        "clearApplicationData": { "$ref": "#/$defs/nestedActionBody" },
+        "清除应用数据": { "$ref": "#/$defs/nestedActionBody" },
+        "清理应用数据": { "$ref": "#/$defs/nestedActionBody" },
         "getText": { "$ref": "#/$defs/nestedActionBody" },
         "readText": { "$ref": "#/$defs/nestedActionBody" },
         "saveText": { "$ref": "#/$defs/nestedActionBody" },
         "获取文本": { "$ref": "#/$defs/nestedActionBody" },
         "读取文本": { "$ref": "#/$defs/nestedActionBody" },
         "保存文本": { "$ref": "#/$defs/nestedActionBody" },
+        "saveElementRect": { "$ref": "#/$defs/nestedActionBody" },
+        "getElementRect": { "$ref": "#/$defs/nestedActionBody" },
+        "saveElementRegion": { "$ref": "#/$defs/nestedActionBody" },
+        "获取元素矩形": { "$ref": "#/$defs/nestedActionBody" },
+        "保存元素矩形": { "$ref": "#/$defs/nestedActionBody" },
+        "保存元素区域": { "$ref": "#/$defs/nestedActionBody" },
         "wait": { "$ref": "#/$defs/nestedActionBody" },
         "sleep": { "$ref": "#/$defs/nestedActionBody" },
         "pause": { "$ref": "#/$defs/nestedActionBody" },
@@ -629,14 +643,22 @@
         "id": { "$ref": "#/$defs/id" },
         "desc": { "$ref": "#/$defs/nonEmptyString" },
         "appId": { "$ref": "#/$defs/nonEmptyString" },
+        "asRoi": { "type": "boolean" },
         "attr": { "$ref": "#/$defs/nonEmptyString" },
         "clearFirst": { "type": "boolean" },
         "durationMs": { "type": "integer", "minimum": 0 },
         "element": { "$ref": "#/$defs/nonEmptyString" },
         "elementXRatio": { "$ref": "#/$defs/ratio" },
         "elementYRatio": { "$ref": "#/$defs/ratio" },
+        "expandBottomRatio": { "type": "number", "minimum": 0 },
+        "expandLeftRatio": { "type": "number", "minimum": 0 },
+        "expandRightRatio": { "type": "number", "minimum": 0 },
+        "expandTopRatio": { "type": "number", "minimum": 0 },
         "expected": true,
+        "fullHeight": { "type": "boolean" },
+        "fullWidth": { "type": "boolean" },
         "pattern": { "$ref": "#/$defs/nonEmptyString" },
+        "recognizer": { "$ref": "#/$defs/screenRecordingTextRecognizer" },
         "candidateMaxFrames": { "type": "integer", "minimum": 1 },
         "candidateStrategy": { "$ref": "#/$defs/frameCandidateStrategy" },
         "framesPerSecond": { "type": "number", "exclusiveMinimum": 0 },
@@ -726,7 +748,22 @@
         "重启App": { "$ref": "#/$defs/id" },
         "重启APP": { "$ref": "#/$defs/id" },
         "desc": { "$ref": "#/$defs/nonEmptyString" },
-        "appId": { "$ref": "#/$defs/nonEmptyString" }
+        "appId": { "$ref": "#/$defs/nonEmptyString" },
+        "wait": { "$ref": "#/$defs/wait" }
+      }
+    },
+    "clearAppDataAction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["appId"],
+      "properties": {
+        "clearAppData": { "$ref": "#/$defs/id" },
+        "clearApplicationData": { "$ref": "#/$defs/id" },
+        "清除应用数据": { "$ref": "#/$defs/id" },
+        "清理应用数据": { "$ref": "#/$defs/id" },
+        "desc": { "$ref": "#/$defs/nonEmptyString" },
+        "appId": { "$ref": "#/$defs/nonEmptyString" },
+        "wait": { "$ref": "#/$defs/wait" }
       }
     },
     "getTextAction": {
@@ -880,6 +917,7 @@
         "desc": { "$ref": "#/$defs/nonEmptyString" },
         "source": { "$ref": "#/$defs/nonEmptyString" },
         "pattern": { "$ref": "#/$defs/nonEmptyString" },
+        "recognizer": { "$ref": "#/$defs/screenRecordingTextRecognizer" },
         "candidateMaxFrames": { "type": "integer", "minimum": 1 },
         "candidateStrategy": { "$ref": "#/$defs/frameCandidateStrategy" },
         "framesPerSecond": { "type": "number", "exclusiveMinimum": 0 },
@@ -890,18 +928,29 @@
       }
     },
     "roi": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["x", "y", "width", "height"],
-      "properties": {
-        "x": { "$ref": "#/$defs/ratio" },
-        "y": { "$ref": "#/$defs/ratio" },
-        "width": { "$ref": "#/$defs/ratio" },
-        "height": { "$ref": "#/$defs/ratio" }
-      }
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["x", "y", "width", "height"],
+          "properties": {
+            "x": { "$ref": "#/$defs/ratio" },
+            "y": { "$ref": "#/$defs/ratio" },
+            "width": { "$ref": "#/$defs/ratio" },
+            "height": { "$ref": "#/$defs/ratio" }
+          }
+        },
+        {
+          "type": "string",
+          "pattern": "^@\\{(plan|case)\\.[^}]+\\}$"
+        }
+      ]
     },
     "frameCandidateStrategy": {
       "enum": ["visual-diff", "visual-diff-uniform", "uniform", "all"]
+    },
+    "screenRecordingTextRecognizer": {
+      "enum": ["paddle", "paddle-ocr", "kt-visual-paddle", "multimodal", "multimodal-ocr", "vision"]
     },
     "ratio": {
       "type": "number",

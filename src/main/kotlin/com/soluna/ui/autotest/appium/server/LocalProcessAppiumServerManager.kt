@@ -4,6 +4,7 @@ import com.soluna.ui.autotest.tool.DefaultFfmpegToolResolver
 import com.soluna.ui.autotest.tool.FfmpegToolResolver
 import com.soluna.ui.autotest.tool.prependPathEntry
 import org.slf4j.LoggerFactory
+import java.net.InetSocketAddress
 import java.net.URI
 import java.net.ServerSocket
 import java.net.http.HttpClient
@@ -18,6 +19,7 @@ class LocalProcessAppiumServerManager(
     private val statusProbe: AppiumServerStatusProbe = JavaNetAppiumServerStatusProbe(),
     private val portAllocator: AppiumPortAllocator = ServerSocketAppiumPortAllocator,
     private val ffmpegToolResolver: FfmpegToolResolver = DefaultFfmpegToolResolver(),
+    private val extensionInstaller: AppiumExtensionInstaller = LocalAppiumExtensionInstaller(),
     private val probeIntervalMs: Long = 250,
     private val sleeper: (Long) -> Unit = { Thread.sleep(it) },
 ) : AppiumServerManager {
@@ -26,13 +28,14 @@ class LocalProcessAppiumServerManager(
 
     override fun ensureRunning(config: AppiumServerConfig): AppiumServerHandle {
         logger.debug(
-            "appium.manager ensureRunning requested managed={} url={} host={} port={} executable={} plugins={} startupTimeoutMs={}",
+            "appium.manager ensureRunning requested managed={} url={} host={} port={} executable={} plugins={} ensureDrivers={} startupTimeoutMs={}",
             config.managed,
             config.baseUrl,
             config.host,
             config.port,
             config.executable,
             config.usePlugins,
+            config.ensureDrivers,
             config.startupTimeoutMs,
         )
         if (!config.managed) {
@@ -54,6 +57,12 @@ class LocalProcessAppiumServerManager(
         )
         val launchUrl = launchConfig.url
         val launchEnvironment = environmentWithFfmpegPath(launchConfig.environment)
+        extensionInstaller.ensureExtensions(
+            appiumExecutable = launchConfig.executable,
+            pluginNames = launchConfig.usePlugins,
+            driverNames = launchConfig.ensureDrivers,
+            environment = launchEnvironment,
+        )
         val command = buildCommand(launchConfig)
         logger.debug(
             "appium.manager launching managed server url={} command={} envKeys={}",
@@ -224,8 +233,8 @@ interface AppiumPortAllocator {
 
 object ServerSocketAppiumPortAllocator : AppiumPortAllocator {
     override fun findAvailablePort(): Int {
-        return ServerSocket(0).use { socket ->
-            socket.reuseAddress = true
+        return ServerSocket().use { socket ->
+            socket.bind(InetSocketAddress(AppiumServerConfig.DEFAULT_HOST, 0))
             socket.localPort
         }
     }

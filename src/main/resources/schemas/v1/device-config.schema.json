@@ -68,6 +68,14 @@
               },
               "default": ["soluna-ext"]
             },
+            "ensureDrivers": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "default": ["uiautomator2", "xcuitest"]
+            },
             "executable": {
               "type": "string",
               "minLength": 1,

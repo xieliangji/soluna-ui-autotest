@@ -157,6 +157,19 @@ class RecoveringWebDriverAdapter(
         return attribute
     }
 
+    override fun getElementRect(
+        sessionId: String,
+        element: DriverElement,
+    ): ElementRect {
+        val session = requireSession(sessionId)
+        val recoveringElement = requireElement(sessionId, element)
+        var rect: ElementRect? = null
+        withElementRecovery(session, recoveringElement) { physicalElement ->
+            rect = delegate.getElementRect(session.physicalSessionId, physicalElement)
+        }
+        return rect ?: error("Element rect could not be read")
+    }
+
     override fun getPageSource(sessionId: String): String {
         val session = requireSession(sessionId)
         return withSessionRecovery(session) {
@@ -172,6 +185,21 @@ class RecoveringWebDriverAdapter(
         val session = requireSession(sessionId)
         withSessionRecovery(session) {
             delegate.restartApp(
+                sessionId = session.physicalSessionId,
+                appId = appId,
+                wait = wait,
+            )
+        }
+    }
+
+    override fun clearAppData(
+        sessionId: String,
+        appId: String,
+        wait: DriverWaitOptions?,
+    ) {
+        val session = requireSession(sessionId)
+        withSessionRecovery(session) {
+            delegate.clearAppData(
                 sessionId = session.physicalSessionId,
                 appId = appId,
                 wait = wait,

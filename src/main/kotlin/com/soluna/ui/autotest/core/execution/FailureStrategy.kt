@@ -55,3 +55,32 @@ object FailFastFailureStrategy : FailureStrategy {
         return false
     }
 }
+
+object ContinueCaseFailureStrategy : FailureStrategy {
+    override fun continueCaseAfterActionFailure(
+        context: ExecutionContext,
+        stage: StageDefinition,
+        case: CaseDefinition,
+        action: ActionDefinition,
+        result: ActionExecutionResult,
+    ): Boolean {
+        return false
+    }
+
+    override fun continueStageAfterCaseFailure(
+        context: ExecutionContext,
+        stage: StageDefinition,
+        case: CaseDefinition,
+        result: CaseExecutionResult,
+    ): Boolean {
+        return true
+    }
+
+    override fun continuePlanAfterStageFailure(
+        context: ExecutionContext,
+        stage: StageDefinition,
+        result: StageExecutionResult,
+    ): Boolean {
+        return true
+    }
+}
