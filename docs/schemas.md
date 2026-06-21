@@ -1,6 +1,6 @@
 # Schemas
 
-The v0 implementation uses JSON Schema as the external data-contract format.
+The project uses JSON Schema as the external data-contract format.
 
 Schema files live under:
 
@@ -38,7 +38,7 @@ Plan defaults currently include:
 
 - `implicitWaitMs`: default implicit wait budget.
 - `actionWait`: default explicit wait for actions. It is applied after case/fragment references are assembled and only fills setup, action, and teardown actions that do not already declare `wait`. It is not a substitute for WebDriver implicit wait and should be used sparingly for known slow action groups. When an action declares `wait`, element lookup for that action temporarily disables the session implicit wait, polls with the explicit action timeout, and then restores the configured implicit wait. Assertion actions treat `wait.timeoutMs` as the total assertion budget; each element probe also disables implicit wait so short branch predicates are not multiplied by the session implicit wait. This lets fragments use shorter state probes or longer slow-page probes without changing the session default.
-- `failureStrategy`: named failure strategy selection.
+- `failureStrategy`: named failure strategy selection. Built-in values are `stop-case` / `fail-fast` for fail-fast execution and `continue-case` for stopping only the failed case while continuing later cases and stages.
 - `retryStrategy`: named retry strategy selection.
 
 Plan diagnostics and local artifact handling currently include:
@@ -69,17 +69,21 @@ Action DSL now uses a single keyword field. New assets should use the nested obj
     desc: 打开我的页
 ```
 
-The older `tap: open-mine-tab` form with sibling fields remains accepted for compatibility. `case.schema.json`, `plan.schema.json`, and `fragment-catalog.schema.json` explicitly enumerate the currently supported action keywords and aliases: `tap`, `tapVisualTemplate`, `tapImage`, `tapTemplate`, `input`, `restartApp`, `getText`, `wait`, `assertElementExists`, `assertElementAttrEquals`, `assertElementAttrRegexMatch`, `assertSourceRegexMatch`, `screenshot`, `startScreenRecording`, `stopScreenRecording`, and `assertScreenRecordingTextRegexMatch`. Unsupported action types fail schema/policy validation before execution.
+The older `tap: open-mine-tab` form with sibling fields remains accepted for compatibility. `case.schema.json`, `plan.schema.json`, and `fragment-catalog.schema.json` explicitly enumerate the currently supported action keywords and aliases: `tap`, `tapVisualTemplate`, `tapImage`, `tapTemplate`, `input`, `restartApp`, `clearAppData`, `getText`, `saveElementRect`, `wait`, `assertElementExists`, `assertElementAttrEquals`, `assertElementAttrRegexMatch`, `assertSourceRegexMatch`, `screenshot`, `startScreenRecording`, `stopScreenRecording`, and `assertScreenRecordingTextRegexMatch`. Unsupported action types fail schema/policy validation before execution.
 
 `assertElementExists` asserts that the configured `element` can be found and is the preferred predicate for fragment page-state branches. Element attribute assertions use an explicit `attr` field instead of encoding the attribute in the keyword. `attr` may contain slash-separated fallback candidates such as `name/label/text`. Regex assertions use contains-style matching by default through the regex engine; cases that need full-string matching should use anchors such as `^...$`. Assertion actions poll until matched or timed out when they have a `wait` value; that timeout is the total assertion budget, not a per-probe timeout. Plan-level `defaults.actionWait` supplies that wait unless the action overrides it.
 
 Action-specific fields are declared directly on the action object instead of through open `args`. For `tap`, an action should normally use `element: alias.name`; runtime tap resolves the current element, requires it to intersect the screen viewport, and clicks the center of the element's visible area by default. `elementXRatio` and `elementYRatio` can override the element-relative click point. When the UI surface has no stable element identity, such as an app modal backdrop, `tap` can use viewport-relative coordinates through top-level `xRatio` and `yRatio`. Coordinate taps are action parameters, not locator definitions. `tap` waits 800ms after execution by default; `settleMs` can override that delay or disable it with `0`. The parser normalizes this external DSL into the compact internal `ActionDefinition` model consumed by executors.
 
-`tapVisualTemplate` / `tapImage` / `tapTemplate` click a non-text visual affordance by matching a template image against the current screenshot with kt-visual, then tapping a configurable percentage point inside the matched region. Supported fields are `template`, `threshold`, `scales`, `roi`, `targetXRatio`, `targetYRatio`, and `settleMs`. `roi` uses normalized screenshot coordinates (`x`, `y`, `width`, `height`) and should be supplied for repeated or small controls to reduce false matches. Template assets belong under the project data tree, typically `data/<module>/templates/`; case and fragment DSL should reference the path through parameter data, for example `template: "${mine.visualTemplates.feedbackBackIcon}"`, instead of hardcoding an asset path in the case. During reference and parameter resolution, non-dynamic relative template paths are resolved relative to the data file directory, then inherited plan/case asset directories.
+`tapVisualTemplate` / `tapImage` / `tapTemplate` click a non-text visual affordance by matching a template image against the current screenshot with kt-visual, then tapping a configurable percentage point inside the matched region. Supported fields are `template`, `threshold`, `scales`, `roi`, `targetXRatio`, `targetYRatio`, `settleMs`, and action-level `wait`. `roi` uses normalized screenshot coordinates (`x`, `y`, `width`, `height`) and should be supplied for repeated or small controls to reduce false matches; it can also be an exact runtime variable reference such as `@{case.titleBarRoi}` when a previous action saved a normalized ROI object. When `wait` is present, template matching retries with fresh screenshots until the match is found or the timeout expires. Template assets belong under the project data tree, typically `data/<module>/templates/`; case and fragment DSL should reference the path through parameter data, for example `template: "${mine.visualTemplates.feedbackBackIcon}"`, instead of hardcoding an asset path in the case. During reference and parameter resolution, non-dynamic relative template paths are resolved relative to the data file directory, then inherited plan/case asset directories.
+
+`saveElementRect` / `getElementRect` / `saveElementRegion` reads the visible viewport rectangle of an element and stores it in a runtime variable with `saveAs` and optional `scope`. By default the saved object is pixel based: `x`, `y`, `width`, `height`, `viewportWidth`, and `viewportHeight`. With `asRoi: true`, it saves normalized ROI coordinates compatible with visual actions. `fullWidth` or `fullHeight` can expand the saved ROI to the viewport edge while preserving the element's other axis; `expandLeftRatio`, `expandRightRatio`, `expandTopRatio`, and `expandBottomRatio` expand the element rectangle by a multiple of the element width or height before normalization.
 
 `restartApp` terminates and activates the target app, then waits until Appium reports the target app is running in the foreground. Its action-level `wait` overrides the default foreground wait budget.
 
-Toast-like transient text should be checked with screen recording analysis instead of page source polling. `startScreenRecording` starts an Appium recording with optional `timeLimitMs`; `stopScreenRecording` writes a video resource and can save its local path with `saveAs`; `assertScreenRecordingTextRegexMatch` extracts frames from that video with the resolved FFmpeg tool, optionally crops each frame by normalized `roi`, selects candidate frames through `candidateStrategy`, runs kt-visual OCR on those candidates, and stores the matched frame as a manifest resource when the regex matches. FFmpeg resolution prefers `soluna.ffmpeg.path` / `SOLUNA_FFMPEG`, then `tools/ffmpeg/<os>-<arch>/ffmpeg(.exe)` from configured tool roots, the working tree, or the installed distribution, and finally `ffmpeg` from PATH. Managed Appium server startup also prepends the resolved explicit or bundled FFmpeg directory to PATH because Appium XCUITest iOS recording invokes a command named `ffmpeg` in the server process. Candidate strategies are `visual-diff` for transient visual changes, `uniform` for evenly sampled videos, `visual-diff-uniform` for choosing visually changed frames and then spreading OCR candidates across that set, and `all` for short ROI-cropped recordings where every extracted frame should be OCRed. `candidateMaxFrames` bounds OCR work for `visual-diff`, `visual-diff-uniform`, and `uniform`; `visualDifferenceThreshold` controls visual-diff sensitivity.
+`clearAppData` / `clearApplicationData` clears Android app data for the supplied `appId`, reactivates the app, and waits for foreground state. It is Android-only. If the current session requested `appium:autoGrantPermissions=true` or `autoGrantPermissions=true`, the action re-reads runtime permissions through `dumpsys package <appId>` after `pm clear` and attempts to grant each runtime permission before relaunch. This keeps clear-data first-use flows from being interrupted by system permission prompts while preserving the normal app data reset semantics.
+
+Toast-like transient text should be checked with screen recording analysis instead of page source polling. `startScreenRecording` starts an Appium recording with optional `timeLimitMs`; `stopScreenRecording` writes a video resource and can save its local path with `saveAs`; `assertScreenRecordingTextRegexMatch` extracts frames from that video with the resolved FFmpeg tool, optionally crops each frame by normalized `roi`, selects candidate frames through `candidateStrategy`, runs kt-visual OCR on those candidates, and stores the matched frame as a manifest resource when the regex matches. `recognizer` defaults to `paddle`; use `multimodal` for OpenAI-compatible kt-visual multimodal OCR. Multimodal OCR reads `soluna.visual.ocr.multimodal.baseUrl` / `SOLUNA_VISUAL_OCR_MULTIMODAL_BASE_URL`, optional `apiKey`, `model`, `timeoutMs`, `reasoningEffort`, `stream`, prompt, stream idle timeout, stream HTTP timeout, and multimodal candidate parallelism settings from system properties or environment variables. Defaults are `model=gpt-5.5`, `reasoningEffort=high`, `stream=true`, `streamIdleTimeoutMs=60000`, `streamHttpTimeoutMs=600000`, and multimodal candidate `parallelism=4`; stream chunks are logged at info level, and the idle timeout is reset only by reasoning or content output. The default multimodal prompt is tuned to include low-contrast UI overlay text and visible substrings of clipped toast text without completing hidden characters. FFmpeg resolution prefers `soluna.ffmpeg.path` / `SOLUNA_FFMPEG`, then `tools/ffmpeg/<os>-<arch>/ffmpeg(.exe)` from configured tool roots, the working tree, or the installed distribution, and finally `ffmpeg` from PATH. Managed Appium server startup also prepends the resolved explicit or bundled FFmpeg directory to PATH because Appium XCUITest iOS recording invokes a command named `ffmpeg` in the server process. Candidate strategies are `visual-diff` for transient visual changes, `uniform` for evenly sampled videos, `visual-diff-uniform` for choosing visually changed frames and then spreading OCR candidates across that set, and `all` for short ROI-cropped recordings where every extracted frame should be OCRed. `candidateMaxFrames` bounds OCR work for `visual-diff`, `visual-diff-uniform`, and `uniform`; `visualDifferenceThreshold` controls visual-diff sensitivity.
 
 Plan and stage schemas expose the same lifecycle pattern through `setupFragments` / `setupActions` and `teardownFragments` / `teardownActions`. Teardown results are recorded separately from main action results.
 
@@ -95,7 +99,7 @@ Setup order is plan, then stage, then case. Teardown order is case, then stage, 
 
 Stage and case inline `parameters` are merged into the parameter context used to resolve later lifecycle actions, case actions, and element locators. Nested objects merge recursively; dotted inline parameter names such as `appState.mine.entryIndex` are also supported.
 
-Asset projects should keep case-specific data close to the case naming convention, while element catalogs stay module-oriented. For example, public profile case data can live under `data/common/profile/update-and-restore-nickname.yaml`, but shared login/device/mine locators should live in `elements/common.yaml` rather than a case-named element file.
+Asset projects should keep case-specific data close to the case naming convention, while element catalogs stay module-oriented. For example, shared mine-module data can live under `data/common/mine.yaml`, but shared login/device/mine locators should live in `elements/common.yaml` rather than a case-named element file.
 
 `case.schema.json`, `plan.schema.json`, and `fragment-catalog.schema.json` do not allow inline `locator` on actions. Actions reference elements through `element`; `PlanReferenceResolver` resolves that reference into the internal runtime `ActionDefinition.locator` before execution. This keeps locator ownership in element catalogs while preserving compact runtime executor inputs.
 
@@ -115,7 +119,7 @@ Runtime variables are not parameter data. Actions can write/read `@{plan.name}` 
 - UDID-only device configs; missing platform can be resolved through `soluna-ext`
 - Appium server mode: managed or external
 - optional Appium server location for external servers
-- executable, plugins, extra args, startup timeout, and optional environment overrides
+- executable, plugins, required driver names, extra args, startup timeout, and optional environment overrides
 - device/session-level Appium capabilities
 - iOS WDA lifecycle config under `ios.wda`, including managed/external mode, local host port, device WDA port, go-ios executable, optional WDA identity overrides, tunnel mode, tunnel info/userspace tunnel ports, startup timeout, tunnel startup delay, and runwda startup delay
 
@@ -123,7 +127,7 @@ Device config must not contain target app identity or app reset intent. App life
 
 For iOS, WDA is treated as a device-adjacent capability. `DeviceConfigResolver` fills missing iOS `device.osVersion` through `soluna-ext`; WDA management consumes that resolved version to choose the iOS 17+ tunnel path or the legacy path. The WDA runner bundle is resolved through `soluna-ext` by default and can be overridden with `ios.wda.bundleId`, `ios.wda.testRunnerBundleId`, and `ios.wda.xctestConfig` when needed. iOS 17+ managed WDA defaults to go-ios userspace tunnel mode and uses runtime-allocated tunnel info/userspace ports unless the device config pins them. Case and plan DSL files should not branch on iOS versions.
 
-For managed Appium servers, `host` and `port` are optional. When `port` is omitted, the manager chooses an available local port at runtime. The Appium child process inherits the current runner process environment by default; `environment` only adds or overrides variables for exceptional cases.
+For managed Appium servers, `host` and `port` are optional. When `port` is omitted, the manager chooses an available local port at runtime. Before launching Appium, the manager ensures configured `usePlugins` are installed and configured `ensureDrivers` are installed. The default plugin list is `["soluna-ext"]`; the default driver list is `["uiautomator2", "xcuitest"]`. `soluna-ext` is treated as project-owned: if an installed copy is not from the project-bundled source, it is uninstalled and reinstalled from the bundled source. The Appium child process inherits the current runner process environment by default; `environment` only adds or overrides variables for exceptional cases.
 
 Android session construction adds these defaults when the per-device config does not override them:
 
@@ -166,10 +170,10 @@ Example asset-project files:
 Runtime model classes live under:
 
 ```text
-src/main/kotlin/com/ugreen/iot/soluna/autotest/core/model/
-src/main/kotlin/com/ugreen/iot/soluna/autotest/config/
-src/main/kotlin/com/ugreen/iot/soluna/autotest/artifact/
-src/main/kotlin/com/ugreen/iot/soluna/autotest/notification/
+src/main/kotlin/com/soluna/ui/autotest/core/model/
+src/main/kotlin/com/soluna/ui/autotest/config/
+src/main/kotlin/com/soluna/ui/autotest/artifact/
+src/main/kotlin/com/soluna/ui/autotest/notification/
 ```
 
 The DSL parser validates YAML in this order:
@@ -180,3 +184,7 @@ The DSL parser validates YAML in this order:
 4. Map the validated tree into Kotlin model classes.
 
 Schema files are versioned by directory. Breaking contract changes should create a new version directory instead of silently changing v1 semantics.
+
+Element catalogs may contain platform-specific entries that are not available on every platform. During reference assembly, the runner loads only locators available for the current plan platform and skips entries that have no matching platform/common locator. If an action references a skipped element, action reference resolution still fails because that element is unavailable for the current platform.
+
+Fragment catalogs are parsed as catalogs, but fragment actions are resolved lazily only when a plan, stage, or case references that fragment. This lets a shared fragment catalog contain Android-only or iOS-only helper fragments without making the other platform fail during plan assembly, while still failing if the current platform actually references an unsupported fragment.

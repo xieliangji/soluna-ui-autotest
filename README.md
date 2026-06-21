@@ -6,7 +6,7 @@ The framework is designed around YAML DSL test plans, pluggable execution compon
 
 ## Current Status
 
-v0 is closed as a runnable foundation. Next development should start from real business cases and let v1 gaps drive new action keywords, wait/assertion improvements, and report UX work.
+The framework is now a runnable contract and execution package. Current work is v1-style hardening driven by real asset-project cases: action keyword coverage, wait/assertion behavior, recovery diagnostics, report usability, platform integration contracts, and Codex-assisted asset-project authoring.
 
 Primary design reference:
 
@@ -55,7 +55,7 @@ AIot-Tests/artifacts/minio.template.yaml
 AIot-Tests/artifacts/dingtalk.template.yaml
 ```
 
-The current v0 parser validates plan YAML with JSON Schema and framework policy checks before mapping it to Kotlin models.
+The parser validates plan YAML with JSON Schema and framework policy checks before mapping it to Kotlin models.
 
 Execution starts from a plan path. Other YAML files, including device config, parameter data, cases, element catalogs, and setup fragments, are reached through references declared by the plan directly or indirectly.
 
@@ -110,28 +110,15 @@ The generated project is intentionally minimal. It creates a smoke plan that res
 
 The skill also includes `scripts/send_dingtalk_gap_notice.py` for approved capability-gap notifications. It defaults to the built-in Soluna debug DingTalk robot; override it with `SOLUNA_CODEX_DINGTALK_WEBHOOK` and `SOLUNA_CODEX_DINGTALK_SECRET` when another robot should receive notices.
 
-The first real asset project example is under:
+The in-repository asset project example is:
 
 ```text
 AIot-Tests/
 ```
 
-The current profile nickname cases are:
+Within an app asset root, case files are organized by app module. Shared app behavior goes under `cases/common/`; model-specific behavior should use one directory per model or module under `cases/`, for example `cases/UGREEN HiTune X8/...`. Plans reference concrete case files through `caseRefs`, so the runner remains independent of business directory naming.
 
-```text
-AIot-Tests/apps/com.ugreen.iot/plans/profile/nickname-android.yaml
-AIot-Tests/apps/com.ugreen.iot/plans/profile/nickname-ios.yaml
-AIot-Tests/apps/com.ugreen.iot/cases/common/profile/update-and-restore-nickname-android.yaml
-AIot-Tests/apps/com.ugreen.iot/cases/common/profile/update-and-restore-nickname-ios.yaml
-```
-
-Within an app asset root, case files are organized by app module. Shared app behavior goes under `cases/common/`; model-specific behavior should use one directory per model or module under `cases/`, for example `cases/UGREEN HiTune X8/...`. Plans continue to reference concrete case files through `caseRefs`, so the runner remains independent of the business directory naming.
-
-Case-specific data may mirror the case path and logical case name. The current nickname input data is:
-
-```text
-AIot-Tests/apps/com.ugreen.iot/data/common/profile/update-and-restore-nickname.yaml
-```
+Case-specific data may mirror the case path and logical case name. Shared test data stays under module-oriented data files such as `AIot-Tests/apps/com.ugreen.iot/data/common/mine.yaml`.
 
 Element catalogs stay module-oriented instead of case-oriented. Public app elements such as login, device, and mine live in:
 
@@ -139,13 +126,13 @@ Element catalogs stay module-oriented instead of case-oriented. Public app eleme
 AIot-Tests/apps/com.ugreen.iot/elements/common.yaml
 ```
 
-Draft reusable app-state initialization fragments live at:
+Reusable app-state initialization fragments live at:
 
 ```text
 AIot-Tests/apps/com.ugreen.iot/fragments/app-state.yaml
 ```
 
-They use generic fragment `if` / `then` / `else` control flow with ordinary action/assertion predicates. The login and logout branches still require stable real-app flow details before being wired into executable plans.
+They use generic fragment `if` / `then` / `else` control flow with ordinary action/assertion predicates. Asset-project docs should carry app-specific account state, device state, and debug-path notes.
 
 Run an example asset-project plan the same way as any plan:
 
@@ -153,17 +140,17 @@ Run an example asset-project plan the same way as any plan:
 ./gradlew run --args='run AIot-Tests/apps/com.ugreen.iot/plans/app-state/ios.yaml'
 ```
 
-## v0 Status
+## Capability Snapshot
 
-v0 is closed as a runnable foundation. It supports:
+The current runner supports:
 
-- Plan-rooted YAML execution with schema-first validation, case/data/element/fragment references, and keyword-as-field actions such as `tap: open-mine-tab`.
-- Linear real-device execution on Android and iOS through Appium Java Client, managed Appium server startup, session recovery, and managed iOS WDA/go-ios support.
-- Pluggable execution boundaries for parsers, action executors, driver adapters, Appium server management, artifact upload, report writing, and notifications.
-- Default actions for tap/input/wait/restart app/get text/screenshot and element-attribute or source regex assertions. Assertion actions poll by resolved `wait`.
+- Plan-rooted YAML execution with schema-first validation, case/data/element/fragment references, and keyword-as-field actions such as `tap: { id, element, desc }`.
+- Linear real-device execution on Android and iOS through Appium Java Client, managed Appium server startup, managed Appium extension/driver bootstrap, session recovery, and managed iOS WDA/go-ios support.
+- Pluggable execution boundaries for parsers, action executors, driver adapters, Appium server management, artifact upload, report writing, notifications, failure strategy, and retry strategy.
+- Default actions for tap/input/wait/restart app/clear app data/get text/save element rect/screenshot/visual-template tap/screen recording and element-attribute, source-regex, or screen-recording OCR assertions. Assertion actions poll by resolved `wait`.
 - Runtime variables through `@{case.name}` / `@{plan.name}` and parameter references through `${...}`.
-- Local JSON/HTML reporting, explicit screenshot resource manifest, failure trace screenshots, MinIO artifact upload, upload-success cleanup, and DingTalk lifecycle/upload-failure notifications.
-- Optional real-device smoke plans for the `com.ugreen.iot` profile nickname edit/restore flow.
+- Local JSON/HTML reporting, explicit resource manifest for screenshots/recordings/OCR evidence, failure trace screenshots and page source, MinIO artifact upload, upload-success cleanup, and DingTalk lifecycle/upload-failure notifications.
+- Debug CLI for source/screenshot/tap/tap-element/input/tap-template/shell inspection from a plan's device and app config.
 
 JUnit is used for framework development tests only. Runtime DSL plan orchestration belongs to the Soluna runner and result model.
 
@@ -231,9 +218,20 @@ tools/ffmpeg/linux-x64/ffmpeg
 tools/ffmpeg/windows-x64/ffmpeg.exe
 ```
 
-`./gradlew installDist` copies `tools/` into `build/install/soluna/tools`. Managed Appium server startup prepends the resolved explicit or bundled FFmpeg directory to PATH. Override paths with `-Dsoluna.ffmpeg.path=...`, `SOLUNA_FFMPEG`, `-Dsoluna.tools.dir=...`, or `SOLUNA_TOOLS_DIR`.
+`./gradlew installDist` copies `tools/` into `build/install/soluna/tools` and the bundled Appium extension source into `build/install/soluna/plugins/soluna-appium-ext`. Managed Appium server startup prepends the resolved explicit or bundled FFmpeg directory to PATH. Override paths with `-Dsoluna.ffmpeg.path=...`, `SOLUNA_FFMPEG`, `-Dsoluna.tools.dir=...`, or `SOLUNA_TOOLS_DIR`.
 
 The checked-in binaries are from `eugeneware/ffmpeg-static` release `b6.1.1` and follow that package's `GPL-3.0-or-later` license. Upstream README and LICENSE files are kept beside each platform binary.
+
+`assertScreenRecordingTextRegexMatch` uses Paddle OCR by default. Cases can set `recognizer: multimodal` to use the kt-visual OpenAI-compatible multimodal OCR client for difficult translucent or mixed-background text. Configure it at runtime only:
+
+```bash
+export SOLUNA_VISUAL_OCR_MULTIMODAL_BASE_URL=http://host:port/v1
+export SOLUNA_VISUAL_OCR_MULTIMODAL_API_KEY=<api-key>
+export SOLUNA_VISUAL_OCR_MULTIMODAL_MODEL=gpt-5.5
+export SOLUNA_VISUAL_OCR_MULTIMODAL_REASONING_EFFORT=high
+```
+
+The multimodal recognizer defaults to `stream=true` and logs stream chunks at info level; set `SOLUNA_VISUAL_OCR_MULTIMODAL_STREAM=false` to disable streaming. Stream mode uses a long HTTP timeout and an idle watchdog: `SOLUNA_VISUAL_OCR_MULTIMODAL_STREAM_IDLE_TIMEOUT_MS` controls how long the stream may go without reasoning or content output before it is stopped, while `SOLUNA_VISUAL_OCR_MULTIMODAL_STREAM_HTTP_TIMEOUT_MS` bounds the underlying HTTP request. Candidate frames for multimodal OCR are recognized concurrently; tune the worker count with `SOLUNA_VISUAL_OCR_MULTIMODAL_PARALLELISM`. The default prompt is tuned for UI assertions and low-contrast toast text; override it with `SOLUNA_VISUAL_OCR_MULTIMODAL_PROMPT` only when a specific model endpoint needs different wording.
 
 ## Artifact Upload
 
@@ -255,7 +253,7 @@ It contains the endpoint, bucket, prefix, direct credentials, gzip compression p
 AIot-Tests/artifacts/dingtalk.template.yaml
 ```
 
-The v0 config supports direct values in YAML:
+The current config supports direct values in YAML:
 
 ```yaml
 credentials:
@@ -349,37 +347,36 @@ SOLUNA_IOS_WDA_STARTUP_DELAY_MS=10000 \
 
 This smoke test starts a managed Appium server with `soluna-ext`, resolves iOS device metadata and the installed WDA runner bundle through the plugin, starts go-ios userspace tunnel for iOS 17+, starts WDA, starts local port forwarding, probes WDA `/status`, then stops all managed processes.
 
-Optional real Android UGREEN profile nickname YAML smoke:
+Optional real Android asset-plan smoke:
 
 ```bash
 SOLUNA_UGREEN_PROFILE_SMOKE=true \
+SOLUNA_UGREEN_PROFILE_PLAN_PATH=AIot-Tests/apps/com.ugreen.iot/plans/common/android.yaml \
 ./gradlew test --tests com.soluna.ui.autotest.runner.RealAndroidUgreenProfilePlanTest
 ```
 
-To run the same smoke with a local upload-enabled plan, point the test at another plan path:
+To run an upload-enabled plan, point the test at a local plan that references a private artifact config such as `AIot-Tests/artifacts/minio.local.yaml`:
 
 ```bash
 SOLUNA_UGREEN_PROFILE_SMOKE=true \
-SOLUNA_UGREEN_PROFILE_PLAN_PATH=.soluna/plans/ugreen-profile-nickname-upload.yaml \
-SOLUNA_UGREEN_PROFILE_NEW_NICKNAME=SolunaFix42 \
-SOLUNA_RUN_ID=ugreen-profile-minio-20260613-005 \
+SOLUNA_UGREEN_PROFILE_PLAN_PATH=AIot-Tests/apps/com.ugreen.iot/plans/common/android.yaml \
+SOLUNA_RUN_ID=ugreen-android-local \
 ./gradlew test --tests com.soluna.ui.autotest.runner.RealAndroidUgreenProfilePlanTest
 ```
 
 The default in-repository Android asset plan is `AIot-Tests/apps/com.ugreen.iot/plans/common/android.yaml`. It composes cases under `AIot-Tests/apps/com.ugreen.iot/cases/common/`, uses shared data and elements under the same app asset root, and resolves the Android device config from `AIot-Tests/devices/android/`. The local report writer emits:
 
 ```text
-build/soluna-runs/ugreen-profile-local/report/index.html
-build/soluna-runs/ugreen-profile-local/report/execution-result.json
+build/soluna-runs/{runId}/report/index.html
+build/soluna-runs/{runId}/report/execution-result.json
 ```
 
-Optional real iOS UGREEN profile nickname YAML smoke:
+Optional real iOS asset-plan smoke:
 
 ```bash
 SOLUNA_IOS_UGREEN_PROFILE_SMOKE=true \
 SOLUNA_IOS_UGREEN_PROFILE_PLAN_PATH=AIot-Tests/apps/com.ugreen.iot/plans/common/ios.yaml \
-SOLUNA_IOS_UGREEN_PROFILE_NEW_NICKNAME=SolunaIOS \
-SOLUNA_RUN_ID=ugreen-profile-ios-local \
+SOLUNA_RUN_ID=ugreen-ios-local \
 ./gradlew test --tests com.soluna.ui.autotest.runner.RealIosUgreenProfilePlanTest
 ```
 
@@ -400,6 +397,13 @@ https://github.com/xieliangji/soluna-appium-ext
 ```
 
 Host/device-adjacent capabilities should generally be implemented in that Appium plugin layer and consumed here through a client abstraction. After plugin extension work is complete and verified, changes should be prepared for commit and push to the upstream GitHub project.
+
+Managed Appium startup automatically checks required Appium extensions before launching the server:
+
+- `soluna-ext` is installed from the project-bundled source when missing. If an installed `soluna-ext` is not from this project's bundled source, it is uninstalled and reinstalled from the bundled source.
+- `uiautomator2` and `xcuitest` drivers are installed when missing.
+
+Local hosts still need Node/npm and Appium installed. The runner owns Appium extension installation for managed servers; external Appium servers are left untouched.
 
 Plugin commands:
 
