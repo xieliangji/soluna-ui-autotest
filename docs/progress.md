@@ -49,6 +49,20 @@ Implemented capabilities:
 
 ## Recent Iterations
 
+### 2026-06-21 Long Press Action
+
+- Added a generalized `longPress` WebDriver action with English and Chinese aliases for Appium-backed iOS/Android real-device automation.
+- Added schema, keyword registry, policy validation, adapter forwarding, and focused executor coverage for the new action.
+- Updated framework usage docs and the bundled asset-project creator skill so generated/maintained asset projects can use `longPress` without page-object abstractions.
+
+Verification:
+
+- `./gradlew test --tests com.soluna.ui.autotest.appium.action.WebDriverActionExecutorsTest --tests com.soluna.ui.autotest.schema.JsonSchemaDslValidatorTest --tests com.soluna.ui.autotest.dsl.YamlPlanParserTest` passed.
+- `./gradlew --rerun-tasks processResources installDist` passed.
+- `python3 -m py_compile codex/skills/soluna-ui-autotest-creator/scripts/create_asset_project.py codex/skills/soluna-ui-autotest-creator/scripts/send_dingtalk_gap_notice.py` passed.
+- `ios.yaml` parsed through `YamlPlanParser -> PlanReferenceResolver -> PlanDefaultsResolver -> PlanParameterResolver` without starting Appium.
+- iOS real-device focused runs passed for device rename, delete-cancel, disconnect, and guest rename/delete debug plans.
+
 ### 2026-06-21 Report And DingTalk Final Polish
 
 - Updated `DeviceConfigResolver` so successful `soluna-ext` metadata lookup overrides configured placeholder display names for report, Appium session, and DingTalk display; complete configured device fields still remain as fallback when lookup is unavailable.
@@ -352,20 +366,6 @@ Verification:
 - `git diff --check` passed.
 - `./gradlew test` passed.
 - `./gradlew build` passed.
-
-### 2026-06-21 Long Press Action
-
-- Added a generalized `longPress` WebDriver action with English and Chinese aliases for Appium-backed iOS/Android real-device automation.
-- Added schema, keyword registry, policy validation, adapter forwarding, and focused executor coverage for the new action.
-- Updated framework usage docs and the bundled asset-project creator skill so generated/maintained asset projects can use `longPress` without page-object abstractions.
-
-Verification:
-
-- `./gradlew test --tests com.soluna.ui.autotest.appium.action.WebDriverActionExecutorsTest --tests com.soluna.ui.autotest.schema.JsonSchemaDslValidatorTest --tests com.soluna.ui.autotest.dsl.YamlPlanParserTest` passed.
-- `./gradlew --rerun-tasks processResources installDist` passed.
-- `python3 -m py_compile codex/skills/soluna-ui-autotest-creator/scripts/create_asset_project.py codex/skills/soluna-ui-autotest-creator/scripts/send_dingtalk_gap_notice.py` passed.
-- `ios.yaml` parsed through `YamlPlanParser -> PlanReferenceResolver -> PlanDefaultsResolver -> PlanParameterResolver` without starting Appium.
-- iOS real-device focused runs passed for device rename, delete-cancel, disconnect, and guest rename/delete debug plans.
 
 ## Current Verification Baseline
 
