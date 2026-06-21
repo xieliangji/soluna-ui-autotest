@@ -245,7 +245,7 @@
 
 前置条件：
 
-- 用例暂不纳入常规全量计划；需要专项验证时使用 `plans/common/android-first-use-agreement-debug.yaml` 单独执行。
+- 用例暂不纳入常规全量计划；需要专项验证时使用 `plans/debug/android-first-use-agreement-debug.yaml` 单独执行。
 - Android session 建议启用 `autoGrantPermissions`，配合 `clearAppData` 后自动恢复 runtime permissions。
 
 操作路径：

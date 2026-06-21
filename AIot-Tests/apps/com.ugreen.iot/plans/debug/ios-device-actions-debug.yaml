@@ -1,27 +1,26 @@
 schemaVersion: "1.0"
-id: ugreen-app-state-ios
-name: UGREEN App State iOS
+id: ugreen-common-ios-device-actions-debug
+name: UGREEN Common iOS Device Actions Debug
 productModel: UGREEN
 version: "0.1.0"
 metadata:
   owner: qa
-  suite: app-state
-  intent: 验证登录页、游客设备页、登录态设备页初始化片段
+  suite: common
+  intent: 调试设备列表长按操作窗
 parameters:
   - id: appState
     file: ../../data/app-state.yaml
   - id: appStateLocal
     file: ../../data/app-state.ios.local.yaml
     required: false
-  - id: visualTemplates
-    file: ../../data/common/visual-templates.yaml
 fragmentRefs:
   - id: appState
     file: ../../fragments/app-state.yaml
 deviceConfig: ../../../../devices/ios/00008140-001805D80C93801C.yaml
+artifactStore: ../../../../artifacts/minio.local.yaml
 app:
   id: com.ugreen.iot
-  name: Audio
+  name: UGREEN
   platform: ios
   reset: false
 defaults:
@@ -33,14 +32,18 @@ trace:
     enabled: true
     beforeAction: onFailure
     retainBeforeActionCount: 5
-    upload: onFailure
+    upload: never
 localArtifacts:
   cleanup:
     mode: never
 stages:
-  - id: Audio-Initialization
-    name: App重启前置状态
+  - id: logged-in-device-page
+    name: Logged-in Device Page
+    setupFragments:
+      - appState.loggedInDevicePage
+    caseSetupFragments:
+      - appState.restartApp
     caseRefs:
-      - file: ../../cases/common/app-state/login-page.yaml
-      - file: ../../cases/common/app-state/guest-device-page.yaml
-      - file: ../../cases/common/app-state/logged-in-device-page.yaml
+      - file: ../../cases/device/common/TC001_DEVICE_RENAME_IOS.yaml
+      - file: ../../cases/device/common/TC002_DEVICE_DELETE_CANCEL_IOS.yaml
+      - file: ../../cases/device/common/TC003_DEVICE_DISCONNECT_IOS.yaml

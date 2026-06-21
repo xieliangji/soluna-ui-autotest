@@ -20,6 +20,7 @@
 - [个人信息与账号安全用例](case-modules/profile-account.md)：头像查看/修改、昵称、修改密码验证码、账号注销验证码、退出登录。
 - [数据管理用例](case-modules/data-management.md)：耳机录音译文、纪要等数据前置较重的占位用例。
 - [App-State Fragment Debug Record](app-state-fragment-debug.md)：app-state fragment 的逐步调试路径和 locator 注意事项。
+- [Device Fragment Debug Record](device-fragment-debug.md)：设备列表按 MAC 后四位打开目标设备的公共 fragment 用法和 iOS 调试结论。
 
 ## 通用用例规则
 
@@ -27,16 +28,20 @@
 - 状态收敛和可复用分支逻辑放在 fragment 中，不放在普通 case action 中。
 - Plan stage 负责准备起始状态。使用 `setupFragments` 做阶段状态收敛，使用 `caseSetupFragments` 做每条用例前的重启或轻量清理。
 - 已登录或游客 stage 中，优先使用 stage setup 收敛一次状态，再用轻量的 `appState.restartApp` 作为每条用例的 case setup。除非计划明确需要，否则不要每条用例前都重新跑完整状态收敛 fragment。
+- 调试期间的 focused/temporary plan 放在 `plans/debug/`。正式公共计划放在 `plans/common/`，型号专属正式计划放在 `plans/device/<model-slug>/`。
 - Android 和 iOS 的产品行为、验证意图一致时，尽量共用同一份 case。
 - 只有当产品行为确实不同才拆平台专用 case，例如 iOS 超长输入会截断，而 Android 显示 `201/200` 并允许提交后 toast 失败。
 - 验证码相关用例只做到触发发送验证码，并断言发送按钮变成秒级倒计时。除非有专门的破坏性流程计划，否则不要输入验证码、修改密码、撤回同意或提交账号注销。
-- 依赖设备或特殊账号数据的用例，如果当前测试账号没有合适设备，不要放进常规全量计划；应保留在独立 focused debug plan 中。
+- 依赖设备或特殊账号数据的用例，如果当前测试账号没有合适设备，不要放进常规全量计划；应保留在 `plans/debug/` 下的独立 focused debug plan 中。
+- 需要先进入某个设备详情的用例，优先在 stage setup 中组合 `appState.loggedInDevicePage` 或 `appState.guestDevicePage`，再组合 `device.openTargetDevice`。该 fragment 只负责校验目标设备已连接并点击设备项，不负责详情页校验。
 
 ## 元素与资产规则
 
 - locator 表达式不要硬编码固定 UI 文案，除非文案来自参数、资源字典、环境配置或数据文件。
 - 使用模块级 element catalog，不要为单条 case 新建专属 element 文件。公共 App 元素放在 `elements/common.yaml`。
+- 型号专属设备页面或能力页面的 locator 放在 `elements/device/<model-slug>.yaml`；公共 App 元素和跨型号设备列表元素仍放在 `elements/common.yaml`。
 - 用例专属数据可以按 case 路径或 case 命名放在 `data/` 下；元素归属不要跟随单条 case。
+- 设备相关且跨型号通用的用例放在 `cases/device/common/`。只有和具体型号能力、页面或数据绑定的用例，才放入 `cases/device/<model>/`；当前首个型号目录是 `cases/device/ugreen-hitune-s6-pro/`。
 - Android 优先使用稳定 resource id。
 - iOS 修改 locator 前必须先看当前 XML。WebView 页面可能保留隐藏节点或后台节点。
 - 页面跳转、重启、键盘收起、弹框变化后，不要复用旧 XML；每一步调试后都要重新抓 source。

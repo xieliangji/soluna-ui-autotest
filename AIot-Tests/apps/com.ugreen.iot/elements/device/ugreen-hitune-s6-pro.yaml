@@ -1,0 +1,4 @@
+schemaVersion: "1.0"
+id: ugreen-hitune-s6-pro
+description: UGREEN HiTune S6 Pro model-specific element locators.
+elements: {}

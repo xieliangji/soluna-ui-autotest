@@ -33,6 +33,50 @@ elements:
       strategy: xpath
       value: "//XCUIElementTypeButton[@visible='true' and @accessible='true' and @name='icon common add']"
       textLocatorPurpose: iconName
+  firstDeviceCard:
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeTable[@visible='true']/XCUIElementTypeCell[@visible='true'])[1]"
+  firstDeviceName:
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeTable[@visible='true']/XCUIElementTypeCell[@visible='true'])[1]/XCUIElementTypeStaticText[1]"
+  firstDeviceStatus:
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeTable[@visible='true']/XCUIElementTypeCell[@visible='true'])[1]/XCUIElementTypeStaticText[2]"
+  targetDeviceCardByMacSuffix:
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeTable[@visible='true']/XCUIElementTypeCell[@visible='true'][.//XCUIElementTypeStaticText[contains(string(@name),'${device.targetMacSuffix}') or contains(string(@label),'${device.targetMacSuffix}') or contains(string(@value),'${device.targetMacSuffix}')]])[1]"
+  connectedTargetDeviceCardByMacSuffix:
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeTable[@visible='true']/XCUIElementTypeCell[@visible='true'][.//XCUIElementTypeStaticText[contains(string(@name),'${device.targetMacSuffix}') or contains(string(@label),'${device.targetMacSuffix}') or contains(string(@value),'${device.targetMacSuffix}')]][.//XCUIElementTypeStaticText[contains(string(@name),'${mine.device.connectedPattern}') or contains(string(@label),'${mine.device.connectedPattern}') or contains(string(@value),'${mine.device.connectedPattern}')]])[1]"
+  connectedTargetDeviceCardByName:
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeTable[@visible='true']/XCUIElementTypeCell[@visible='true'][.//XCUIElementTypeStaticText[contains(string(@name),'${device.targetName}') or contains(string(@label),'${device.targetName}') or contains(string(@value),'${device.targetName}')]][.//XCUIElementTypeStaticText[contains(string(@name),'${mine.device.connectedPattern}') or contains(string(@label),'${mine.device.connectedPattern}') or contains(string(@value),'${mine.device.connectedPattern}')]])[1]"
+  deviceActionMenuFirstOption:
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeButton[@visible='true' and @accessible='true' and @width > 300])[1]"
+  deviceActionMenuSecondOption:
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeButton[@visible='true' and @accessible='true' and @width > 300])[2]"
+  deviceActionMenuLastOption:
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeButton[@visible='true' and @accessible='true' and @width > 300])[last()]"
+  deviceRenameInput:
+    ios:
+      strategy: class
+      value: XCUIElementTypeTextField
+  deviceRenameConfirmButton:
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeButton[@visible='true' and @accessible='true' and @width > 300])[1]"
   loginUsernameInput:
     android:
       strategy: xpath

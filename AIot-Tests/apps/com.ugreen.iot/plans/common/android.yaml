@@ -1,6 +1,7 @@
 schemaVersion: "1.0"
 id: ugreen-common-android
 name: UGREEN Common Android
+productModel: UGREEN
 version: "0.1.0"
 metadata:
   owner: qa

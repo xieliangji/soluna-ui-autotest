@@ -1,27 +1,32 @@
 schemaVersion: "1.0"
-id: ugreen-app-state-ios
-name: UGREEN App State iOS
+id: ugreen-common-ios-auth-tc030-debug
+name: UGREEN Common iOS Auth TC030 Debug
 productModel: UGREEN
 version: "0.1.0"
 metadata:
   owner: qa
-  suite: app-state
-  intent: 验证登录页、游客设备页、登录态设备页初始化片段
+  suite: common
+  intent: 单步调试 iOS 邮箱注册发码用例
 parameters:
   - id: appState
     file: ../../data/app-state.yaml
   - id: appStateLocal
     file: ../../data/app-state.ios.local.yaml
     required: false
-  - id: visualTemplates
-    file: ../../data/common/visual-templates.yaml
+  - id: auth
+    file: ../../data/common/auth.yaml
+    required: false
+  - id: authIos
+    file: ../../data/common/auth.ios.yaml
+    required: false
 fragmentRefs:
   - id: appState
     file: ../../fragments/app-state.yaml
 deviceConfig: ../../../../devices/ios/00008140-001805D80C93801C.yaml
+artifactStore: ../../../../artifacts/minio.local.yaml
 app:
   id: com.ugreen.iot
-  name: Audio
+  name: UGREEN
   platform: ios
   reset: false
 defaults:
@@ -32,15 +37,17 @@ trace:
   screenshots:
     enabled: true
     beforeAction: onFailure
-    retainBeforeActionCount: 5
+    retainBeforeActionCount: 20
     upload: onFailure
 localArtifacts:
   cleanup:
     mode: never
 stages:
-  - id: Audio-Initialization
-    name: App重启前置状态
+  - id: login-page
+    name: Login Page
+    setupFragments:
+      - appState.loginPage
+    caseSetupFragments:
+      - appState.loginPage
     caseRefs:
-      - file: ../../cases/common/app-state/login-page.yaml
-      - file: ../../cases/common/app-state/guest-device-page.yaml
-      - file: ../../cases/common/app-state/logged-in-device-page.yaml
+      - file: ../../cases/common/TC030_REGISTER_EMAIL_SEND_CODE_IOS.yaml

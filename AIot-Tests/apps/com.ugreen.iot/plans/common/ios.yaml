@@ -1,6 +1,7 @@
 schemaVersion: "1.0"
 id: ugreen-common-ios
 name: UGREEN Common iOS
+productModel: UGREEN
 version: "0.1.0"
 metadata:
   owner: qa
@@ -79,6 +80,9 @@ stages:
       - file: ../../cases/common/TC013_FEEDBACK_DESCRIPTION.yaml
       - file: ../../cases/common/TC014_FEEDBACK_HISTORY_LIST.yaml
       - file: ../../cases/common/TC015_FEEDBACK_HISTORY_DETAIL.yaml
+      - file: ../../cases/device/common/TC001_DEVICE_RENAME_IOS.yaml
+      - file: ../../cases/device/common/TC002_DEVICE_DELETE_CANCEL_IOS.yaml
+      - file: ../../cases/device/common/TC003_DEVICE_DISCONNECT_IOS.yaml
       - file: ../../cases/common/TC004_PERSONAL_INFO_PROTECTION_AGREENMENT.yaml
       - file: ../../cases/common/TC005_PERSONAL_INFO_PROTECTION_PRIVACY.yaml
       - file: ../../cases/common/TC006_PERSONAL_INFO_PROTECTION_COLLECTION_LIST.yaml
@@ -99,6 +103,8 @@ stages:
     caseRefs:
       - file: ../../cases/common/TC001_MINE_ABOUT.yaml
       - file: ../../cases/common/TC003_MINE_SYSTEM_PERMISSIONS_MANAGEMENT.yaml
+      - file: ../../cases/device/common/TC001_DEVICE_RENAME_IOS.yaml
+      - file: ../../cases/device/common/TC002_DEVICE_DELETE_CANCEL_IOS.yaml
       - file: ../../cases/common/TC009_FEEDBACK_GUEST_ACCESS.yaml
       - file: ../../cases/common/TC031_GUEST_UNSUPPORTED_FEATURES_IOS.yaml
       - file: ../../cases/common/TC004_PERSONAL_INFO_PROTECTION_AGREENMENT.yaml

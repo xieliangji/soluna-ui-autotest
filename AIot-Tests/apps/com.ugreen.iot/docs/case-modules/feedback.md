@@ -247,4 +247,4 @@
 - 不要把历史/返回模板点击替换成 `feedbackHistoryButton` 或通用 button locator。iOS WebView source 不暴露历史图标为可访问 button，宽泛 button 定位容易点到提交按钮。
 - 这里 Android 和 iOS 应保持共用逻辑；模板点击是该 WebView 图标入口的稳定跨平台抽象。
 - 标题栏 ROI 只使用标题文本元素的 `y` 和 `height`，左右边界扩展为整屏宽度，确保历史图标不在标题元素内部时仍能覆盖。
-- 本路径的 focused debug plan 是 `plans/common/ios-feedback-tc015-debug.yaml`。
+- 本路径的 focused debug plan 是 `plans/debug/ios-feedback-tc015-debug.yaml`。

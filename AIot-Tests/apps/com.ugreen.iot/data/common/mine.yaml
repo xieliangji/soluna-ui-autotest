@@ -15,6 +15,11 @@ values:
       countdownPattern: "^\\d+s$"
     guest:
       loginPromptPattern: "注册登录后体验更多功能"
+    device:
+      renameCandidate: "Soluna Device"
+      deleteDialogPattern: "(删除|移除|取消|确定)"
+      connectedPattern: "已连接"
+      disconnectedPattern: "未连接"
     profile:
       nickname:
         tooShort: "a"

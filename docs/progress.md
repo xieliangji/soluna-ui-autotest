@@ -49,6 +49,23 @@ Implemented capabilities:
 
 ## Recent Iterations
 
+### 2026-06-21 Asset Creator Device Case Layout Guidance
+
+- Updated the bundled asset-creator skill contract so device-related asset cases are separated from app-wide common cases: cross-model device cases belong in `cases/device/common/`, model-specific cases belong in `cases/device/<model-slug>/`, and numbering restarts inside each case module/directory.
+- Added target-device setup guidance to the asset-project contract: compose the device-list state fragment and `device.openTargetDevice` at stage setup, keep target device name/MAC in `data/device/<model-slug>.yaml`, and wait for the target device item to be connected before tapping it.
+- Updated the scaffold docs template and `create_asset_project.py` so generated projects include device case/data directories, an `elements/device/` location for one YAML catalog per model, and document the device case/locator layout rules.
+- Added plan directory guidance to the bundled skill: formal app-wide/cross-model plans live in `plans/common/`, formal model-specific plans live in `plans/device/<model-slug>/`, and temporary/focused debug plans live in `plans/debug/`.
+- Kept keyword-specific guidance out of `references/keyword-usage.md`; the device layout and orchestration rules live in `references/asset-project-contract.md`.
+
+Verification:
+
+- `python3 /Users/xieliangji/.codex/skills/.system/skill-creator/scripts/quick_validate.py codex/skills/soluna-ui-autotest-creator`
+- `python3 -m py_compile codex/skills/soluna-ui-autotest-creator/scripts/create_asset_project.py codex/skills/soluna-ui-autotest-creator/scripts/send_dingtalk_gap_notice.py`
+- `python3 codex/skills/soluna-ui-autotest-creator/scripts/create_asset_project.py --output /private/tmp/soluna-skill-device-layout-check --project-id device-layout-check --app-id com.example.device --app-name DeviceApp --product-model DeviceApp --platform ios --udid TEST_UDID --force`
+- Confirmed the scaffold writes the starter smoke plan under `plans/common/` and creates `plans/debug`, `plans/device`, `cases/device/common`, `data/device`, and `elements/device`.
+- `./gradlew installDist`; confirmed the packaged skill exists under `build/install/soluna/codex/skills/soluna-ui-autotest-creator`.
+- `git diff --check -- codex/skills/soluna-ui-autotest-creator docs/progress.md`
+
 ### 2026-06-21 Long Press Action
 
 - Added a generalized `longPress` WebDriver action with English and Chinese aliases for Appium-backed iOS/Android real-device automation.

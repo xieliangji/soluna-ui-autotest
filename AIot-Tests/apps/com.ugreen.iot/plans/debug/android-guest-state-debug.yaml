@@ -1,28 +1,27 @@
 schemaVersion: "1.0"
-id: ugreen-app-state-ios
-name: UGREEN App State iOS
+id: ugreen-common-android-guest-state-debug
+name: UGREEN Common Android Guest State Debug
 productModel: UGREEN
 version: "0.1.0"
 metadata:
   owner: qa
-  suite: app-state
-  intent: 验证登录页、游客设备页、登录态设备页初始化片段
+  suite: common
+  intent: 单步调试 Android 游客态页面结构
 parameters:
   - id: appState
     file: ../../data/app-state.yaml
   - id: appStateLocal
-    file: ../../data/app-state.ios.local.yaml
+    file: ../../data/app-state.android.local.yaml
     required: false
-  - id: visualTemplates
-    file: ../../data/common/visual-templates.yaml
 fragmentRefs:
   - id: appState
     file: ../../fragments/app-state.yaml
-deviceConfig: ../../../../devices/ios/00008140-001805D80C93801C.yaml
+deviceConfig: ../../../../devices/android/ZT4225X3C2.yaml
+artifactStore: ../../../../artifacts/minio.local.yaml
 app:
   id: com.ugreen.iot
-  name: Audio
-  platform: ios
+  name: UGREEN
+  platform: android
   reset: false
 defaults:
   implicitWaitMs: 8000
@@ -32,15 +31,15 @@ trace:
   screenshots:
     enabled: true
     beforeAction: onFailure
-    retainBeforeActionCount: 5
+    retainBeforeActionCount: 10
     upload: onFailure
 localArtifacts:
   cleanup:
     mode: never
 stages:
-  - id: Audio-Initialization
-    name: App重启前置状态
+  - id: guest-device-page
+    name: Guest Device Page
+    setupFragments:
+      - appState.guestDevicePage
     caseRefs:
-      - file: ../../cases/common/app-state/login-page.yaml
       - file: ../../cases/common/app-state/guest-device-page.yaml
-      - file: ../../cases/common/app-state/logged-in-device-page.yaml

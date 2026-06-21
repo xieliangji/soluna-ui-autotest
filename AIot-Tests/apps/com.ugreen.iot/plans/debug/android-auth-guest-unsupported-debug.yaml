@@ -1,24 +1,25 @@
 schemaVersion: "1.0"
-id: ugreen-app-state-android
-name: UGREEN App State Android
+id: ugreen-common-android-auth-guest-unsupported-debug
+name: UGREEN Common Android Auth Guest Unsupported Debug
 productModel: UGREEN
 version: "0.1.0"
 metadata:
   owner: qa
-  suite: app-state
-  intent: 验证登录页、游客设备页、登录态设备页初始化片段
+  suite: common
+  intent: 单步调试 Android 访客模式不支持功能用例
 parameters:
   - id: appState
     file: ../../data/app-state.yaml
   - id: appStateLocal
     file: ../../data/app-state.android.local.yaml
     required: false
-  - id: visualTemplates
-    file: ../../data/common/visual-templates.yaml
+  - id: mine
+    file: ../../data/common/mine.yaml
 fragmentRefs:
   - id: appState
     file: ../../fragments/app-state.yaml
 deviceConfig: ../../../../devices/android/ZT4225X3C2.yaml
+artifactStore: ../../../../artifacts/minio.local.yaml
 app:
   id: com.ugreen.iot
   name: UGREEN
@@ -32,15 +33,15 @@ trace:
   screenshots:
     enabled: true
     beforeAction: onFailure
-    retainBeforeActionCount: 5
+    retainBeforeActionCount: 10
     upload: onFailure
 localArtifacts:
   cleanup:
     mode: never
 stages:
-  - id: app-state
-    name: App State
+  - id: guest-device-page
+    name: Guest Device Page
+    setupFragments:
+      - appState.guestDevicePage
     caseRefs:
-      - file: ../../cases/common/app-state/login-page.yaml
-      - file: ../../cases/common/app-state/guest-device-page.yaml
-      - file: ../../cases/common/app-state/logged-in-device-page.yaml
+      - file: ../../cases/common/TC031_GUEST_UNSUPPORTED_FEATURES_ANDROID.yaml

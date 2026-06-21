@@ -19,10 +19,11 @@ For asset-project work, read the asset project's own `soluna-project.yaml`, plan
 4. Before adding or changing actions, read `references/keyword-usage.md` and use the supported keyword recipes and fields.
 5. Keep cases linear. Put reusable state convergence or branching in fragments, not in case actions.
 6. Keep locators in element catalogs, test data in data files, and plan orchestration in plans.
-7. Use `soluna debug <plan.yaml> shell` for real-device locator, screenshot, input, and template evidence. Capture fresh source and screenshot after every meaningful UI change.
-8. Verify with `soluna validate <plan.yaml>` and the narrowest useful `soluna run <plan.yaml> --run-id ...`.
-9. Update asset-project docs with passed operation paths, preconditions, known caveats, and whether the case belongs in a full plan or a focused debug plan.
-10. Request framework keyword/capability extension only after trying the keyword usage recipes and passing the strict capability-gap gate.
+7. Before creating or narrowing a focused/debug plan, read the setup-fragment rules in `references/asset-project-contract.md`, copy the nearest complete plan's stage/case setup structure, and explicitly check that stage initialization did not move into `caseSetupFragments`.
+8. Use `soluna debug <plan.yaml> shell` for real-device locator, screenshot, input, and template evidence. Capture fresh source and screenshot after every meaningful UI change.
+9. Verify with `soluna validate <plan.yaml>` and the narrowest useful `soluna run <plan.yaml> --run-id ...`.
+10. Update asset-project docs with passed operation paths, preconditions, known caveats, and whether the case belongs in a full plan or a focused debug plan.
+11. Request framework keyword/capability extension only after trying the keyword usage recipes and passing the strict capability-gap gate.
 
 ## Resources
 
@@ -48,7 +49,7 @@ python3 codex/skills/soluna-ui-autotest-creator/scripts/create_asset_project.py 
   --udid CHANGE_ME_UDID
 ```
 
-The scaffold is intentionally minimal: it creates a project contract, one app root, one device template, artifact templates, a restart fragment, an empty element catalog, default data, and a smoke plan/case with the required `productModel` display field. Add business locators and state fragments only after real-device debugging.
+The scaffold is intentionally minimal: it creates a project contract, one app root, one device template, artifact templates, a restart fragment, an empty public element catalog, default data, formal/debug plan directories, device case/data directories, a `elements/device/` folder for one YAML catalog per model, and a smoke plan/case with the required `productModel` display field. Add business locators, device fragments, and state fragments only after real-device debugging.
 
 ## Hard Rules
 

@@ -64,6 +64,18 @@ def write_rendered_files(output: Path, values: dict[str, str], force: bool) -> l
     return written
 
 
+def create_empty_directories(output: Path, values: dict[str, str]) -> None:
+    app_root = output / "apps" / values["APP_ID"]
+    for relative in (
+        Path("plans") / "debug",
+        Path("plans") / "device",
+        Path("cases") / "device" / "common",
+        Path("data") / "device",
+        Path("elements") / "device",
+    ):
+        (app_root / relative).mkdir(parents=True, exist_ok=True)
+
+
 def main() -> int:
     args = parse_args()
     validate_identifier(args.project_id, "--project-id")
@@ -86,7 +98,8 @@ def main() -> int:
 
     output = Path(args.output).expanduser().resolve()
     written = write_rendered_files(output, values, args.force)
-    plan = output / "apps" / args.app_id / "plans" / f"{primary_platform}-smoke.yaml"
+    create_empty_directories(output, values)
+    plan = output / "apps" / args.app_id / "plans" / "common" / f"{primary_platform}-smoke.yaml"
 
     print(f"Created Soluna asset project at: {output}")
     print(f"Files written: {len(written)}")

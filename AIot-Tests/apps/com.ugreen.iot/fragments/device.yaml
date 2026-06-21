@@ -1,0 +1,48 @@
+schemaVersion: "1.0"
+id: device-fragments
+description: Common device-list navigation fragments for UGREEN.
+fragments:
+  openTargetDevice:
+    name: Open Target Device
+    elementRefs:
+      - id: common
+        file: ../elements/common.yaml
+    actions:
+      - if:
+          assertElementExists:
+            id: detect-target-device-by-mac-suffix
+            element: common.targetDeviceCardByMacSuffix
+            desc: 探测设备列表中 MAC 后四位为 ${device.targetMacSuffix} 的设备项
+            wait:
+              timeoutMs: 3000
+              intervalMs: 500
+        then:
+          - assertElementExists:
+              id: assert-target-device-by-mac-suffix-connected
+              element: common.connectedTargetDeviceCardByMacSuffix
+              desc: 等待 MAC 后四位为 ${device.targetMacSuffix} 的目标设备项进入已连接状态
+              wait:
+                timeoutMs: 30000
+                intervalMs: 500
+          - tap:
+              id: open-connected-target-device-by-mac-suffix
+              element: common.connectedTargetDeviceCardByMacSuffix
+              desc: 点击已连接且 MAC 后四位为 ${device.targetMacSuffix} 的设备项
+              wait:
+                timeoutMs: 15000
+                intervalMs: 500
+        else:
+          - assertElementExists:
+              id: assert-target-device-by-name-connected
+              element: common.connectedTargetDeviceCardByName
+              desc: 未显示 MAC 后四位时，等待设备名为 ${device.targetName} 的第一个设备项进入已连接状态
+              wait:
+                timeoutMs: 30000
+                intervalMs: 500
+          - tap:
+              id: open-connected-target-device-by-name
+              element: common.connectedTargetDeviceCardByName
+              desc: 未显示 MAC 后四位时，点击已连接且设备名为 ${device.targetName} 的第一个设备项
+              wait:
+                timeoutMs: 15000
+                intervalMs: 500

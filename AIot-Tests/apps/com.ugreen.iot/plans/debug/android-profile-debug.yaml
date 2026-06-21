@@ -1,0 +1,53 @@
+schemaVersion: "1.0"
+id: ugreen-common-android-profile-debug
+name: UGREEN Common Android Profile Debug
+productModel: UGREEN
+version: "0.1.0"
+metadata:
+  owner: qa
+  suite: common
+  intent: 调试 Android 个人中心个人信息和账号安全用例
+parameters:
+  - id: appState
+    file: ../../data/app-state.yaml
+  - id: appStateLocal
+    file: ../../data/app-state.android.local.yaml
+    required: false
+  - id: visualTemplates
+    file: ../../data/common/visual-templates.yaml
+fragmentRefs:
+  - id: appState
+    file: ../../fragments/app-state.yaml
+deviceConfig: ../../../../devices/android/ZT4225X3C2.yaml
+artifactStore: ../../../../artifacts/minio.local.yaml
+app:
+  id: com.ugreen.iot
+  name: UGREEN
+  platform: android
+  reset: false
+defaults:
+  implicitWaitMs: 8000
+  failureStrategy: stop-case
+  retryStrategy: no-retry
+trace:
+  screenshots:
+    enabled: true
+    beforeAction: onFailure
+    retainBeforeActionCount: 10
+    upload: onFailure
+localArtifacts:
+  cleanup:
+    mode: never
+stages:
+  - id: logged-in-device-page
+    name: Logged-in Device Page
+    setupFragments:
+      - appState.loggedInDevicePage
+    caseSetupFragments:
+      - appState.restartApp
+    caseRefs:
+      - file: ../../cases/common/TC018_PROFILE_AVATAR_VIEW_ANDROID.yaml
+      - file: ../../cases/common/TC020_PROFILE_NICKNAME_DISPLAY_AND_SET_ANDROID.yaml
+      - file: ../../cases/common/TC021_PROFILE_PASSWORD_SEND_CODE_ANDROID.yaml
+      - file: ../../cases/common/TC022_PROFILE_ACCOUNT_CANCELLATION_SEND_CODE_ANDROID.yaml
+      - file: ../../cases/common/TC023_PROFILE_LOGOUT_ANDROID.yaml

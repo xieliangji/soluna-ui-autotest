@@ -1,12 +1,12 @@
 schemaVersion: "1.0"
-id: ugreen-app-state-ios
-name: UGREEN App State iOS
+id: ugreen-common-ios-profile-tc005-debug
+name: UGREEN Common iOS Profile TC005 Debug
 productModel: UGREEN
 version: "0.1.0"
 metadata:
   owner: qa
-  suite: app-state
-  intent: 验证登录页、游客设备页、登录态设备页初始化片段
+  suite: common
+  intent: 单步调试个人信息保护隐私政策用例
 parameters:
   - id: appState
     file: ../../data/app-state.yaml
@@ -19,9 +19,10 @@ fragmentRefs:
   - id: appState
     file: ../../fragments/app-state.yaml
 deviceConfig: ../../../../devices/ios/00008140-001805D80C93801C.yaml
+artifactStore: ../../../../artifacts/minio.local.yaml
 app:
   id: com.ugreen.iot
-  name: Audio
+  name: UGREEN
   platform: ios
   reset: false
 defaults:
@@ -32,15 +33,17 @@ trace:
   screenshots:
     enabled: true
     beforeAction: onFailure
-    retainBeforeActionCount: 5
+    retainBeforeActionCount: 30
     upload: onFailure
 localArtifacts:
   cleanup:
     mode: never
 stages:
-  - id: Audio-Initialization
-    name: App重启前置状态
+  - id: logged-in-device-page
+    name: Logged-in Device Page
+    setupFragments:
+      - appState.loggedInDevicePage
+    caseSetupFragments:
+      - appState.restartApp
     caseRefs:
-      - file: ../../cases/common/app-state/login-page.yaml
-      - file: ../../cases/common/app-state/guest-device-page.yaml
-      - file: ../../cases/common/app-state/logged-in-device-page.yaml
+      - file: ../../cases/common/TC005_PERSONAL_INFO_PROTECTION_PRIVACY.yaml
