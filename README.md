@@ -384,19 +384,13 @@ The default in-repository iOS asset plan is `AIot-Tests/apps/com.ugreen.iot/plan
 
 ## Appium Plugin
 
-The Appium extension source is copied into this repository for integrated development:
+The Appium extension source is maintained in this repository as an integrated project component:
 
 ```text
 lib/soluna-appium-ext
 ```
 
-Its upstream GitHub project is:
-
-```text
-https://github.com/xieliangji/soluna-appium-ext
-```
-
-Host/device-adjacent capabilities should generally be implemented in that Appium plugin layer and consumed here through a client abstraction. After plugin extension work is complete and verified, changes should be prepared for commit and push to the upstream GitHub project.
+Host/device-adjacent capabilities should generally be implemented in that Appium plugin layer and consumed here through a client abstraction. Plugin changes are committed with this repository and distributed with the Soluna package; they are no longer prepared for submission back to the original standalone project.
 
 Managed Appium startup automatically checks required Appium extensions before launching the server:
 

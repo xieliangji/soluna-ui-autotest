@@ -50,16 +50,16 @@ Host/device-adjacent capabilities belong in the custom Appium plugin whenever pr
 - Host dependency preflight checks.
 - Device file/system-state helpers.
 
-The Appium plugin source is copied into `lib/soluna-appium-ext` for integrated development. Its upstream project is the author's GitHub project `https://github.com/xieliangji/soluna-appium-ext`.
+The Appium plugin source lives under `lib/soluna-appium-ext` and is developed as part of this repository. Do not prepare or require changes to be submitted back to the original standalone GitHub project.
 
 When changing plugin capabilities:
 
 - Make framework-facing integration changes in this repository.
-- Keep the plugin source suitable for submission back to its GitHub project.
+- Keep the plugin source maintainable as an integrated project component and distribution asset.
 - Record plugin changes separately in progress notes.
-- After extension work is complete and verified, prepare the plugin changes to be committed and pushed to the upstream GitHub project.
+- Commit plugin changes together with the matching framework integration changes in this repository.
 
-The framework should consume plugin capabilities through a client abstraction instead of scattering host commands. Capability negotiation, versioning, and schemas are coordinated by this project, but plugin implementation changes must remain upstreamable.
+The framework should consume plugin capabilities through a client abstraction instead of scattering host commands. Capability negotiation, versioning, schemas, implementation, and distribution are coordinated by this project.
 
 ## Artifact And Report Rules
 

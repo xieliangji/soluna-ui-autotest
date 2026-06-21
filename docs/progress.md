@@ -48,6 +48,16 @@ Implemented capabilities:
 
 ## Recent Iterations
 
+### 2026-06-21 Appium Plugin Ownership Boundary
+
+- Updated the project boundary for `lib/soluna-appium-ext`: it is now maintained as an integrated component of this repository and distributed with the Soluna package.
+- Removed documentation and agent guidance that required plugin changes to be prepared for submission back to the original standalone GitHub project.
+- Kept the framework rule that host/device-adjacent capabilities should be implemented in the Appium plugin and consumed through client abstractions.
+
+Verification:
+
+- Documentation-only update; Gradle tests were not run.
+
 ### 2026-06-21 Documentation Refresh And Examples Directory Cleanup
 
 - Removed the remaining empty root examples directory after the tracked legacy example assets had moved to `AIot-Tests`.
@@ -227,7 +237,7 @@ Verification:
 ### 2026-06-12 Foundation
 
 - Initialized Kotlin/JVM project, Gradle wrapper, schemas, parser, core models, hook bus, execution skeleton, failure/retry interfaces, and Appium abstraction boundaries.
-- Copied `soluna-appium-ext` into `lib/soluna-appium-ext` for integrated development while keeping upstream compatibility in mind.
+- Added `soluna-appium-ext` under `lib/soluna-appium-ext` for integrated development.
 
 Verification:
 
