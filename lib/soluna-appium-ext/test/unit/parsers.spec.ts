@@ -71,6 +71,37 @@ describe('device parsers', () => {
     expect(parsed.deviceList?.[0].ProductType).to.equal('iPhone17,2')
   })
 
+  it('parses ios list output with real device name field', () => {
+    const parsed = iosInternal.parseGoIosListOutput(
+      JSON.stringify({
+        deviceList: [
+          {
+            Udid: '00008140-001C184A3EB8401C',
+            DeviceName: 'QA iPhone',
+            ProductName: 'iPhone OS',
+            ProductType: 'iPhone17,2',
+            ProductVersion: '26.3.1',
+          },
+        ],
+      })
+    )
+
+    expect(parsed.deviceList).to.have.length(1)
+    expect(parsed.deviceList?.[0].DeviceName).to.equal('QA iPhone')
+    expect(parsed.deviceList?.[0].ProductName).to.equal('iPhone OS')
+  })
+
+  it('parses ios devicename output after go-ios warning json lines', () => {
+    const parsed = iosInternal.parseIosDeviceNameOutput(
+      [
+        '{"time":"2026-06-27T17:20:54+08:00","level":"WARN","msg":"go-ios agent is not running"}',
+        '{"devicename":"QA iPhone"}',
+      ].join('\n')
+    )
+
+    expect(parsed).to.equal('QA iPhone')
+  })
+
   it('parses ios list output where deviceList is string array', () => {
     const parsed = iosInternal.parseGoIosListOutput(
       JSON.stringify({

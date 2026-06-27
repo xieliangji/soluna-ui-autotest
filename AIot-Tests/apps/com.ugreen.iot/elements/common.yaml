@@ -3,15 +3,15 @@ id: ugreen-common
 description: Common UGREEN app elements shared by public modules such as login, device, and mine.
 elements:
   loginPageMarker:
+    hardcodedTextReason: language_insensitive_text
     android:
       strategy: xpath
       value: "//*[contains(@text,'UgreenAudio')]"
-      textLocatorPurpose: brandLogo
     ios:
       strategy: predicate
       value: "label CONTAINS 'UgreenAudio' OR name CONTAINS 'UgreenAudio'"
-      textLocatorPurpose: brandLogo
   mineTab:
+    hardcodedTextReason: language_insensitive_text
     android:
       strategy: xpath
       value: "(//*[@resource-id='com.ugreen.iot:id/customTabLayout']//*[@resource-id='com.ugreen.iot:id/llTabContent'])[3]"
@@ -19,6 +19,7 @@ elements:
       strategy: xpath
       value: "//XCUIElementTypeImage[starts-with(@name,'TabMine')]/parent::XCUIElementTypeButton"
   deviceTab:
+    hardcodedTextReason: language_insensitive_text
     android:
       strategy: xpath
       value: "(//*[@resource-id='com.ugreen.iot:id/customTabLayout']//*[@resource-id='com.ugreen.iot:id/llTabContent'])[1]"
@@ -26,13 +27,13 @@ elements:
       strategy: xpath
       value: "//XCUIElementTypeImage[starts-with(@name,'TabHome')]/parent::XCUIElementTypeButton"
   deviceAddButton:
+    hardcodedTextReason: language_insensitive_text
     android:
       strategy: id
       value: com.ugreen.iot:id/ivAddDevice
     ios:
       strategy: xpath
       value: "//XCUIElementTypeButton[@visible='true' and @accessible='true' and @name='icon common add']"
-      textLocatorPurpose: iconName
   firstDeviceCard:
     ios:
       strategy: xpath
@@ -46,29 +47,27 @@ elements:
       strategy: xpath
       value: "(//XCUIElementTypeTable[@visible='true']/XCUIElementTypeCell[@visible='true'])[1]/XCUIElementTypeStaticText[2]"
   targetDeviceCardByMacSuffix:
+    parameterizedTextReason: language_insensitive_text
     ios:
       strategy: xpath
       value: "(//XCUIElementTypeTable[@visible='true']/XCUIElementTypeCell[@visible='true'][.//XCUIElementTypeStaticText[contains(string(@name),'${device.targetMacSuffix}') or contains(string(@label),'${device.targetMacSuffix}') or contains(string(@value),'${device.targetMacSuffix}')]])[1]"
-  connectedTargetDeviceCardByMacSuffix:
+  targetDeviceCardByName:
+    parameterizedTextReason: language_insensitive_text
     ios:
       strategy: xpath
-      value: "(//XCUIElementTypeTable[@visible='true']/XCUIElementTypeCell[@visible='true'][.//XCUIElementTypeStaticText[contains(string(@name),'${device.targetMacSuffix}') or contains(string(@label),'${device.targetMacSuffix}') or contains(string(@value),'${device.targetMacSuffix}')]][.//XCUIElementTypeStaticText[contains(string(@name),'${mine.device.connectedPattern}') or contains(string(@label),'${mine.device.connectedPattern}') or contains(string(@value),'${mine.device.connectedPattern}')]])[1]"
-  connectedTargetDeviceCardByName:
-    ios:
-      strategy: xpath
-      value: "(//XCUIElementTypeTable[@visible='true']/XCUIElementTypeCell[@visible='true'][.//XCUIElementTypeStaticText[contains(string(@name),'${device.targetName}') or contains(string(@label),'${device.targetName}') or contains(string(@value),'${device.targetName}')]][.//XCUIElementTypeStaticText[contains(string(@name),'${mine.device.connectedPattern}') or contains(string(@label),'${mine.device.connectedPattern}') or contains(string(@value),'${mine.device.connectedPattern}')]])[1]"
+      value: "(//XCUIElementTypeTable[@visible='true']/XCUIElementTypeCell[@visible='true'][.//XCUIElementTypeStaticText[contains(string(@name),'${device.targetName}') or contains(string(@label),'${device.targetName}') or contains(string(@value),'${device.targetName}')]])[1]"
   deviceActionMenuFirstOption:
     ios:
       strategy: xpath
-      value: "(//XCUIElementTypeButton[@visible='true' and @accessible='true' and @width > 300])[1]"
+      value: "(//XCUIElementTypeButton[@visible='true' and @accessible='true'])[1]"
   deviceActionMenuSecondOption:
     ios:
       strategy: xpath
-      value: "(//XCUIElementTypeButton[@visible='true' and @accessible='true' and @width > 300])[2]"
+      value: "(//XCUIElementTypeButton[@visible='true' and @accessible='true'])[2]"
   deviceActionMenuLastOption:
     ios:
       strategy: xpath
-      value: "(//XCUIElementTypeButton[@visible='true' and @accessible='true' and @width > 300])[last()]"
+      value: "(//XCUIElementTypeButton[@visible='true' and @accessible='true'])[last()]"
   deviceRenameInput:
     ios:
       strategy: class
@@ -76,7 +75,12 @@ elements:
   deviceRenameConfirmButton:
     ios:
       strategy: xpath
-      value: "(//XCUIElementTypeButton[@visible='true' and @accessible='true' and @width > 300])[1]"
+      value: "(//XCUIElementTypeButton[@visible='true' and @accessible='true'])[1]"
+  firmwareUpgradeIgnoreButton:
+    hardcodedTextReason: language_insensitive_text
+    ios:
+      strategy: xpath
+      value: "((//XCUIElementTypeOther[@visible='true' and @accessible='false' and ./XCUIElementTypeStaticText[@visible='true' and (contains(string(@name),'V') or contains(string(@label),'V') or contains(string(@value),'V'))] and ./XCUIElementTypeOther/XCUIElementTypeScrollView[@visible='true'] and count(./XCUIElementTypeOther[@visible='true' and @accessible='true']) = 2])[last()]/XCUIElementTypeOther[@visible='true' and @accessible='true'])[1]"
   loginUsernameInput:
     android:
       strategy: xpath
@@ -142,6 +146,7 @@ elements:
       strategy: xpath
       value: "((//XCUIElementTypeTextField[@visible='true'])[2]/following-sibling::XCUIElementTypeOther//XCUIElementTypeStaticText | (//XCUIElementTypeTextField[@visible='true'])[2]/following-sibling::XCUIElementTypeStaticText)[1]"
   loginAgreementCheckbox:
+    hardcodedTextReason: language_insensitive_text
     android:
       strategy: id
       value: com.ugreen.iot:id/cb_terms
@@ -149,6 +154,7 @@ elements:
       strategy: xpath
       value: "//XCUIElementTypeButton[starts-with(@name,'icon round')]"
   loginAgreementUncheckedCheckbox:
+    hardcodedTextReason: language_insensitive_text
     android:
       strategy: xpath
       value: "//*[@resource-id='com.ugreen.iot:id/cb_terms' and @checked='false']"
@@ -156,6 +162,7 @@ elements:
       strategy: xpath
       value: "//XCUIElementTypeButton[starts-with(@name,'icon round') and @visible='true' and @accessible='true' and not(@value='1')]"
   loginSubmitButton:
+    hardcodedTextReason: language_insensitive_text
     android:
       strategy: id
       value: com.ugreen.iot:id/btn_terms_action
@@ -300,6 +307,7 @@ elements:
       strategy: xpath
       value: "(//XCUIElementTypeTextView[@visible='true']/following::XCUIElementTypeButton[@visible='true' and @accessible='true'])[1]"
   authTermsText:
+    hardcodedTextReason: language_insensitive_text
     android:
       strategy: id
       value: com.ugreen.iot:id/tv_terms_text
@@ -363,6 +371,7 @@ elements:
       strategy: xpath
       value: "(//XCUIElementTypeTable/XCUIElementTypeCell)[1]"
   backButton:
+    hardcodedTextReason: language_insensitive_text
     android:
       strategy: id
       value: com.ugreen.iot:id/ll_left_slot
@@ -384,6 +393,7 @@ elements:
       strategy: xpath
       value: "(//XCUIElementTypeTextView[@visible='true']/following-sibling::XCUIElementTypeOther[1]//XCUIElementTypeButton[@visible='true' and @accessible='true'])[last()]"
   logoutConfirmButton:
+    hardcodedTextReason: language_insensitive_text
     android:
       strategy: id
       value: com.ugreen.iot:id/btn_positive

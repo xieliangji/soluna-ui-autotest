@@ -1,0 +1,22 @@
+schemaVersion: "1.0"
+id: ugreen-hitune-t8
+description: UGREEN HiTune T8 device fixture parameters.
+values:
+  device:
+    targetName: "UGREEN HiTune T8"
+    targetMacSuffix: "91:DC"
+    more:
+      defaultName: "UGREEN HiTune T8"
+      shortName: "T8"
+      longName: "T8AutoName12345678901234567890"
+      cancelName: "CancelName"
+      manualProductKeyword: "产品说明书"
+      manualModelPattern: "(?s)(UGREEN HiTune T8|Model: WS222|WS222)"
+    visualTemplates:
+      customEqualizerDeleteIcon: "templates/t8-ios-custom-equalizer-delete-icon.png"
+    log:
+      iosProcessRegex: "^(iot_audio|bluetoothd)"
+      iosBleWriteContainsAll:
+        - "CBMsgIdCharacteristicWriteValue"
+        - "Writing value without response"
+        - "com.ugreen.iot-central"

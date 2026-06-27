@@ -3,7 +3,7 @@ id: TC020_PROFILE_NICKNAME_DISPLAY_AND_SET_ANDROID
 name: 个人中心-个人信息-用户昵称显示及设置-Android
 dataRefs:
   - id: mine
-    file: ../../data/common/mine.yaml
+    file: ../../data/common/mine.zh-CN.yaml
 elementRefs:
   - id: common
     file: ../../elements/common.yaml

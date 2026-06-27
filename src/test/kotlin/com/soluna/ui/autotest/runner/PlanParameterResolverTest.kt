@@ -167,7 +167,7 @@ class PlanParameterResolverTest {
         Files.createDirectories(templatePath.parent)
         Files.write(templatePath, byteArrayOf(1, 2, 3))
         Files.writeString(
-            root.resolve("data/common/mine.yaml"),
+            root.resolve("data/common/mine.zh-CN.yaml"),
             """
             schemaVersion: "1.0"
             id: mine
@@ -195,7 +195,7 @@ class PlanParameterResolverTest {
                     name: Feedback
                     dataRefs:
                       - id: mine
-                        file: ../data/common/mine.yaml
+                        file: ../data/common/mine.zh-CN.yaml
                     actions:
                       - tapVisualTemplate:
                           id: tap-back

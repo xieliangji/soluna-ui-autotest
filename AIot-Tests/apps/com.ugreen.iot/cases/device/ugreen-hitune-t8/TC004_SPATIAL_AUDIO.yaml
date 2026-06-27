@@ -1,0 +1,75 @@
+schemaVersion: "1.0"
+id: TC004_SPATIAL_AUDIO
+name: T8-空间音效蓝牙交互
+dataRefs:
+  - id: device
+    file: ../../../data/device/ugreen-hitune-t8.yaml
+elementRefs:
+  - id: t8
+    file: ../../../elements/device/ugreen-hitune-t8.yaml
+setupFragments:
+  - device.openTargetDevice
+actions:
+  - captureAppLogStart:
+      id: start-t8-spatial-audio-app-log
+      saveAs: t8SpatialAudioLogCapture
+      desc: 开始采集 T8 空间音效蓝牙交互 App 日志
+      maxBufferEntries: 1000
+      maxSessionBytes: 5242880
+      ttlMs: 60000
+      filter:
+        ios:
+          processRegex: "${device.log.iosProcessRegex}"
+  - tap:
+      id: switch-t8-music-mode-to-spatial
+      element: t8.musicModeSpatial
+      desc: 切换 T8 音乐模式到空间音效
+      settleMs: 1000
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - wait:
+      id: wait-after-t8-spatial-audio
+      durationMs: 1000
+      desc: 等待空间音效蓝牙交互日志输出
+  - screenshot:
+      id: capture-t8-spatial-audio-selected
+      element: t8.musicModeSpatial
+      resourceId: t8-spatial-audio-selected
+      saveAs: t8SpatialAudioSelectedScreenshot
+      desc: 保存空间音效按钮元素截图
+      wait:
+        timeoutMs: 3000
+        intervalMs: 500
+  - assertImageColorRatio:
+      id: assert-t8-spatial-audio-selected
+      source: "@{case.t8SpatialAudioSelectedScreenshot}"
+      color: green
+      minRatio: 0.01
+      minPixels: 120
+      desc: 通过空间音效按钮元素截图的绿色占比确认选中态已切换
+  - captureAppLogEnd:
+      id: stop-t8-spatial-audio-app-log
+      source: "@{case.t8SpatialAudioLogCapture}"
+      resourceId: t8-spatial-audio-app-log
+      saveAs: t8SpatialAudioLogFile
+      desc: 结束采集并保存 T8 空间音效蓝牙交互 App 日志
+      readLimit: 500
+      maxReadBatches: 10
+      maxEntries: 1000
+  - customAssertAppLog:
+      id: assert-t8-spatial-audio-log-has-ios-ble-write
+      source: "@{case.t8SpatialAudioLogFile}"
+      plugin: ugreen-audio
+      assertion: ios-ble-write-triggered
+      desc: 使用 UGREEN audio 日志插件确认空间音效交互后 iOS 触发 BLE 特征写入
+      args:
+        containsAll: "${device.log.iosBleWriteContainsAll}"
+  - tap:
+      id: restore-t8-music-mode-to-bass-boost
+      element: t8.musicModeBassBoost
+      desc: 将 T8 音乐模式恢复为低音增强，稳定后续用例初始状态
+      settleMs: 1000
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500

@@ -1,0 +1,88 @@
+schemaVersion: "1.0"
+id: TC028_REGISTER_AGREEMENT_UNCHECKED
+name: 注册-未勾选用户协议勾选框
+dataRefs:
+  - id: auth
+    file: ../../data/common/auth.yaml
+elementRefs:
+  - id: common
+    file: ../../elements/common.yaml
+actions:
+  - tap:
+      id: open-register-page
+      element: common.registerEntryButton
+      desc: 进入注册页
+  - input:
+      id: input-register-account-for-agreement
+      element: common.authAccountInput
+      value: "${appState.login.username}"
+      clearFirst: true
+      desc: 输入注册账号
+  - input:
+      id: input-register-password-for-agreement
+      element: common.authNewPasswordInput
+      value: "${auth.register.password}"
+      clearFirst: true
+      desc: 输入注册密码
+  - tap:
+      id: send-register-code-without-agreement
+      element: common.authVerificationSendCodeButton
+      desc: 未勾选协议时触发注册验证码发送
+  - assertElementExists:
+      id: assert-register-agreement-dialog-visible
+      element: common.authDialogRoot
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+      desc: 校验协议确认弹框可见
+  - assertSourceRegexMatch:
+      id: assert-register-agreement-dialog-content
+      pattern: "${auth.agreement.contentPattern}"
+      desc: 校验协议确认弹框内容
+  - assertElementAttrRegexMatch:
+      id: assert-register-agreement-positive-text
+      element: common.dialogPositiveButton
+      attr: name/label/value
+      pattern: "${auth.agreement.positivePattern}"
+      desc: 校验默认展示同意并继续按钮
+  - tap:
+      id: cancel-register-agreement-dialog
+      element: common.dialogNegativeButton
+      desc: 点击取消关闭协议弹框
+  - assertElementAttrRegexMatch:
+      id: assert-register-account-kept-after-cancel
+      element: common.authAccountInput
+      attr: value/name/label
+      pattern: "${appState.login.username}"
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+      desc: 校验取消后账号输入未清空
+  - assertElementExists:
+      id: assert-register-agreement-still-unchecked
+      element: common.loginAgreementUncheckedCheckbox
+      desc: 校验取消后协议仍未勾选
+  - tap:
+      id: send-register-code-without-agreement-again
+      element: common.authVerificationSendCodeButton
+      desc: 再次未勾选协议时触发注册验证码发送
+  - assertElementExists:
+      id: assert-register-agreement-dialog-visible-again
+      element: common.authDialogRoot
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+      desc: 校验协议确认弹框再次可见
+  - tap:
+      id: accept-register-agreement-dialog
+      element: common.dialogPositiveButton
+      desc: 点击同意并继续
+  - assertElementAttrRegexMatch:
+      id: assert-register-code-countdown-after-agreement
+      element: common.authVerificationCountdownText
+      attr: name/label/value
+      pattern: "${auth.verification.countdownPattern}"
+      wait:
+        timeoutMs: 10000
+        intervalMs: 500
+      desc: 校验同意协议后注册验证码按钮进入倒计时

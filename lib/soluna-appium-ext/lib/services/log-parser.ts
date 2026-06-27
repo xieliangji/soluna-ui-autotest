@@ -51,7 +51,8 @@ function parseAndroidLine(context: ParseLineContext): UnifiedLogEntry {
 
 function parseIosLine(context: ParseLineContext): UnifiedLogEntry {
   const ts = new Date().toISOString()
-  const line = context.line
+  const raw = context.line
+  const line = unwrapIosSyslogMessage(raw)
   const match = line.match(
     /^[A-Za-z]{3}\s+\d+\s+\d{2}:\d{2}:\d{2}\s+([^\s]+)\s+([^[]+)\[(\d+)]\s+<([^>]+)>:\s?(.*)$/
   )
@@ -63,7 +64,7 @@ function parseIosLine(context: ParseLineContext): UnifiedLogEntry {
       udid: context.udid,
       source: context.source,
       message: line,
-      raw: line,
+      raw,
     }
   }
 
@@ -77,7 +78,20 @@ function parseIosLine(context: ParseLineContext): UnifiedLogEntry {
     pid: Number.parseInt(match[3], 10),
     level: match[4].trim().toLowerCase(),
     message: match[5] ?? '',
-    raw: line,
+    raw,
+  }
+}
+
+function unwrapIosSyslogMessage(line: string): string {
+  const trimmed = line.trim()
+  if (!trimmed.startsWith('{')) {
+    return line
+  }
+  try {
+    const parsed = JSON.parse(trimmed) as {msg?: unknown}
+    return typeof parsed.msg === 'string' ? parsed.msg : line
+  } catch {
+    return line
   }
 }
 

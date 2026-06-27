@@ -24,7 +24,7 @@ deviceConfig: ../../../../devices/android/ZT4225X3C2.yaml
 artifactStore: ../../../../artifacts/minio.local.yaml
 app:
   id: com.ugreen.iot
-  name: UGREEN
+  name: 绿联声学
   platform: android
   reset: false
 defaults:

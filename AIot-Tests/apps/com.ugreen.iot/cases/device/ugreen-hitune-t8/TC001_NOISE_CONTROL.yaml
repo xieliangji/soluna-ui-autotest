@@ -1,0 +1,56 @@
+schemaVersion: "1.0"
+id: TC001_NOISE_CONTROL
+name: T8-噪声控制蓝牙交互
+dataRefs:
+  - id: device
+    file: ../../../data/device/ugreen-hitune-t8.yaml
+setupFragments:
+  - device.openTargetDevice
+actions:
+  - captureAppLogStart:
+      id: start-t8-noise-control-app-log
+      saveAs: t8NoiseControlLogCapture
+      desc: 开始采集 T8 噪声控制蓝牙交互 App 日志
+      maxBufferEntries: 1000
+      maxSessionBytes: 5242880
+      ttlMs: 60000
+      filter:
+        ios:
+          processRegex: "${device.log.iosProcessRegex}"
+  - tapPosition:
+      id: switch-t8-noise-control-to-ambient
+      xRatio: 0.79
+      yRatio: 0.70
+      desc: 切换 T8 噪声控制到环境音
+      settleMs: 1000
+  - wait:
+      id: wait-after-t8-noise-control-ambient
+      durationMs: 1000
+      desc: 等待环境音模式蓝牙交互日志输出
+  - tapPosition:
+      id: restore-t8-noise-control-off
+      xRatio: 0.50
+      yRatio: 0.70
+      desc: 切回 T8 噪声控制到降噪关
+      settleMs: 1000
+  - wait:
+      id: wait-after-t8-noise-control-off
+      durationMs: 1500
+      desc: 等待降噪关模式蓝牙交互日志输出
+  - captureAppLogEnd:
+      id: stop-t8-noise-control-app-log
+      source: "@{case.t8NoiseControlLogCapture}"
+      resourceId: t8-noise-control-app-log
+      saveAs: t8NoiseControlLogFile
+      desc: 结束采集并保存 T8 噪声控制蓝牙交互 App 日志
+      readLimit: 500
+      maxReadBatches: 10
+      maxEntries: 1000
+  - customAssertAppLog:
+      id: assert-t8-noise-control-log-has-ios-ble-write
+      source: "@{case.t8NoiseControlLogFile}"
+      plugin: ugreen-audio
+      assertion: ios-ble-write-triggered
+      desc: 使用 UGREEN audio 日志插件确认噪声控制交互后 iOS 触发 BLE 特征写入
+      args:
+        containsAll: "${device.log.iosBleWriteContainsAll}"

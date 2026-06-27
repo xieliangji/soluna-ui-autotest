@@ -17,32 +17,60 @@ fragments:
               timeoutMs: 3000
               intervalMs: 500
         then:
-          - assertElementExists:
-              id: assert-target-device-by-mac-suffix-connected
-              element: common.connectedTargetDeviceCardByMacSuffix
-              desc: 等待 MAC 后四位为 ${device.targetMacSuffix} 的目标设备项进入已连接状态
+          - screenshot:
+              id: capture-target-device-by-mac-suffix-card-before-open
+              element: common.targetDeviceCardByMacSuffix
+              resourceId: target-device-by-mac-suffix-card-before-open
+              saveAs: targetDeviceCardBeforeOpenScreenshot
+              desc: 保存 MAC 后四位匹配的设备卡片截图用于蓝牙连接状态颜色校验
               wait:
                 timeoutMs: 30000
                 intervalMs: 500
+          - assertImageColorRatio:
+              id: assert-target-device-by-mac-suffix-card-connected-green
+              source: "@{case.targetDeviceCardBeforeOpenScreenshot}"
+              color: green
+              minRatio: 0.002
+              minPixels: 20
+              desc: 通过设备卡片截图绿色占比确认目标设备处于已连接状态
           - tap:
               id: open-connected-target-device-by-mac-suffix
-              element: common.connectedTargetDeviceCardByMacSuffix
-              desc: 点击已连接且 MAC 后四位为 ${device.targetMacSuffix} 的设备项
+              element: common.targetDeviceCardByMacSuffix
+              desc: 点击 MAC 后四位为 ${device.targetMacSuffix} 且已连接的设备项
               wait:
                 timeoutMs: 15000
                 intervalMs: 500
         else:
-          - assertElementExists:
-              id: assert-target-device-by-name-connected
-              element: common.connectedTargetDeviceCardByName
-              desc: 未显示 MAC 后四位时，等待设备名为 ${device.targetName} 的第一个设备项进入已连接状态
+          - screenshot:
+              id: capture-target-device-by-name-card-before-open
+              element: common.targetDeviceCardByName
+              resourceId: target-device-by-name-card-before-open
+              saveAs: targetDeviceCardBeforeOpenScreenshot
+              desc: 保存设备名匹配的设备卡片截图用于蓝牙连接状态颜色校验
               wait:
                 timeoutMs: 30000
                 intervalMs: 500
+          - assertImageColorRatio:
+              id: assert-target-device-by-name-card-connected-green
+              source: "@{case.targetDeviceCardBeforeOpenScreenshot}"
+              color: green
+              minRatio: 0.002
+              minPixels: 20
+              desc: 通过设备卡片截图绿色占比确认目标设备处于已连接状态
           - tap:
               id: open-connected-target-device-by-name
-              element: common.connectedTargetDeviceCardByName
-              desc: 未显示 MAC 后四位时，点击已连接且设备名为 ${device.targetName} 的第一个设备项
+              element: common.targetDeviceCardByName
+              desc: 未显示 MAC 后四位时，点击设备名为 ${device.targetName} 且已连接的第一个设备项
               wait:
                 timeoutMs: 15000
                 intervalMs: 500
+      - tap:
+          id: dismiss-firmware-upgrade-prompt-if-present
+          element: common.firmwareUpgradeIgnoreButton
+          ignoreMissingElement: true
+          ignoreMissingElementReason: optionalFirmwareUpgradePrompt
+          desc: 固件升级提示弹窗只在有新版本时出现；如出现则点击忽略
+          wait:
+            timeoutMs: 5000
+            intervalMs: 500
+          settleMs: 1000

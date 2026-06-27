@@ -31,11 +31,12 @@ Implemented capabilities:
 - Managed iOS WDA through go-ios, including iOS 17+ userspace tunnel handling.
 - Recovering WebDriver adapter with logical session and physical session rebuild.
 - `soluna-ext` client for device metadata, installed app metadata, WDA bundle lookup, commands, and log sessions.
-- Default actions: `tap`, `longPress`, `swipe`, `input`, `wait`, `restartApp`, `clearAppData`, `getText`, `saveElementRect`, `screenshot`, `tapVisualTemplate`, `startScreenRecording`, `stopScreenRecording`, `captureAppLogStart`, `captureAppLogEnd`, `assertElementAttrEquals`, `assertElementAttrRegexMatch`, `assertSourceRegexMatch`, `assertScreenRecordingTextRegexMatch`, and `customAssertAppLog`.
-- `tap` resolves the current viewport-visible element, clicks the element-visible-area center by default, supports element-relative click ratios, and settles for 800ms by default.
+- Default actions: `tap`, `tapPosition`, `longPress`, `swipe`, `input`, `wait`, `restartApp`, `clearAppData`, `getText`, `saveElementRect`, `screenshot`, `tapVisualTemplate`, `assertImageColorRatio`, `assertImageTextRegexMatch`, `startScreenRecording`, `stopScreenRecording`, `captureAppLogStart`, `captureAppLogEnd`, `assertElementAttrEquals`, `assertElementAttrRegexMatch`, `assertSourceRegexMatch`, `assertScreenRecordingTextRegexMatch`, and `customAssertAppLog`.
+- `tap` resolves the current viewport-visible element and clicks the element-visible-area center by default; `tapPosition` is the explicit ratio-position click keyword and uses viewport ratios by default or element-visible-area ratios when `element` is supplied. Both settle for 800ms by default. Optional missing element skipping remains limited to `tap` with predefined conditional UI reasons such as optional firmware-upgrade prompts.
 - `clearAppData` supports Android app data reset through `adb shell pm clear`, then reactivates the app and waits for foreground state.
 - `saveElementRect` stores an element's visible viewport rectangle as a pixel rect or normalized ROI for later runtime-variable reuse.
 - `tapVisualTemplate` supports static ROI objects, runtime-variable ROI objects, and action-level wait retry with fresh screenshots.
+- `screenshot` can save the captured local image path to a runtime variable; `assertImageColorRatio` checks a saved image file for kt-visual named-color coverage inside an optional normalized ROI; `assertImageTextRegexMatch` runs OCR against a stable screenshot or image file.
 - Assertion actions poll by resolved `wait`; explicit assertion waits isolate each probe from the session implicit wait.
 - Runtime variables via `@{plan.name}` and `@{case.name}`; parameter references via `${...}`.
 - Local JSON/HTML report writer with execution summary, failure summary, action metadata, trace links, report-resource links, and per-case action detail dialogs.
@@ -48,6 +49,173 @@ Implemented capabilities:
 - Debug CLI: `soluna debug <plan.yaml> source|screenshot|tap|tap-element|swipe|swipe-element|input|tap-template|shell`.
 
 ## Recent Iterations
+
+### 2026-06-27 iOS Report Device Name Fix
+
+- Updated `soluna-ext` iOS device metadata resolution so report/device display names come from `ios --udid=<udid> devicename` instead of `ios list --details` `ProductName`.
+- Added parsing for go-ios JSON-line `devicename` output, including warning JSON lines before the real payload.
+- Kept `ProductType` as the model source and retained `ProductName` only as a fallback when the real device name command is unavailable.
+- Documented the iOS device-name boundary in architecture and schema docs.
+
+Verification:
+
+- `npx mocha --require tsx/cjs test/unit/parsers.spec.ts test/unit/device-route.spec.ts` in `lib/soluna-appium-ext`
+- `npm run build` in `lib/soluna-appium-ext`
+- `npm run lint` in `lib/soluna-appium-ext`
+- `./gradlew test --tests com.soluna.ui.autotest.config.DeviceConfigResolverTest --tests com.soluna.ui.autotest.report.LocalReportWriterTest`
+- `./gradlew installDist`
+- Built `soluna-ext` iOS metadata service returned `{"name":"iPhone","model":"iPhone17,3","osVersion":"18.6"}` for local device `00008140-001805D80C93801C`, confirming `deviceName` now comes from `ios devicename` instead of `ProductName`.
+
+Next recommended work:
+
+- Run a short iOS plan after `./gradlew installDist` to confirm the generated report displays the expected physical device name.
+
+### 2026-06-27 iOS Tunnel Lifecycle Hardening
+
+- Changed managed iOS WDA startup to detect and reuse an already running `ios` / `go-ios tunnel start` process before launching a new userspace tunnel.
+- Treated iOS tunnel as a host-global singleton: WDA stop, WDA restart, and WDA startup-failure cleanup now only stop framework-owned `runwda` and `forward` processes, never tunnel processes.
+- Kept runwda/forward restart behavior intact so session recovery can rebuild WDA and Appium sessions without disrupting other tasks that depend on the same tunnel.
+- Lowered default Appium server and WDA manager package logging from DEBUG to INFO so normal plan runs do not flood stdout; targeted DEBUG can still be enabled through JVM simplelogger overrides.
+- Updated architecture and schema docs for the revised tunnel ownership boundary.
+
+Verification:
+
+- `./gradlew test --tests com.soluna.ui.autotest.appium.wda.LocalGoIosWdaManagerTest`
+- `./gradlew installDist`
+
+Next recommended work:
+
+- Run `./gradlew installDist` before the next real-device run so the packaged `soluna` command uses the new tunnel lifecycle behavior.
+- Continue the T8 iOS case regression after reinstalling the distribution.
+
+### 2026-06-27 Locator Text Reason Policy Hardening
+
+- Replaced the old `textLocatorPurpose` escape hatch with explicit locator text reasons: `parameterizedTextReason` for `${...}` text parameters and `hardcodedTextReason` for fixed text values that are language-insensitive.
+- Kept locator text reasons framework-owned rather than project-configurable; `language_insensitive_text` is the only allowed value for both parameterized and hardcoded text locators.
+- Extended element locator policy validation to reject coordinate/size attributes in locator expressions and to recognize iOS/XPath text functions such as `contains(@name, ...)`, `contains(string(@name), ...)`, and `starts-with(@name, ...)`.
+- Updated the AIoT common element catalog so brand names, version markers, identifiers, and resource-style accessibility names use `language_insensitive_text`.
+- Split common mine UI-copy data to a language-versioned `mine.zh-CN.yaml` fixture and clarified that locator text parameters are only for language-insensitive values such as MAC suffixes or device model names; language-specific copy belongs to assertion/input data.
+- Updated architecture/schema docs and the bundled Codex skill keyword reference with the new locator authoring rules.
+
+Verification:
+
+- `./gradlew test --tests com.soluna.ui.autotest.dsl.YamlPlanParserTest --tests com.soluna.ui.autotest.schema.JsonSchemaDslValidatorTest --tests com.soluna.ui.autotest.runner.PlanReferenceResolverTest`
+- `./gradlew installDist`
+- Confirmed packaged skill exists under `build/install/soluna/codex/skills/soluna-ui-autotest-creator`.
+- `python3 /Users/ugreen/.codex/skills/.system/skill-creator/scripts/quick_validate.py codex/skills/soluna-ui-autotest-creator` was attempted but could not run because both available Python runtimes lack `yaml` / PyYAML; the AGENTS-documented `/Users/xieliangji/...` script path is absent on this machine.
+- Reran targeted parser/schema/resolver/parameter-resolver tests and `./gradlew installDist` after narrowing allowed locator text reasons to the single built-in `language_insensitive_text`, splitting common mine data by UI language, and keeping locator parameters limited to language-insensitive values; skill quick validation still could not run because the local Python environment lacks PyYAML.
+
+Next recommended work:
+
+- Run full `./gradlew test` / `./gradlew build` after the current real-device debugging batch settles, because the working tree also contains unrelated in-progress framework and asset changes.
+- Continue replacing any remaining viewport-only `tapPosition` assets with element-relative targets when stable element anchors are confirmed.
+
+### 2026-06-27 TapPosition Keyword And T8 Position Click Cleanup
+
+- Added the author-facing `tapPosition` keyword and aliases for explicit ratio-position clicks. `xRatio` and `yRatio` are required; ratios apply to the viewport by default and to the current visible area of `element` when one is supplied.
+- Kept the executor path compact by normalizing `tapPosition` into the existing internal `tap` action. Element-region `tapPosition` maps `xRatio` / `yRatio` to executor `elementXRatio` / `elementYRatio`; viewport `tapPosition` keeps viewport ratios.
+- Added schema and policy guardrails across case, plan, and fragment DSL. Nested `tapPosition` bodies have a dedicated schema requiring `id`, `xRatio`, and `yRatio`; `tapPosition` does not support `ignoreMissingElement`.
+- Converted T8 position-click assets from ordinary `tap` with ratio fields to `tapPosition`, including prompt-volume slider, rename dialog title/input-area clicks, custom-control gesture rows and option sheets, custom equalizer entry clicks, and the remaining viewport position taps.
+- Removed several T8 text-parameterized element locators from click paths and changed name/title state checks to source-regex assertions where the UI text is the assertion target.
+- Updated architecture/schema docs and the bundled Codex skill keyword reference for the new keyword semantics.
+
+Verification:
+
+- `./gradlew test --tests com.soluna.ui.autotest.dsl.YamlPlanParserTest --tests com.soluna.ui.autotest.schema.JsonSchemaDslValidatorTest --tests com.soluna.ui.autotest.appium.action.WebDriverActionExecutorsTest`
+- `./gradlew installDist`
+- `git diff --check`
+- Skill quick validation was attempted with `/Users/ugreen/.codex/skills/.system/skill-creator/scripts/quick_validate.py`, but both system Python and bundled Python lacked `yaml` / PyYAML; the AGENTS-documented `/Users/xieliangji/...` script path is absent on this machine.
+
+Next recommended work:
+
+- Continue real-device step debugging for T8 TC010-TC017 with the new `tapPosition` syntax, and replace remaining viewport-region `tapPosition` usages with element-region targets when stable page blocks are confirmed from source.
+
+### 2026-06-27 T8 Custom Control Asset Coverage
+
+- Split T8 more-page custom control automation into four focused iOS cases: `TC014` double tap, `TC015` single tap, `TC016` triple tap, and `TC017` long press.
+- Each case covers left and right ears, normalizes the current gesture row to a baseline option before switching to the target option, asserts the UI row update, checks the BLE write log through the UGREEN audio app-log plugin, and restores the baseline state.
+- Added model-specific generic gesture-row locators for single tap, double tap, triple tap, and long press so cases can recover from dirty device state left by interrupted debug runs.
+- Updated the T8 formal iOS plan and focused custom-control debug plan to include all four cases.
+
+Verification:
+
+- `./gradlew test --tests com.soluna.ui.autotest.schema.JsonSchemaDslValidatorTest --tests com.soluna.ui.autotest.dsl.YamlPlanParserTest --tests com.soluna.ui.autotest.runner.PlanReferenceResolverTest`
+- `build/install/soluna/bin/soluna run AIot-Tests/apps/com.ugreen.iot/plans/debug/ios-hitune-t8-custom-control-debug.yaml --run-id t8-custom-control-debug-20260626-005`
+- Focused real-device run `t8-custom-control-debug-20260626-005` passed with uploads `uploaded=7, failed=0, abandoned=0`.
+
+Next recommended work:
+
+- Run the full T8 iOS plan after the remaining more-page cases are finalized.
+- Keep physical earbud gesture effects out of UI regression assertions unless hardware actions or lower-level logs are added.
+
+### 2026-06-26 Conditional Tap And Screenshot OCR
+
+- Added element-tap support for optional missing elements with schema/policy guardrails: `ignoreMissingElement: true` must be paired with predefined `ignoreMissingElementReason`, currently `optionalFirmwareUpgradePrompt`.
+- Added `tapPosition` as the author-facing keyword for ratio-position clicks. It requires `xRatio` and `yRatio`, defaults those ratios to the viewport, and treats them as element-visible-area ratios when `element` is supplied; the normalizer maps it to the existing tap executor path.
+- Added `assertImageTextRegexMatch` for static screenshot/image OCR with optional ROI and recognizer selection, so stable pages such as product manuals do not need screen recording OCR.
+- Updated v1 case/plan/fragment schemas, Kotlin keyword registration, execution docs, and the bundled Codex skill keyword reference.
+- Updated the UGREEN device fragment to dismiss conditional firmware-upgrade prompts through a language-insensitive prompt structure with a 5s wait instead of a coordinate tap.
+
+Verification:
+
+- `./gradlew test --tests com.soluna.ui.autotest.appium.action.WebDriverActionExecutorsTest --tests com.soluna.ui.autotest.schema.JsonSchemaDslValidatorTest --tests com.soluna.ui.autotest.dsl.YamlPlanParserTest --tests com.soluna.ui.autotest.runner.PlanReferenceResolverTest`
+- `./gradlew test`
+- `./gradlew installDist`
+- Confirmed packaged skill exists under `build/install/soluna/codex/skills/soluna-ui-autotest-creator`.
+- `git diff --check`
+- Skill quick validation could not run in this environment because both the system Python and bundled Python lacked `yaml` / PyYAML; the configured AGENTS path `/Users/xieliangji/.../quick_validate.py` was also absent on this machine, so the local `/Users/ugreen/...` script was attempted instead.
+
+### 2026-06-26 Element Screenshot Evidence
+
+- Extended the WebDriver adapter boundary with `takeElementScreenshot` and wired the `screenshot` action to capture an element image when the action has `element`; full-screen screenshot behavior remains unchanged when no element is supplied.
+- Documented the authoring rule that visual color assertions should prefer element screenshots when the ROI can be resolved precisely.
+
+Verification:
+
+- `./gradlew test --tests com.soluna.ui.autotest.appium.action.WebDriverActionExecutorsTest`
+- `./gradlew test --tests com.soluna.ui.autotest.schema.JsonSchemaDslValidatorTest --tests com.soluna.ui.autotest.dsl.YamlPlanParserTest`
+- `./gradlew installDist`
+
+Next recommended work:
+
+- Continue validating visual evidence helpers through focused framework tests and
+  keep business-case-specific screenshots in the asset project docs.
+
+### 2026-06-22 Image Color Ratio Assertion
+
+- Added `assertImageColorRatio` with aliases for named-color image coverage assertions backed by kt-visual `NamedColor` detection.
+- Added `screenshot.saveAs` so cases can capture a screenshot, store its local path in a runtime variable, and reuse that file in later visual assertions.
+- Updated v1 plan/case/fragment schemas, DSL parser/policy validation, schema docs, and the bundled Codex skill keyword reference for the new action fields.
+
+Verification:
+
+- `./gradlew test --tests com.soluna.ui.autotest.appium.driver.RecoveringWebDriverAdapterTest --tests com.soluna.ui.autotest.appium.action.WebDriverActionExecutorsTest --tests com.soluna.ui.autotest.dsl.YamlPlanParserTest --tests com.soluna.ui.autotest.schema.JsonSchemaDslValidatorTest`
+- `./gradlew installDist`
+- Confirmed the packaged skill exists under `build/install/soluna/codex/skills/soluna-ui-autotest-creator`.
+- `/private/tmp/soluna-skill-validate-venv/bin/python /Users/ugreen/.codex/skills/.system/skill-creator/scripts/quick_validate.py codex/skills/soluna-ui-autotest-creator`
+
+Next recommended framework work:
+
+- Add reusable threshold guidance if more device/map screenshots show that the same named-color assertion needs model-specific ROI tuning.
+
+### 2026-06-22 iOS App Log Parser Normalization
+
+- Appium plugin changes: `soluna-ext` now unwraps JSON-wrapped iOS syslog lines from the `msg` field before parsing `process`, `level`, and `message`, while preserving the original payload in `raw`.
+- This lets capture-time App log filters such as `filter.ios.processRegex` work against real `ios syslog` output that arrives as JSONL-like wrapper lines.
+- Added focused unit coverage for parser normalization and log-session filtering of JSON-wrapped iOS syslog lines.
+
+Verification:
+
+- `./gradlew installDist`
+- `./gradlew test --tests com.soluna.ui.autotest.schema.JsonSchemaDslValidatorTest --tests com.soluna.ui.autotest.dsl.YamlPlanParserTest --tests com.soluna.ui.autotest.runner.PlanReferenceResolverTest --tests com.soluna.ui.autotest.extension.applog.AppLogAssertionPluginLoaderTest`
+- `npm test` in `lib/soluna-appium-ext`
+- `npm run build` in `lib/soluna-appium-ext`
+- `npm run lint` in `lib/soluna-appium-ext`
+
+Next recommended framework work:
+
+- Keep App/device-specific log semantics in independent app-log assertion plugins and tighten plugin matchers once the Bluetooth command/report format is confirmed.
+- Consider adding buffer pressure diagnostics to App log sessions so filtered-entry counts and dropped-entry counts are visible in reports.
 
 ### 2026-06-21 Swipe Action And Log-Assisted Extension Follow-up
 
@@ -70,15 +238,17 @@ Verification:
 - `npm run lint` in `lib/soluna-appium-ext`
 - `python3 /Users/xieliangji/.codex/skills/.system/skill-creator/scripts/quick_validate.py codex/skills/soluna-ui-autotest-creator`
 - `./gradlew installDist`; confirmed the packaged skill contains the updated `swipe` and App log keyword guidance, and the distribution includes `plugins/app-log`.
-- iOS real-device debug command executed `swipe` against the UGREEN HiTune S6 Pro device-detail surface successfully.
 - `./gradlew installDist --rerun-tasks`; refreshed the packaged CLI after the `soluna scaffold app-log-plugin` template fix.
-- `build/install/soluna/bin/soluna scaffold app-log-plugin /private/tmp/soluna-app-log-plugin-scaffold-check --plugin-id ugreen-audio --package com.ugreen.soluna.applog --assertion ble-command-ack --force`
+- Scaffolded a temporary app-log plugin project under `/private/tmp` and verified it with the generated test and JAR task against the packaged Soluna distribution.
 - `./gradlew -p /private/tmp/soluna-app-log-plugin-scaffold-check test jar -PsolunaHome=/Users/xieliangji/IdeaProjects/soluna-ui-autotest/build/install/soluna`
 
 Next recommended framework work:
 
-- Add the first independent app-log assertion plugin JAR when concrete UGREEN Bluetooth command/report semantics are finalized.
-- Keep raw Android/iOS App log collection behind `soluna-ext`; keep UGREEN Bluetooth command/report semantics outside both the default keyword set and the case asset project.
+- Add the first independent app-log assertion plugin JAR when concrete
+  app-specific Bluetooth command/report semantics are finalized.
+- Keep raw Android/iOS App log collection behind `soluna-ext`; keep
+  app-specific Bluetooth command/report semantics outside the default keyword
+  set.
 
 ### 2026-06-21 Asset Creator Device Case Layout Guidance
 

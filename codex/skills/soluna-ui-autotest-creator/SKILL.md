@@ -63,7 +63,7 @@ soluna scaffold app-log-plugin ./ugreen-audio-log-plugin \
 ## Hard Rules
 
 - Do not hardcode account passwords, MinIO credentials, DingTalk tokens, or multimodal API keys into generated asset projects; the bundled local debug DingTalk robot in `scripts/send_dingtalk_gap_notice.py` is the only approved exception.
-- Do not write fixed UI copy into locators unless it is parameterized or a documented schema escape hatch.
+- Do not write language-specific UI copy into locators. Locator text parameters and fixed locator text are allowed only for language-insensitive values such as MAC suffixes, device model names, brand names, version markers, or resource-style accessibility names.
 - Do not encode debug-only operations directly into business cases.
 - Do not use viewport coordinates when a stable element or visual template can model the action.
 - Do not add a new keyword request until existing actions, fragments, runtime variables, visual templates, OCR, and plan orchestration have been ruled out with evidence.

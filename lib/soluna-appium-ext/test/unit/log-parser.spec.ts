@@ -46,4 +46,22 @@ describe('log parser', () => {
     expect(entry.level).to.equal('notice')
     expect(entry.message).to.equal('hello ios')
   })
+
+  it('unwraps ios json syslog message before parsing process and level', () => {
+    const raw = '{"msg":"Jun 22 14:49:49 iPhone iot_audio(XCTAutomationSupport)[36114] <Notice>: idle reply"}'
+    const entry = parseUnifiedLogLine({
+      platform: 'ios',
+      udid: 'ios-1',
+      seq: 4,
+      source: 'stdout',
+      line: raw,
+    })
+
+    expect(entry.platform).to.equal('ios')
+    expect(entry.process).to.equal('iot_audio(XCTAutomationSupport)')
+    expect(entry.pid).to.equal(36114)
+    expect(entry.level).to.equal('notice')
+    expect(entry.message).to.equal('idle reply')
+    expect(entry.raw).to.equal(raw)
+  })
 })

@@ -1,0 +1,220 @@
+schemaVersion: "1.0"
+id: TC014_MORE_CUSTOM_CONTROL
+name: T8-更多页自定义控制双击蓝牙交互
+dataRefs:
+  - id: device
+    file: ../../../data/device/ugreen-hitune-t8.yaml
+elementRefs:
+  - id: t8
+    file: ../../../elements/device/ugreen-hitune-t8.yaml
+setupFragments:
+  - device.openTargetDevice
+actions:
+  - tap:
+      id: open-t8-more-page-for-custom-control
+      element: t8.moreButton
+      desc: 打开 T8 更多页
+      settleMs: 1000
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - tap:
+      id: open-t8-custom-control-page
+      element: t8.moreCustomControlRow
+      desc: 打开 T8 自定义控制页面
+      settleMs: 1000
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - assertElementExists:
+      id: assert-t8-custom-control-page-visible
+      element: t8.customControlGesturePanel
+      desc: 校验 T8 自定义控制页面已打开
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - captureAppLogStart:
+      id: start-t8-custom-control-app-log
+      saveAs: t8CustomControlLogCapture
+      desc: 开始采集 T8 自定义控制蓝牙交互 App 日志
+      maxBufferEntries: 1000
+      maxSessionBytes: 5242880
+      ttlMs: 60000
+      filter:
+        ios:
+          processRegex: "${device.log.iosProcessRegex}"
+  - tap:
+      id: normalize-open-t8-left-double-options
+      element: t8.customControlDoubleTapRow
+      desc: 打开左耳当前双击动作选项用于归一状态
+      settleMs: 1000
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - tap:
+      id: normalize-t8-left-double-to-previous
+      element: t8.customControlOptionThird
+      desc: 将左耳双击归一为上一曲
+      settleMs: 1000
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - assertElementExists:
+      id: assert-t8-left-double-baseline-previous
+      element: t8.customControlGesturePanel
+      desc: 校验自定义控制选择后已回到设置面板
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - tap:
+      id: open-t8-left-double-options
+      element: t8.customControlDoubleTapRow
+      desc: 打开左耳双击动作选项
+      settleMs: 1000
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - tap:
+      id: set-t8-left-double-to-next
+      element: t8.customControlOptionFourth
+      desc: 将左耳双击设置为下一曲
+      settleMs: 1000
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - assertElementExists:
+      id: assert-t8-left-double-next
+      element: t8.customControlGesturePanel
+      desc: 校验自定义控制选择后已回到设置面板
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - tap:
+      id: switch-t8-custom-control-right-tab
+      element: t8.customControlRightTab
+      desc: 切换到右耳自定义控制
+      settleMs: 1000
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - tap:
+      id: normalize-open-t8-right-double-options
+      element: t8.customControlDoubleTapRow
+      desc: 打开右耳当前双击动作选项用于归一状态
+      settleMs: 1000
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - tap:
+      id: normalize-t8-right-double-to-previous
+      element: t8.customControlOptionThird
+      desc: 将右耳双击归一为上一曲
+      settleMs: 1000
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - assertElementExists:
+      id: assert-t8-right-double-baseline-previous
+      element: t8.customControlGesturePanel
+      desc: 校验自定义控制选择后已回到设置面板
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - tap:
+      id: open-t8-right-double-options
+      element: t8.customControlDoubleTapRow
+      desc: 打开右耳双击动作选项
+      settleMs: 1000
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - tap:
+      id: set-t8-right-double-to-next
+      element: t8.customControlOptionFourth
+      desc: 将右耳双击设置为下一曲
+      settleMs: 1000
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - assertElementExists:
+      id: assert-t8-right-double-next
+      element: t8.customControlGesturePanel
+      desc: 校验自定义控制选择后已回到设置面板
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - wait:
+      id: wait-after-t8-custom-control-changes
+      durationMs: 1000
+      desc: 等待自定义控制蓝牙交互日志输出
+  - captureAppLogEnd:
+      id: stop-t8-custom-control-app-log
+      source: "@{case.t8CustomControlLogCapture}"
+      resourceId: t8-custom-control-app-log
+      saveAs: t8CustomControlLogFile
+      desc: 结束采集并保存 T8 自定义控制蓝牙交互 App 日志
+      readLimit: 500
+      maxReadBatches: 10
+      maxEntries: 1000
+  - customAssertAppLog:
+      id: assert-t8-custom-control-log-has-ios-ble-write
+      source: "@{case.t8CustomControlLogFile}"
+      plugin: ugreen-audio
+      assertion: ios-ble-write-triggered
+      desc: 使用 UGREEN audio 日志插件确认自定义控制设置后 iOS 触发 BLE 特征写入
+      args:
+        containsAll: "${device.log.iosBleWriteContainsAll}"
+  - tap:
+      id: restore-open-t8-right-double-options
+      element: t8.customControlDoubleTapRow
+      desc: 打开右耳双击动作选项用于恢复
+      settleMs: 1000
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - tap:
+      id: restore-t8-right-double-to-previous
+      element: t8.customControlOptionThird
+      desc: 恢复右耳双击为上一曲
+      settleMs: 1000
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - assertElementExists:
+      id: assert-t8-right-double-restored
+      element: t8.customControlGesturePanel
+      desc: 校验自定义控制选择后已回到设置面板
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - tap:
+      id: switch-t8-custom-control-left-tab-for-restore
+      element: t8.customControlLeftTab
+      desc: 切换到左耳准备恢复
+      settleMs: 1000
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - tap:
+      id: restore-open-t8-left-double-options
+      element: t8.customControlDoubleTapRow
+      desc: 打开左耳双击动作选项用于恢复
+      settleMs: 1000
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - tap:
+      id: restore-t8-left-double-to-previous
+      element: t8.customControlOptionThird
+      desc: 恢复左耳双击为上一曲
+      settleMs: 1000
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - assertElementExists:
+      id: assert-t8-left-double-restored
+      element: t8.customControlGesturePanel
+      desc: 校验自定义控制选择后已回到设置面板
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500

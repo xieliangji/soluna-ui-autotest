@@ -1,0 +1,229 @@
+schemaVersion: "1.0"
+id: ugreen-hitune-t8-elements
+description: UGREEN HiTune T8 model-specific elements.
+elements:
+  deviceListFirstCard:
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeTable[@visible='true']/XCUIElementTypeCell[@visible='true'])[1]"
+  detailScrollView:
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeScrollView[@visible='true'])[1]"
+  firmwareUpgradeIgnoreButton:
+    hardcodedTextReason: language_insensitive_text
+    ios:
+      strategy: xpath
+      value: "((//XCUIElementTypeOther[@visible='true' and @accessible='false' and ./XCUIElementTypeStaticText[@visible='true' and (contains(string(@name),'V') or contains(string(@label),'V') or contains(string(@value),'V'))] and ./XCUIElementTypeOther/XCUIElementTypeScrollView[@visible='true'] and count(./XCUIElementTypeOther[@visible='true' and @accessible='true']) = 2])[last()]/XCUIElementTypeOther[@visible='true' and @accessible='true'])[1]"
+  findEarbudsEntry:
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeScrollView[@visible='true']//XCUIElementTypeOther[@visible='true' and @accessible='true' and not(ancestor::XCUIElementTypeButton)])[last()]"
+  findEarbudsRouteMap:
+    ios:
+      strategy: class
+      value: XCUIElementTypeMap
+  musicModeBassBoost:
+    ios:
+      strategy: xpath
+      value: "((//XCUIElementTypeScrollView[@visible='true']//XCUIElementTypeOther[@visible='true' and @accessible='false' and ./XCUIElementTypeStaticText[@visible='true'] and count(./XCUIElementTypeOther[@visible='true' and @accessible='true']) = 3])[2]/XCUIElementTypeOther[@visible='true' and @accessible='true'])[2]"
+  musicModeSpatial:
+    ios:
+      strategy: xpath
+      value: "((//XCUIElementTypeScrollView[@visible='true']//XCUIElementTypeOther[@visible='true' and @accessible='false' and ./XCUIElementTypeStaticText[@visible='true'] and count(./XCUIElementTypeOther[@visible='true' and @accessible='true']) = 3])[2]/XCUIElementTypeOther[@visible='true' and @accessible='true'])[3]"
+  gameModeSwitch:
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeScrollView[@visible='true']//XCUIElementTypeOther[@visible='true' and @accessible='false' and .//XCUIElementTypeSwitch[@visible='true' and @accessible='true'] and count(./XCUIElementTypeOther[@visible='true' and @accessible='true']) >= 2])[last()]//XCUIElementTypeSwitch[@visible='true' and @accessible='true']"
+  equalizerEntry:
+    ios:
+      strategy: xpath
+      value: "((//XCUIElementTypeScrollView[@visible='true']//XCUIElementTypeOther[@visible='true' and @accessible='false' and .//XCUIElementTypeSwitch[@visible='true' and @accessible='true'] and count(./XCUIElementTypeOther[@visible='true' and @accessible='true']) >= 2])[last()]/XCUIElementTypeOther[@visible='true' and @accessible='true'])[1]"
+  dualConnectEntry:
+    ios:
+      strategy: xpath
+      value: "((//XCUIElementTypeScrollView[@visible='true']//XCUIElementTypeOther[@visible='true' and @accessible='false' and .//XCUIElementTypeSwitch[@visible='true' and @accessible='true'] and count(./XCUIElementTypeOther[@visible='true' and @accessible='true']) >= 2])[last()]/XCUIElementTypeOther[@visible='true' and @accessible='true'])[2]"
+  equalizerElectronicPreset:
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeScrollView[@visible='true']//XCUIElementTypeOther[@visible='true' and @accessible='true'])[4]"
+  equalizerBassBoostPreset:
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeScrollView[@visible='true']//XCUIElementTypeOther[@visible='true' and @accessible='true'])[7]"
+  equalizerCustomEntry:
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeScrollView[@visible='true']//XCUIElementTypeOther[@visible='true' and @accessible='true'])[last()]"
+  customEqualizerTitle:
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeScrollView[@visible='true']//XCUIElementTypeStaticText[@visible='true' and following::XCUIElementTypeOther[@visible='true' and @accessible='true'] and following::XCUIElementTypeButton[@visible='true' and @accessible='true']])[1]"
+  customEqualizerNameRow:
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeScrollView[@visible='true']//XCUIElementTypeOther[@visible='true' and @accessible='true'])[1]"
+  customEqualizerFirstBandTouchArea:
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeScrollView[@visible='true']//XCUIElementTypeOther[@visible='true' and @accessible='false' and not(*) and preceding-sibling::XCUIElementTypeOther[@visible='true' and @accessible='false' and count(./XCUIElementTypeOther[@visible='true' and @accessible='false']) = 8]])[1]"
+  customEqualizerSaveButton:
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeButton[@visible='true' and @accessible='true'])[last()]"
+  customEqualizerResetButton:
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeButton[@visible='true' and @accessible='true'])[last()-1]"
+  customEqualizerDeleteConfirmButton:
+    ios:
+      strategy: xpath
+      value: "((//XCUIElementTypeOther[@visible='true' and @accessible='false' and ./XCUIElementTypeStaticText[@visible='true'] and count(./XCUIElementTypeOther[@visible='true' and @accessible='true']) >= 2])[last()]/XCUIElementTypeOther[@visible='true' and @accessible='true'])[last()]"
+  dualConnectSwitch:
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeSwitch[@visible='true' and @accessible='true'])[1]"
+  moreButton:
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeOther[@visible='true' and @accessible='true' and not(string(@name)) and not(string(@label)) and not(string(@value))])[last()]"
+  morePageBackButton:
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeOther[@visible='true' and @accessible='false' and not(ancestor::XCUIElementTypeScrollView)]/XCUIElementTypeOther[@visible='true' and @accessible='true' and not(string(@name)) and not(string(@label)) and not(string(@value))])[1]"
+  morePageTopBar:
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeOther[@visible='true' and @accessible='false' and not(ancestor::XCUIElementTypeScrollView) and ./XCUIElementTypeOther[@visible='true' and @accessible='true' and not(string(@name)) and not(string(@label)) and not(string(@value))]])[last()]"
+  moreDeviceNameRow:
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeScrollView[@visible='true']//XCUIElementTypeOther[@visible='true' and @accessible='true' and string(@name)!=''])[1]"
+  morePrimarySettingsGroup:
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeScrollView[@visible='true']//XCUIElementTypeOther[@visible='true' and @accessible='false' and count(./XCUIElementTypeOther[@visible='true' and @accessible='true']) >= 2])[1]"
+  renameDialogInputContainer:
+    ios:
+      strategy: xpath
+      value: "((//XCUIElementTypeOther[@visible='true' and @accessible='true' and not(string(@name)) and not(string(@label)) and not(string(@value)) and preceding-sibling::XCUIElementTypeStaticText and following-sibling::XCUIElementTypeOther//XCUIElementTypeScrollView[@visible='true']])[1]/following-sibling::XCUIElementTypeOther//XCUIElementTypeScrollView[@visible='true']//XCUIElementTypeOther[@visible='true' and @accessible='true'])[1]"
+  renameDialogCloseButton:
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeOther[@visible='true' and @accessible='true' and not(string(@name)) and not(string(@label)) and not(string(@value)) and preceding-sibling::XCUIElementTypeStaticText and following-sibling::XCUIElementTypeOther//XCUIElementTypeScrollView[@visible='true']])[1]"
+  renameDialogConfirmButton:
+    ios:
+      strategy: xpath
+      value: "((//XCUIElementTypeOther[@visible='true' and @accessible='true' and not(string(@name)) and not(string(@label)) and not(string(@value)) and preceding-sibling::XCUIElementTypeStaticText and following-sibling::XCUIElementTypeOther//XCUIElementTypeScrollView[@visible='true']])[1]/following-sibling::XCUIElementTypeOther[@visible='true' and @accessible='true' and string(@name)!=''])[last()]"
+  renameDialogCancelButton:
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeOther[@visible='true' and @accessible='true' and not(string(@name)) and not(string(@label)) and not(string(@value)) and preceding-sibling::XCUIElementTypeStaticText and following-sibling::XCUIElementTypeOther//XCUIElementTypeScrollView[@visible='true']])[1]"
+  morePromptSoundRow:
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeScrollView[@visible='true']//XCUIElementTypeOther[@visible='true' and @accessible='true' and string(@name)!=''])[2]"
+  promptSoundChineseOption:
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeScrollView[@visible='true']//XCUIElementTypeOther[@visible='true' and @accessible='true' and string(@name)!=''])[1]"
+  promptSoundRingOption:
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeScrollView[@visible='true']//XCUIElementTypeOther[@visible='true' and @accessible='true' and string(@name)!=''])[2]"
+  promptSoundVolumeSlider:
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeScrollView[@visible='true']//XCUIElementTypeOther[@visible='true' and @accessible='false' and not(*)])[1]"
+  moreUserManualRow:
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeScrollView[@visible='true']//XCUIElementTypeOther[@visible='true' and @accessible='true' and string(@name)!=''])[3]"
+  userManualBackButton:
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeOther[@visible='true' and @accessible='true' and not(string(@name)) and not(string(@label)) and not(string(@value))])[1]"
+  moreCustomControlRow:
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeScrollView[@visible='true']//XCUIElementTypeOther[@visible='true' and @accessible='true' and string(@name)!=''])[4]"
+  customControlLeftTab:
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeOther[@visible='true' and @accessible='false' and count(./XCUIElementTypeOther[@visible='true' and @accessible='true']) = 2]/XCUIElementTypeOther[@visible='true' and @accessible='true'])[1]"
+  customControlRightTab:
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeOther[@visible='true' and @accessible='false' and count(./XCUIElementTypeOther[@visible='true' and @accessible='true']) = 2]/XCUIElementTypeOther[@visible='true' and @accessible='true'])[2]"
+  customControlGesturePanel:
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeOther[@visible='true' and @accessible='false' and count(./XCUIElementTypeOther[@visible='true' and @accessible='true']) = 4])[last()]"
+  customControlSingleTapRow:
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeOther[@visible='true' and @accessible='false' and count(./XCUIElementTypeOther[@visible='true' and @accessible='true']) = 4])[last()]/XCUIElementTypeOther[@visible='true' and @accessible='true'][1]"
+  customControlDoubleTapRow:
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeOther[@visible='true' and @accessible='false' and count(./XCUIElementTypeOther[@visible='true' and @accessible='true']) = 4])[last()]/XCUIElementTypeOther[@visible='true' and @accessible='true'][2]"
+  customControlTripleTapRow:
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeOther[@visible='true' and @accessible='false' and count(./XCUIElementTypeOther[@visible='true' and @accessible='true']) = 4])[last()]/XCUIElementTypeOther[@visible='true' and @accessible='true'][3]"
+  customControlLongPressRow:
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeOther[@visible='true' and @accessible='false' and count(./XCUIElementTypeOther[@visible='true' and @accessible='true']) = 4])[last()]/XCUIElementTypeOther[@visible='true' and @accessible='true'][4]"
+  customControlOptionCloseButton:
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeOther[@visible='true' and @accessible='false' and ./XCUIElementTypeStaticText[@visible='true'] and ./XCUIElementTypeOther[@visible='true' and @accessible='true' and not(string(@name)) and not(string(@label)) and not(string(@value))] and count(./XCUIElementTypeOther[@visible='true' and @accessible='true' and string(@name)!='']) >= 2])[last()]/XCUIElementTypeOther[@visible='true' and @accessible='true' and not(string(@name)) and not(string(@label)) and not(string(@value))][1]"
+  customControlOptionSheet:
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeOther[@visible='true' and @accessible='false' and ./XCUIElementTypeStaticText[@visible='true'] and ./XCUIElementTypeOther[@visible='true' and @accessible='true' and not(string(@name)) and not(string(@label)) and not(string(@value))] and count(./XCUIElementTypeOther[@visible='true' and @accessible='true' and string(@name)!='']) >= 2])[last()]"
+  customControlOptionFirst:
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeOther[@visible='true' and @accessible='false' and ./XCUIElementTypeStaticText[@visible='true'] and ./XCUIElementTypeOther[@visible='true' and @accessible='true' and not(string(@name)) and not(string(@label)) and not(string(@value))] and count(./XCUIElementTypeOther[@visible='true' and @accessible='true' and string(@name)!='']) >= 2])[last()]/XCUIElementTypeOther[@visible='true' and @accessible='true' and string(@name)!=''][1]"
+  customControlOptionSecond:
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeOther[@visible='true' and @accessible='false' and ./XCUIElementTypeStaticText[@visible='true'] and ./XCUIElementTypeOther[@visible='true' and @accessible='true' and not(string(@name)) and not(string(@label)) and not(string(@value))] and count(./XCUIElementTypeOther[@visible='true' and @accessible='true' and string(@name)!='']) >= 2])[last()]/XCUIElementTypeOther[@visible='true' and @accessible='true' and string(@name)!=''][2]"
+  customControlOptionThird:
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeOther[@visible='true' and @accessible='false' and ./XCUIElementTypeStaticText[@visible='true'] and ./XCUIElementTypeOther[@visible='true' and @accessible='true' and not(string(@name)) and not(string(@label)) and not(string(@value))] and count(./XCUIElementTypeOther[@visible='true' and @accessible='true' and string(@name)!='']) >= 3])[last()]/XCUIElementTypeOther[@visible='true' and @accessible='true' and string(@name)!=''][3]"
+  customControlOptionFourth:
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeOther[@visible='true' and @accessible='false' and ./XCUIElementTypeStaticText[@visible='true'] and ./XCUIElementTypeOther[@visible='true' and @accessible='true' and not(string(@name)) and not(string(@label)) and not(string(@value))] and count(./XCUIElementTypeOther[@visible='true' and @accessible='true' and string(@name)!='']) >= 4])[last()]/XCUIElementTypeOther[@visible='true' and @accessible='true' and string(@name)!=''][4]"
+  customControlOptionFifth:
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeOther[@visible='true' and @accessible='false' and ./XCUIElementTypeStaticText[@visible='true'] and ./XCUIElementTypeOther[@visible='true' and @accessible='true' and not(string(@name)) and not(string(@label)) and not(string(@value))] and count(./XCUIElementTypeOther[@visible='true' and @accessible='true' and string(@name)!='']) >= 5])[last()]/XCUIElementTypeOther[@visible='true' and @accessible='true' and string(@name)!=''][5]"
+  moreDeleteDeviceRow:
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeScrollView[@visible='true']//XCUIElementTypeOther[@visible='true' and @accessible='true' and string(@name)!='' and not(ancestor::XCUIElementTypeButton)])[last()]"
+  moreDisconnectButton:
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeButton[@visible='true' and @accessible='true'])[last()]"
+  moreDialogCancelButton:
+    ios:
+      strategy: xpath
+      value: "((//XCUIElementTypeOther[@visible='true' and @accessible='false' and ./XCUIElementTypeStaticText[@visible='true'] and ./XCUIElementTypeOther/XCUIElementTypeScrollView[@visible='true'] and count(./XCUIElementTypeOther[@visible='true' and @accessible='true']) >= 2])[last()]/XCUIElementTypeOther[@visible='true' and @accessible='true'])[1]"
+  moreDialogConfirmButton:
+    ios:
+      strategy: xpath
+      value: "((//XCUIElementTypeOther[@visible='true' and @accessible='false' and ./XCUIElementTypeStaticText[@visible='true'] and ./XCUIElementTypeOther/XCUIElementTypeScrollView[@visible='true'] and count(./XCUIElementTypeOther[@visible='true' and @accessible='true']) >= 2])[last()]/XCUIElementTypeOther[@visible='true' and @accessible='true'])[2]"
+  detailDisconnectedText:
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeButton[@visible='true' and @accessible='true'])[last()]"
+  detailConnectButton:
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeButton[@visible='true' and @accessible='true'])[last()]"

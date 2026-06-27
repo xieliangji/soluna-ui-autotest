@@ -138,6 +138,51 @@ class RecoveringWebDriverAdapter(
         }
     }
 
+    override fun swipe(
+        sessionId: String,
+        element: DriverElement,
+        durationMs: Long,
+        startXRatio: Double,
+        startYRatio: Double,
+        endXRatio: Double,
+        endYRatio: Double,
+    ) {
+        val session = requireSession(sessionId)
+        val recoveringElement = requireElement(sessionId, element)
+        withElementRecovery(session, recoveringElement) { physicalElement ->
+            delegate.swipe(
+                sessionId = session.physicalSessionId,
+                element = physicalElement,
+                durationMs = durationMs,
+                startXRatio = startXRatio,
+                startYRatio = startYRatio,
+                endXRatio = endXRatio,
+                endYRatio = endYRatio,
+            )
+        }
+    }
+
+    override fun swipeViewport(
+        sessionId: String,
+        durationMs: Long,
+        startXRatio: Double,
+        startYRatio: Double,
+        endXRatio: Double,
+        endYRatio: Double,
+    ) {
+        val session = requireSession(sessionId)
+        withSessionRecovery(session) {
+            delegate.swipeViewport(
+                sessionId = session.physicalSessionId,
+                durationMs = durationMs,
+                startXRatio = startXRatio,
+                startYRatio = startYRatio,
+                endXRatio = endXRatio,
+                endYRatio = endYRatio,
+            )
+        }
+    }
+
     override fun inputText(
         sessionId: String,
         element: DriverElement,
@@ -238,6 +283,19 @@ class RecoveringWebDriverAdapter(
         return withSessionRecovery(session) {
             delegate.takeScreenshot(session.physicalSessionId)
         }
+    }
+
+    override fun takeElementScreenshot(
+        sessionId: String,
+        element: DriverElement,
+    ): ScreenshotData {
+        val session = requireSession(sessionId)
+        val recoveringElement = requireElement(sessionId, element)
+        var screenshot: ScreenshotData? = null
+        withElementRecovery(session, recoveringElement) { physicalElement ->
+            screenshot = delegate.takeElementScreenshot(session.physicalSessionId, physicalElement)
+        }
+        return screenshot ?: error("Element screenshot did not return data")
     }
 
     override fun startScreenRecording(

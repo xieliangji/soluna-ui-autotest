@@ -1,0 +1,236 @@
+schemaVersion: "1.0"
+id: TC017_MORE_CUSTOM_CONTROL_LONG_PRESS
+name: T8-更多页自定义控制长按蓝牙交互
+dataRefs:
+  - id: device
+    file: ../../../data/device/ugreen-hitune-t8.yaml
+elementRefs:
+  - id: t8
+    file: ../../../elements/device/ugreen-hitune-t8.yaml
+setupFragments:
+  - device.openTargetDevice
+actions:
+  - tap:
+      id: open-t8-more-page-for-long-press-control
+      element: t8.moreButton
+      desc: 打开 T8 更多页
+      settleMs: 1000
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - tap:
+      id: open-t8-long-press-custom-control-page
+      element: t8.moreCustomControlRow
+      desc: 打开 T8 自定义控制页面
+      settleMs: 1000
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - assertElementExists:
+      id: assert-t8-long-press-control-page-visible
+      element: t8.customControlGesturePanel
+      desc: 校验 T8 自定义控制页面已打开
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - captureAppLogStart:
+      id: start-t8-long-press-control-app-log
+      saveAs: t8LongPressControlLogCapture
+      desc: 开始采集 T8 长按自定义控制蓝牙交互 App 日志
+      maxBufferEntries: 1000
+      maxSessionBytes: 5242880
+      ttlMs: 60000
+      filter:
+        ios:
+          processRegex: "${device.log.iosProcessRegex}"
+  - tap:
+      id: normalize-open-t8-left-long-options
+      element: t8.customControlLongPressRow
+      desc: 打开左耳当前长按动作选项用于归一状态
+      settleMs: 1000
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - tap:
+      id: normalize-t8-left-long-to-anc-cycle
+      element: t8.customControlOptionThird
+      desc: 将左耳长按归一为降噪关/环境音/降噪开
+      settleMs: 1000
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - assertElementExists:
+      id: assert-t8-left-long-baseline-anc-cycle
+      element: t8.customControlGesturePanel
+      desc: 校验自定义控制选择后已回到设置面板
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - tap:
+      id: open-t8-left-long-options
+      element: t8.customControlLongPressRow
+      desc: 打开左耳长按动作选项
+      settleMs: 1000
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - tap:
+      id: set-t8-left-long-to-voice-assistant
+      element: t8.customControlOptionSecond
+      desc: 将左耳长按设置为语音助手
+      settleMs: 1000
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - assertElementExists:
+      id: assert-t8-left-long-voice-assistant
+      element: t8.customControlGesturePanel
+      desc: 校验自定义控制选择后已回到设置面板
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - tap:
+      id: switch-t8-long-control-right-tab
+      element: t8.customControlRightTab
+      desc: 切换到右耳自定义控制
+      settleMs: 1500
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - tap:
+      id: confirm-t8-long-control-right-tab
+      element: t8.customControlRightTab
+      desc: 再次点击右耳页签，降低自定义控制页签偶发未切换的影响
+      settleMs: 1500
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - tap:
+      id: normalize-open-t8-right-long-options
+      element: t8.customControlLongPressRow
+      desc: 打开右耳当前长按动作选项用于归一状态
+      settleMs: 1000
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - tap:
+      id: normalize-t8-right-long-to-anc-cycle
+      element: t8.customControlOptionThird
+      desc: 将右耳长按归一为降噪关/环境音/降噪开
+      settleMs: 1000
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - assertElementExists:
+      id: assert-t8-right-long-baseline-anc-cycle
+      element: t8.customControlGesturePanel
+      desc: 校验自定义控制选择后已回到设置面板
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - tap:
+      id: open-t8-right-long-options
+      element: t8.customControlLongPressRow
+      desc: 打开右耳长按动作选项
+      settleMs: 1000
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - tap:
+      id: set-t8-right-long-to-voice-assistant
+      element: t8.customControlOptionSecond
+      desc: 将右耳长按设置为语音助手
+      settleMs: 1000
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - assertElementExists:
+      id: assert-t8-right-long-voice-assistant
+      element: t8.customControlGesturePanel
+      desc: 校验自定义控制选择后已回到设置面板
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - wait:
+      id: wait-after-t8-long-control-changes
+      durationMs: 1000
+      desc: 等待长按自定义控制蓝牙交互日志输出
+  - captureAppLogEnd:
+      id: stop-t8-long-control-app-log
+      source: "@{case.t8LongPressControlLogCapture}"
+      resourceId: t8-long-press-control-app-log
+      saveAs: t8LongPressControlLogFile
+      desc: 结束采集并保存 T8 长按自定义控制蓝牙交互 App 日志
+      readLimit: 500
+      maxReadBatches: 10
+      maxEntries: 1000
+  - customAssertAppLog:
+      id: assert-t8-long-control-log-has-ios-ble-write
+      source: "@{case.t8LongPressControlLogFile}"
+      plugin: ugreen-audio
+      assertion: ios-ble-write-triggered
+      desc: 使用 UGREEN audio 日志插件确认长按自定义控制设置后 iOS 触发 BLE 特征写入
+      args:
+        containsAll: "${device.log.iosBleWriteContainsAll}"
+  - tap:
+      id: restore-open-t8-right-long-options
+      element: t8.customControlLongPressRow
+      desc: 打开右耳长按动作选项用于恢复
+      settleMs: 1000
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - tap:
+      id: restore-t8-right-long-to-anc-cycle
+      element: t8.customControlOptionThird
+      desc: 恢复右耳长按为降噪关/环境音/降噪开
+      settleMs: 1000
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - assertElementExists:
+      id: assert-t8-right-long-restored
+      element: t8.customControlGesturePanel
+      desc: 校验自定义控制选择后已回到设置面板
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - tap:
+      id: switch-t8-long-control-left-tab-for-restore
+      element: t8.customControlLeftTab
+      desc: 切换到左耳准备恢复长按设置
+      settleMs: 1500
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - tap:
+      id: confirm-t8-long-control-left-tab-for-restore
+      element: t8.customControlLeftTab
+      desc: 再次点击左耳页签，降低自定义控制页签偶发未切换的影响
+      settleMs: 1500
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - tap:
+      id: restore-open-t8-left-long-options
+      element: t8.customControlLongPressRow
+      desc: 打开左耳长按动作选项用于恢复
+      settleMs: 1000
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - tap:
+      id: restore-t8-left-long-to-anc-cycle
+      element: t8.customControlOptionThird
+      desc: 恢复左耳长按为降噪关/环境音/降噪开
+      settleMs: 1000
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - assertElementExists:
+      id: assert-t8-left-long-restored
+      element: t8.customControlGesturePanel
+      desc: 校验自定义控制选择后已回到设置面板
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500

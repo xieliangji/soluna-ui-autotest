@@ -1,0 +1,83 @@
+schemaVersion: "1.0"
+id: TC013_MORE_DISCONNECT_RECONNECT
+name: T8-更多页断开连接并恢复连接
+dataRefs:
+  - id: device
+    file: ../../../data/device/ugreen-hitune-t8.yaml
+elementRefs:
+  - id: t8
+    file: ../../../elements/device/ugreen-hitune-t8.yaml
+setupFragments:
+  - device.openTargetDevice
+actions:
+  - tap:
+      id: open-t8-more-page-for-disconnect
+      element: t8.moreButton
+      desc: 打开 T8 更多页
+      settleMs: 1000
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - tap:
+      id: open-t8-disconnect-dialog
+      element: t8.moreDisconnectButton
+      desc: 点击断开连接按钮打开确认弹窗
+      settleMs: 1000
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - assertElementExists:
+      id: assert-t8-disconnect-dialog-visible
+      element: t8.moreDialogConfirmButton
+      desc: 校验断开连接弹窗已显示确认按钮
+      wait:
+        timeoutMs: 3000
+        intervalMs: 500
+  - tap:
+      id: confirm-t8-disconnect
+      element: t8.moreDialogConfirmButton
+      desc: 确认断开 T8 连接
+      settleMs: 2000
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - tap:
+      id: back-to-t8-detail-after-disconnect
+      element: t8.morePageBackButton
+      desc: T8 断开后不会自动跳转详情页，先返回详情页
+      settleMs: 1000
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - assertElementExists:
+      id: assert-t8-detail-disconnected
+      element: t8.detailDisconnectedText
+      desc: 校验详情页显示未连接状态
+      wait:
+        timeoutMs: 8000
+        intervalMs: 500
+  - tap:
+      id: dismiss-firmware-upgrade-prompt-before-reconnect-if-present
+      element: t8.firmwareUpgradeIgnoreButton
+      ignoreMissingElement: true
+      ignoreMissingElementReason: optionalFirmwareUpgradePrompt
+      desc: 断开后返回详情页可能出现固件升级提示，若出现则点击忽略
+      settleMs: 1000
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - tap:
+      id: reconnect-t8-from-detail
+      element: t8.detailConnectButton
+      desc: 点击详情页连接按钮恢复 T8 连接
+      settleMs: 3000
+      wait:
+        timeoutMs: 10000
+        intervalMs: 500
+  - assertSourceRegexMatch:
+      id: assert-t8-detail-reconnected
+      pattern: "(?s)${device.more.defaultName}"
+      desc: 校验恢复连接后仍在 T8 详情页
+      wait:
+        timeoutMs: 15000
+        intervalMs: 500

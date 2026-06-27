@@ -43,6 +43,7 @@ import com.soluna.ui.autotest.extension.applog.AppLogAssertion
 import com.soluna.ui.autotest.extension.applog.AppLogAssertionInput
 import com.soluna.ui.autotest.extension.applog.AppLogAssertionRegistry
 import com.soluna.ui.autotest.extension.applog.AppLogAssertionResult
+import java.awt.Color
 import java.awt.image.BufferedImage
 import java.io.ByteArrayOutputStream
 import java.nio.file.Files
@@ -54,6 +55,8 @@ import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import org.openqa.selenium.NoSuchElementException
+import org.openqa.selenium.TimeoutException
 
 class WebDriverActionExecutorsTest {
     private val objectMapper = ObjectMapper()
@@ -123,6 +126,64 @@ class WebDriverActionExecutorsTest {
         assertEquals(ExecutionStatus.PASSED, result.status)
         assertEquals(listOf("tapViewport:session-1:0.5:0.3"), driver.calls)
         assertEquals(listOf(800L), sleeper.delays)
+    }
+
+    @Test
+    fun `tap action can ignore missing optional firmware prompt element`() {
+        val driver = RecordingWebDriverAdapter(throwNoSuchElement = true)
+        val sleeper = RecordingSleeper()
+        val executor = TapActionExecutor(driver, sleeper)
+        val action = ActionDefinition(
+            id = "dismiss-firmware-prompt-if-present",
+            keyword = "tap",
+            locator = LocatorDefinition(
+                strategy = "id",
+                value = "ignore_button",
+            ),
+            args = mapOf(
+                "ignoreMissingElement" to objectMapper.valueToTree(true),
+                "ignoreMissingElementReason" to objectMapper.valueToTree("optionalFirmwareUpgradePrompt"),
+            ),
+            wait = WaitDefinition(timeoutMs = 5000, intervalMs = 500),
+        )
+
+        val result = executor.execute(action, context())
+
+        assertEquals(ExecutionStatus.PASSED, result.status)
+        assertEquals(
+            listOf("find:session-1:id=ignore_button:5000"),
+            driver.calls,
+        )
+        assertEquals(emptyList(), sleeper.delays)
+    }
+
+    @Test
+    fun `tap action can ignore timed out optional firmware prompt element`() {
+        val driver = RecordingWebDriverAdapter(throwTimeoutException = true)
+        val sleeper = RecordingSleeper()
+        val executor = TapActionExecutor(driver, sleeper)
+        val action = ActionDefinition(
+            id = "dismiss-firmware-prompt-if-present",
+            keyword = "tap",
+            locator = LocatorDefinition(
+                strategy = "id",
+                value = "ignore_button",
+            ),
+            args = mapOf(
+                "ignoreMissingElement" to objectMapper.valueToTree(true),
+                "ignoreMissingElementReason" to objectMapper.valueToTree("optionalFirmwareUpgradePrompt"),
+            ),
+            wait = WaitDefinition(timeoutMs = 5000, intervalMs = 500),
+        )
+
+        val result = executor.execute(action, context())
+
+        assertEquals(ExecutionStatus.PASSED, result.status)
+        assertEquals(
+            listOf("find:session-1:id=ignore_button:5000"),
+            driver.calls,
+        )
+        assertEquals(emptyList(), sleeper.delays)
     }
 
     @Test
@@ -509,6 +570,105 @@ class WebDriverActionExecutorsTest {
     }
 
     @Test
+    fun `screenshot action can save captured screenshot path`() {
+        val driver = RecordingWebDriverAdapter()
+        val sink = SavingScreenshotSink(Path.of("/tmp/home.png"))
+        val executor = ScreenshotActionExecutor(driver, sink)
+        val context = context(currentCaseId = "case-1")
+        val action = ActionDefinition(
+            id = "capture-home",
+            keyword = "screenshot",
+            resourceId = "home-after-login",
+            args = mapOf(
+                "saveAs" to objectMapper.valueToTree("homeScreenshot"),
+            ),
+        )
+
+        val result = executor.execute(action, context)
+
+        assertEquals(ExecutionStatus.PASSED, result.status)
+        assertEquals("/tmp/home.png", context.variables.get("case", "homeScreenshot", "_:case-1")?.asText())
+        assertEquals("/tmp/home.png", context.variables.get("case", "lastScreenshot", "_:case-1")?.asText())
+    }
+
+    @Test
+    fun `screenshot action can capture an element screenshot`() {
+        val driver = RecordingWebDriverAdapter(elementScreenshotData = byteArrayOf(7, 8, 9))
+        val sink = RecordingScreenshotSink()
+        val executor = ScreenshotActionExecutor(driver, sink)
+        val action = ActionDefinition(
+            id = "capture-selected-mode",
+            keyword = "screenshot",
+            resourceId = "selected-mode",
+            locator = LocatorDefinition(
+                strategy = "xpath",
+                value = "//*[@name='mode']",
+            ),
+            wait = WaitDefinition(timeoutMs = 3000, intervalMs = 200),
+        )
+
+        val result = executor.execute(action, context())
+
+        assertEquals(ExecutionStatus.PASSED, result.status)
+        assertEquals(
+            listOf(
+                "find:session-1:xpath=//*[@name='mode']:3000",
+                "elementScreenshot:element-1",
+            ),
+            driver.calls,
+        )
+        assertContentEquals(byteArrayOf(7, 8, 9), sink.screenshots.single().data.bytes)
+    }
+
+    @Test
+    fun `image color ratio assertion passes when named color ratio is high enough`() {
+        val image = kotlin.io.path.createTempFile(suffix = ".png")
+        Files.write(
+            image,
+            pngBytes(width = 20, height = 20) { x, y ->
+                if (x in 8..11 && y in 8..11) Color.BLUE.rgb else Color.BLACK.rgb
+            },
+        )
+        val executor = AssertImageColorRatioActionExecutor()
+        val action = ActionDefinition(
+            id = "assert-blue-dot",
+            keyword = "assertImageColorRatio",
+            args = mapOf(
+                "source" to objectMapper.valueToTree(image.toString()),
+                "color" to objectMapper.valueToTree("blue"),
+                "minRatio" to objectMapper.valueToTree(0.03),
+                "minPixels" to objectMapper.valueToTree(10),
+            ),
+        )
+
+        val result = executor.execute(action, context())
+
+        assertEquals(ExecutionStatus.PASSED, result.status)
+        Files.deleteIfExists(image)
+    }
+
+    @Test
+    fun `image color ratio assertion fails when named color ratio is too low`() {
+        val image = kotlin.io.path.createTempFile(suffix = ".png")
+        Files.write(image, pngBytes(width = 10, height = 10) { _, _ -> Color.BLACK.rgb })
+        val executor = AssertImageColorRatioActionExecutor()
+        val action = ActionDefinition(
+            id = "assert-blue-dot",
+            keyword = "assertImageColorRatio",
+            args = mapOf(
+                "source" to objectMapper.valueToTree(image.toString()),
+                "color" to objectMapper.valueToTree("blue"),
+                "minRatio" to objectMapper.valueToTree(0.01),
+            ),
+        )
+
+        val result = executor.execute(action, context())
+
+        assertEquals(ExecutionStatus.FAILED, result.status)
+        Files.deleteIfExists(image)
+    }
+
+    @Test
     fun `screen recording actions start stop and save recording path`() {
         val driver = RecordingWebDriverAdapter()
         val sink = RecordingPlanResourceSink()
@@ -618,6 +778,67 @@ class WebDriverActionExecutorsTest {
         assertEquals(listOf(50 to 50), recognizedSizes)
         assertEquals("screen_recording_text_match_frame", sink.resources.single().purpose)
         java.nio.file.Files.deleteIfExists(frame)
+    }
+
+    @Test
+    fun `image text assertion recognizes screenshot text`() {
+        val image = kotlin.io.path.createTempFile(suffix = ".png")
+        java.nio.file.Files.write(image, byteArrayOf(9, 8, 7))
+        val recognizer = RecordingTextRecognizer(mapOf(image to listOf("产品说明书", "UGREEN HiTune T8")))
+        val action = ActionDefinition(
+            id = "assert-manual-title",
+            keyword = "assertImageTextRegexMatch",
+            args = mapOf(
+                "source" to objectMapper.valueToTree(image.toString()),
+                "pattern" to objectMapper.valueToTree("产品说明书(?s).*UGREEN HiTune T8"),
+            ),
+        )
+
+        val result = AssertImageTextRegexMatchActionExecutor(
+            textRecognizer = recognizer,
+        ).execute(action, context())
+
+        assertEquals(ExecutionStatus.PASSED, result.status)
+        assertEquals(listOf(image), recognizer.seen)
+        java.nio.file.Files.deleteIfExists(image)
+    }
+
+    @Test
+    fun `image text assertion crops roi before recognizing text`() {
+        val image = kotlin.io.path.createTempFile(suffix = ".png")
+        ImageIO.write(BufferedImage(100, 200, BufferedImage.TYPE_INT_RGB), "png", image.toFile())
+        val recognizedSizes = mutableListOf<Pair<Int, Int>>()
+        val recognizer = object : VisualTextRecognizer {
+            override fun recognize(imagePath: Path): List<String> {
+                val ocrImage = ImageIO.read(imagePath.toFile())
+                recognizedSizes += ocrImage.width to ocrImage.height
+                return listOf("Model: WS222")
+            }
+        }
+        val action = ActionDefinition(
+            id = "assert-manual-model",
+            keyword = "assertImageTextRegexMatch",
+            args = mapOf(
+                "source" to objectMapper.valueToTree(image.toString()),
+                "pattern" to objectMapper.valueToTree("WS222"),
+                "roi" to objectMapper.valueToTree(
+                    mapOf(
+                        "x" to 0.25,
+                        "y" to 0.50,
+                        "width" to 0.50,
+                        "height" to 0.25,
+                    ),
+                ),
+            ),
+        )
+
+        val result = AssertImageTextRegexMatchActionExecutor(
+            textRecognizer = recognizer,
+        ).execute(action, context())
+
+        assertEquals(ExecutionStatus.PASSED, result.status)
+        assertEquals(listOf(50 to 50), recognizedSizes)
+        java.nio.file.Files.deleteIfExists(image)
     }
 
     @Test
@@ -1293,6 +1514,28 @@ class WebDriverActionExecutorsTest {
         }
     }
 
+    private class SavingScreenshotSink(
+        private val localPath: Path,
+    ) : ScreenshotSink {
+        val screenshots = mutableListOf<ExplicitScreenshot>()
+
+        override fun accept(screenshot: ExplicitScreenshot): CapturedPlanResource {
+            screenshots += screenshot
+            return CapturedPlanResource(
+                resourceId = screenshot.resourceId ?: screenshot.actionId ?: "screenshot",
+                type = "image",
+                purpose = "explicit_screenshot",
+                actionId = screenshot.actionId,
+                name = screenshot.name,
+                localPath = localPath,
+                fileName = localPath.fileName.toString(),
+                contentType = screenshot.data.contentType,
+                sizeBytes = screenshot.data.bytes.size.toLong(),
+                capturedAt = "2026-06-17T00:00:00Z",
+            )
+        }
+    }
+
     private inner class RecordingSolunaExtClient : SolunaAppiumExtClient {
         val createRequests = mutableListOf<CreateLogSessionRequest>()
         val readRequests = mutableListOf<ReadLogSessionRequest>()
@@ -1501,8 +1744,11 @@ class WebDriverActionExecutorsTest {
         private val pageSource: String = "",
         private val pageSources: List<String> = emptyList(),
         private val screenshotData: ByteArray = byteArrayOf(1, 2, 3),
+        private val elementScreenshotData: ByteArray = byteArrayOf(1, 2, 3),
         private val elementRect: ElementRect = ElementRect(0, 0, 10, 10, 100, 100),
         private val findFailuresBeforeSuccess: Int = 0,
+        private val throwNoSuchElement: Boolean = false,
+        private val throwTimeoutException: Boolean = false,
     ) : WebDriverAdapter {
         val calls = mutableListOf<String>()
         private val attributeReadCounts = mutableMapOf<String, Int>()
@@ -1528,6 +1774,12 @@ class WebDriverActionExecutorsTest {
         ): DriverElement {
             calls += "find:$sessionId:${locator.strategy}=${locator.value}:${wait?.timeoutMs}"
             findCount += 1
+            if (throwNoSuchElement) {
+                throw NoSuchElementException("element not found")
+            }
+            if (throwTimeoutException) {
+                throw TimeoutException("element wait timed out")
+            }
             if (findCount <= findFailuresBeforeSuccess) {
                 error("element not found")
             }
@@ -1663,6 +1915,14 @@ class WebDriverActionExecutorsTest {
             return ScreenshotData(screenshotData)
         }
 
+        override fun takeElementScreenshot(
+            sessionId: String,
+            element: DriverElement,
+        ): ScreenshotData {
+            calls += "elementScreenshot:${element.elementId}"
+            return ScreenshotData(elementScreenshotData)
+        }
+
         override fun startScreenRecording(
             sessionId: String,
             options: ScreenRecordingOptions,
@@ -1683,8 +1943,14 @@ class WebDriverActionExecutorsTest {
     private fun pngBytes(
         width: Int,
         height: Int,
+        rgbAt: (x: Int, y: Int) -> Int = { _, _ -> Color.BLACK.rgb },
     ): ByteArray {
         val image = BufferedImage(width, height, BufferedImage.TYPE_INT_RGB)
+        for (y in 0 until height) {
+            for (x in 0 until width) {
+                image.setRGB(x, y, rgbAt(x, y))
+            }
+        }
         val output = ByteArrayOutputStream()
         ImageIO.write(image, "png", output)
         return output.toByteArray()

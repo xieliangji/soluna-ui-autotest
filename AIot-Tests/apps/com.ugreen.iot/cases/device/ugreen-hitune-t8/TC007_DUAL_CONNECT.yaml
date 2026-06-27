@@ -1,0 +1,102 @@
+schemaVersion: "1.0"
+id: TC007_DUAL_CONNECT
+name: T8-设备双连蓝牙交互
+dataRefs:
+  - id: device
+    file: ../../../data/device/ugreen-hitune-t8.yaml
+elementRefs:
+  - id: t8
+    file: ../../../elements/device/ugreen-hitune-t8.yaml
+setupFragments:
+  - device.openTargetDevice
+actions:
+  - swipe:
+      id: scroll-t8-detail-to-dual-connect-entry
+      element: t8.detailScrollView
+      startElementXRatio: 0.50
+      startElementYRatio: 0.83
+      endElementXRatio: 0.50
+      endElementYRatio: 0.42
+      durationMs: 500
+      desc: 在详情页滚动容器内滑动露出 T8 设备双连入口
+  - tap:
+      id: dismiss-t8-firmware-upgrade-prompt-after-dual-connect-scroll-if-present
+      element: t8.firmwareUpgradeIgnoreButton
+      ignoreMissingElement: true
+      ignoreMissingElementReason: optionalFirmwareUpgradePrompt
+      desc: 详情页滚动后固件升级提示可能再次出现；如出现则点击忽略
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+      settleMs: 1000
+  - tap:
+      id: open-t8-dual-connect-page
+      element: t8.dualConnectEntry
+      desc: 打开 T8 设备双连页面
+      settleMs: 1000
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - captureAppLogStart:
+      id: start-t8-dual-connect-app-log
+      saveAs: t8DualConnectLogCapture
+      desc: 开始采集 T8 设备双连蓝牙交互 App 日志
+      maxBufferEntries: 1000
+      maxSessionBytes: 5242880
+      ttlMs: 60000
+      filter:
+        ios:
+          processRegex: "${device.log.iosProcessRegex}"
+  - tap:
+      id: enable-t8-dual-connect
+      element: t8.dualConnectSwitch
+      desc: 开启 T8 设备双连
+      settleMs: 1000
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - screenshot:
+      id: capture-t8-dual-connect-enabled
+      element: t8.dualConnectSwitch
+      resourceId: t8-dual-connect-enabled
+      saveAs: t8DualConnectEnabledScreenshot
+      desc: 保存设备双连开关元素截图
+      wait:
+        timeoutMs: 3000
+        intervalMs: 500
+  - assertImageColorRatio:
+      id: assert-t8-dual-connect-enabled
+      source: "@{case.t8DualConnectEnabledScreenshot}"
+      color: green
+      minRatio: 0.003
+      minPixels: 10
+      desc: 通过设备双连开关元素截图的绿色占比确认已开启
+  - wait:
+      id: wait-after-t8-dual-connect-enabled
+      durationMs: 1000
+      desc: 等待设备双连蓝牙交互日志输出
+  - captureAppLogEnd:
+      id: stop-t8-dual-connect-app-log
+      source: "@{case.t8DualConnectLogCapture}"
+      resourceId: t8-dual-connect-app-log
+      saveAs: t8DualConnectLogFile
+      desc: 结束采集并保存 T8 设备双连蓝牙交互 App 日志
+      readLimit: 500
+      maxReadBatches: 10
+      maxEntries: 1000
+  - customAssertAppLog:
+      id: assert-t8-dual-connect-log-has-ios-ble-write
+      source: "@{case.t8DualConnectLogFile}"
+      plugin: ugreen-audio
+      assertion: ios-ble-write-triggered
+      desc: 使用 UGREEN audio 日志插件确认设备双连交互后 iOS 触发 BLE 特征写入
+      args:
+        containsAll: "${device.log.iosBleWriteContainsAll}"
+  - tap:
+      id: restore-t8-dual-connect-off
+      element: t8.dualConnectSwitch
+      desc: 关闭 T8 设备双连，恢复默认状态
+      settleMs: 1000
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500

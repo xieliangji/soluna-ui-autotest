@@ -43,9 +43,11 @@ class YamlPlanParserTest {
     @Test
     fun `normalizes chinese action keyword`() {
         assertEquals("tap", DefaultKeywordRegistry.normalize("点击"))
+        assertEquals("tapPosition", DefaultKeywordRegistry.normalize("按位置点击"))
         assertEquals("swipe", DefaultKeywordRegistry.normalize("滑动"))
         assertEquals("screenshot", DefaultKeywordRegistry.normalize("显式截图"))
         assertEquals("assertElementExists", DefaultKeywordRegistry.normalize("元素存在"))
+        assertEquals("assertImageColorRatio", DefaultKeywordRegistry.normalize("图片含蓝色量"))
     }
 
     @Test
@@ -84,6 +86,16 @@ class YamlPlanParserTest {
                           endXRatio: 0.5
                           endYRatio: 0.2
                           durationMs: 600
+                      - assertImageColorRatio:
+                          id: assert-blue-dot
+                          source: "@{case.mapScreenshot}"
+                          color: blue
+                          minRatio: 0.001
+                      - tap:
+                          id: dismiss-firmware-prompt-if-present
+                          element: common.firmwareUpgradeIgnoreButton
+                          ignoreMissingElement: true
+                          ignoreMissingElementReason: optionalFirmwareUpgradePrompt
         """.trimIndent()
 
         val plan = parser.parse(yaml)
@@ -99,6 +111,51 @@ class YamlPlanParserTest {
         assertEquals("swipe", actions[2].keyword)
         assertEquals(0.8, actions[2].args["startYRatio"]?.asDouble())
         assertEquals(600, actions[2].args["durationMs"]?.asInt())
+        assertEquals("assertImageColorRatio", actions[3].keyword)
+        assertEquals("blue", actions[3].args["color"]?.asText())
+        assertEquals(0.001, actions[3].args["minRatio"]?.asDouble())
+        assertEquals("tap", actions[4].keyword)
+        assertEquals(true, actions[4].args["ignoreMissingElement"]?.asBoolean())
+        assertEquals("optionalFirmwareUpgradePrompt", actions[4].args["ignoreMissingElementReason"]?.asText())
+    }
+
+    @Test
+    fun `normalizes tap position element ratios to tap executor args`() {
+        val yaml = """
+            schemaVersion: "1.0"
+            id: tap-position-actions
+            name: Tap Position Actions
+            productModel: Test Product
+            deviceConfig: devices/ios.yaml
+            stages:
+              - id: main
+                name: Main
+                cases:
+                  - id: slider
+                    name: Slider
+                    actions:
+                      - tapPosition:
+                          id: set-volume
+                          element: settings.volumeSlider
+                          xRatio: 0.64
+                          yRatio: 0.30
+                      - tapPosition:
+                          id: dismiss-backdrop
+                          xRatio: 0.50
+                          yRatio: 0.10
+        """.trimIndent()
+
+        val actions = parser.parse(yaml).stages.single().cases.single().actions
+
+        assertEquals("tap", actions[0].keyword)
+        assertEquals("settings.volumeSlider", actions[0].element)
+        assertEquals(0.64, actions[0].args["elementXRatio"]?.asDouble())
+        assertEquals(0.30, actions[0].args["elementYRatio"]?.asDouble())
+        assertEquals(null, actions[0].args["xRatio"])
+        assertEquals(null, actions[0].args["yRatio"])
+        assertEquals("tap", actions[1].keyword)
+        assertEquals(0.50, actions[1].args["xRatio"]?.asDouble())
+        assertEquals(0.10, actions[1].args["yRatio"]?.asDouble())
     }
 
     @Test
@@ -261,20 +318,19 @@ class YamlPlanParserTest {
     }
 
     @Test
-    fun `allows explicitly approved hardcoded brand logo locator in element catalog`() {
+    fun `allows hardcoded brand locator with language insensitive reason in element catalog`() {
         val yaml = """
             schemaVersion: "1.0"
             id: common-elements
             elements:
               loginPageMarker:
+                hardcodedTextReason: language_insensitive_text
                 android:
                   strategy: xpath
                   value: "//*[contains(@text,'UgreenAudio')]"
-                  textLocatorPurpose: brandLogo
                 ios:
                   strategy: predicate
                   value: "label CONTAINS 'UgreenAudio' OR name CONTAINS 'UgreenAudio'"
-                  textLocatorPurpose: brandLogo
         """.trimIndent()
 
         val catalog = elementCatalogParser.parse(yaml)
@@ -286,16 +342,16 @@ class YamlPlanParserTest {
     }
 
     @Test
-    fun `allows explicitly approved icon name locator in element catalog`() {
+    fun `allows hardcoded accessibility name locator with language insensitive reason in element catalog`() {
         val yaml = """
             schemaVersion: "1.0"
             id: common-elements
             elements:
               addButton:
+                hardcodedTextReason: language_insensitive_text
                 ios:
                   strategy: xpath
                   value: "//XCUIElementTypeButton[@name='icon common add']"
-                  textLocatorPurpose: iconName
         """.trimIndent()
 
         val catalog = elementCatalogParser.parse(yaml)
@@ -307,16 +363,17 @@ class YamlPlanParserTest {
     }
 
     @Test
-    fun `rejects non icon text in icon name locator purpose`() {
+    fun `rejects hardcoded text locator with unsupported reason`() {
+        val unsupportedReason = "${DslPolicyConfig.LANGUAGE_INSENSITIVE_TEXT_REASON}_invalid"
         val yaml = """
             schemaVersion: "1.0"
             id: common-elements
             elements:
-              rnText:
+              addButton:
                 ios:
                   strategy: xpath
-                  value: "//XCUIElementTypeStaticText[@name='登录']"
-                  textLocatorPurpose: iconName
+                  value: "//XCUIElementTypeButton[@name='icon common add']"
+                  hardcodedTextReason: $unsupportedReason
         """.trimIndent()
 
         val error = assertFailsWith<DslValidationException> {
@@ -324,8 +381,30 @@ class YamlPlanParserTest {
         }
 
         assertTrue(
-            error.violations.any { it.message.contains("must not hardcode fixed UI copy") },
-            "Expected non-icon text locator violation, got ${error.violations}",
+            error.violations.any { it.message.contains("Allowed reasons: language_insensitive_text") },
+            "Expected unsupported hardcoded text reason violation, got ${error.violations}",
+        )
+    }
+
+    @Test
+    fun `rejects starts-with hardcoded text without reason`() {
+        val yaml = """
+            schemaVersion: "1.0"
+            id: common-elements
+            elements:
+              checkbox:
+                ios:
+                  strategy: xpath
+                  value: "//XCUIElementTypeButton[starts-with(@name,'icon round')]"
+        """.trimIndent()
+
+        val error = assertFailsWith<DslValidationException> {
+            elementCatalogParser.parse(yaml)
+        }
+
+        assertTrue(
+            error.violations.any { it.message.contains("hardcode fixed UI copy") },
+            "Expected starts-with hardcoded text locator violation, got ${error.violations}",
         )
     }
 
@@ -364,7 +443,7 @@ class YamlPlanParserTest {
     }
 
     @Test
-    fun `allows parameterized text inside approved language title locator`() {
+    fun `allows parameterized text with language insensitive reason`() {
         val yaml = """
             schemaVersion: "1.0"
             id: language-elements
@@ -372,7 +451,7 @@ class YamlPlanParserTest {
               languageTitle:
                 strategy: xpath
                 value: "//*[@text='${'$'}{i18n.languageTitle}']"
-                textLocatorPurpose: languageTitle
+                parameterizedTextReason: language_insensitive_text
         """.trimIndent()
 
         val catalog = elementCatalogParser.parse(yaml)
@@ -392,8 +471,54 @@ class YamlPlanParserTest {
         }
 
         assertTrue(
-            error.violations.any { it.message.contains("Parameterized text locators are only allowed") },
+            error.violations.any { it.message.contains("require parameterizedTextReason") },
             "Expected parameterized text locator violation, got ${error.violations}",
+        )
+    }
+
+    @Test
+    fun `rejects coordinate attributes inside element locator`() {
+        val yaml = """
+            schemaVersion: "1.0"
+            id: common-elements
+            elements:
+              fragileRow:
+                ios:
+                  strategy: xpath
+                  value: "//XCUIElementTypeOther[@x = 16 and @y = 536 and @width = 361 and @height = 55]"
+        """.trimIndent()
+
+        val error = assertFailsWith<DslValidationException> {
+            elementCatalogParser.parse(yaml)
+        }
+
+        assertTrue(
+            error.violations.any { it.message.contains("must not use coordinate or size attributes") },
+            "Expected coordinate locator violation, got ${error.violations}",
+        )
+    }
+
+    @Test
+    fun `rejects parameterized text locator with unsupported reason`() {
+        val unsupportedReason = "${DslPolicyConfig.LANGUAGE_INSENSITIVE_TEXT_REASON}_invalid"
+        val yaml = """
+            schemaVersion: "1.0"
+            id: common-elements
+            elements:
+              targetDevice:
+                ios:
+                  strategy: xpath
+                  value: "//*[contains(@name,'${'$'}{device.targetMacSuffix}')]"
+                  parameterizedTextReason: $unsupportedReason
+        """.trimIndent()
+
+        val error = assertFailsWith<DslValidationException> {
+            elementCatalogParser.parse(yaml)
+        }
+
+        assertTrue(
+            error.violations.any { it.message.contains("Allowed reasons: language_insensitive_text") },
+            "Expected unsupported parameterized text reason violation, got ${error.violations}",
         )
     }
 

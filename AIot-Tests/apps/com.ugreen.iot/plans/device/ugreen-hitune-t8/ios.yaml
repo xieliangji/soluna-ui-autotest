@@ -1,0 +1,69 @@
+schemaVersion: "1.0"
+id: ugreen-hitune-t8-ios
+name: UGREEN HiTune T8 iOS
+productModel: UGREEN HiTune T8
+version: "0.1.0"
+metadata:
+  owner: qa
+  suite: device-ugreen-hitune-t8
+  intent: UGREEN HiTune T8 iOS 稳定功能与蓝牙交互回归
+parameters:
+  - id: appState
+    file: ../../../data/app-state.yaml
+  - id: appStateLocal
+    file: ../../../data/app-state.ios.local.yaml
+    required: false
+fragmentRefs:
+  - id: device
+    file: ../../../fragments/device/ugreen-hitune-t8.yaml
+deviceConfig: ../../../../../devices/ios/00008140-001805D80C93801C.yaml
+artifactStore: ../../../../../artifacts/minio.local.yaml
+app:
+  id: com.ugreen.iot
+  name: 绿联声学
+  platform: ios
+  reset: false
+defaults:
+  implicitWaitMs: 8000
+  failureStrategy: stop-case
+  retryStrategy: no-retry
+trace:
+  screenshots:
+    enabled: true
+    beforeAction: onFailure
+    retainBeforeActionCount: 5
+    upload: onFailure
+localArtifacts:
+  cleanup:
+    mode: never
+stages:
+  - id: logged-in-device-page
+    name: Logged-in Device Page
+    setupFragments:
+      - device.loggedInDevicePage
+    caseSetupActions:
+      - restartApp:
+          id: restart-before-t8-case
+          appId: "${app.id}"
+          desc: 用例前重启应用
+      - wait:
+          id: wait-after-t8-case-restart
+          durationMs: 5000
+          desc: 重启后等待启动稳定
+    caseRefs:
+      - file: ../../../cases/device/ugreen-hitune-t8/TC002_FIND_ROUTE.yaml
+      - file: ../../../cases/device/ugreen-hitune-t8/TC003_MUSIC_MODE.yaml
+      - file: ../../../cases/device/ugreen-hitune-t8/TC004_SPATIAL_AUDIO.yaml
+      - file: ../../../cases/device/ugreen-hitune-t8/TC005_GAME_MODE.yaml
+      - file: ../../../cases/device/ugreen-hitune-t8/TC006_EQUALIZER_PRESET.yaml
+      - file: ../../../cases/device/ugreen-hitune-t8/TC007_DUAL_CONNECT.yaml
+      - file: ../../../cases/device/ugreen-hitune-t8/TC008_CUSTOM_EQUALIZER.yaml
+      - file: ../../../cases/device/ugreen-hitune-t8/TC009_MORE_RENAME.yaml
+      - file: ../../../cases/device/ugreen-hitune-t8/TC010_MORE_PROMPT_SOUND.yaml
+      - file: ../../../cases/device/ugreen-hitune-t8/TC011_MORE_USER_MANUAL.yaml
+      - file: ../../../cases/device/ugreen-hitune-t8/TC012_MORE_DELETE_CANCEL.yaml
+      - file: ../../../cases/device/ugreen-hitune-t8/TC013_MORE_DISCONNECT_RECONNECT.yaml
+      - file: ../../../cases/device/ugreen-hitune-t8/TC014_MORE_CUSTOM_CONTROL.yaml
+      - file: ../../../cases/device/ugreen-hitune-t8/TC015_MORE_CUSTOM_CONTROL_SINGLE_TAP.yaml
+      - file: ../../../cases/device/ugreen-hitune-t8/TC016_MORE_CUSTOM_CONTROL_TRIPLE_TAP.yaml
+      - file: ../../../cases/device/ugreen-hitune-t8/TC017_MORE_CUSTOM_CONTROL_LONG_PRESS.yaml

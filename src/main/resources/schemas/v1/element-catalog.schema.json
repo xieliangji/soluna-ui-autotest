@@ -59,8 +59,11 @@
           "additionalProperties": true,
           "default": {}
         },
-        "textLocatorPurpose": {
-          "$ref": "#/$defs/textLocatorPurpose"
+        "parameterizedTextReason": {
+          "$ref": "#/$defs/parameterizedTextReason"
+        },
+        "hardcodedTextReason": {
+          "$ref": "#/$defs/hardcodedTextReason"
         },
         "android": {
           "$ref": "#/$defs/locator"
@@ -86,17 +89,19 @@
           "additionalProperties": true,
           "default": {}
         },
-        "textLocatorPurpose": {
-          "$ref": "#/$defs/textLocatorPurpose"
+        "parameterizedTextReason": {
+          "$ref": "#/$defs/parameterizedTextReason"
+        },
+        "hardcodedTextReason": {
+          "$ref": "#/$defs/hardcodedTextReason"
         }
       }
     },
-    "textLocatorPurpose": {
-      "enum": [
-        "iconName",
-        "brandLogo",
-        "languageTitle"
-      ]
+    "parameterizedTextReason": {
+      "const": "language_insensitive_text"
+    },
+    "hardcodedTextReason": {
+      "const": "language_insensitive_text"
     }
   }
 }

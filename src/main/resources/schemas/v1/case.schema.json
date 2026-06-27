@@ -148,6 +148,12 @@
         { "allOf": [{ "$ref": "#/$defs/tapAction" }, { "required": ["click"] }] },
         { "allOf": [{ "$ref": "#/$defs/tapAction" }, { "required": ["点击"] }] },
         { "allOf": [{ "$ref": "#/$defs/tapAction" }, { "required": ["轻点"] }] },
+        { "allOf": [{ "$ref": "#/$defs/tapPositionAction" }, { "required": ["tapPosition"] }] },
+        { "allOf": [{ "$ref": "#/$defs/tapPositionAction" }, { "required": ["tapAt"] }] },
+        { "allOf": [{ "$ref": "#/$defs/tapPositionAction" }, { "required": ["positionTap"] }] },
+        { "allOf": [{ "$ref": "#/$defs/tapPositionAction" }, { "required": ["点击位置"] }] },
+        { "allOf": [{ "$ref": "#/$defs/tapPositionAction" }, { "required": ["按位置点击"] }] },
+        { "allOf": [{ "$ref": "#/$defs/tapPositionAction" }, { "required": ["坐标点击"] }] },
         { "allOf": [{ "$ref": "#/$defs/tapAction" }, { "required": ["longPress"] }] },
         { "allOf": [{ "$ref": "#/$defs/tapAction" }, { "required": ["longTap"] }] },
         { "allOf": [{ "$ref": "#/$defs/tapAction" }, { "required": ["pressAndHold"] }] },
@@ -217,6 +223,14 @@
         { "allOf": [{ "$ref": "#/$defs/assertScreenRecordingTextRegexMatchAction" }, { "required": ["screenRecordingTextRegexMatch"] }] },
         { "allOf": [{ "$ref": "#/$defs/assertScreenRecordingTextRegexMatchAction" }, { "required": ["断言录屏文本匹配"] }] },
         { "allOf": [{ "$ref": "#/$defs/assertScreenRecordingTextRegexMatchAction" }, { "required": ["录屏文本匹配"] }] },
+        { "allOf": [{ "$ref": "#/$defs/assertImageTextRegexMatchAction" }, { "required": ["assertImageTextRegexMatch"] }] },
+        { "allOf": [{ "$ref": "#/$defs/assertImageTextRegexMatchAction" }, { "required": ["imageTextRegexMatch"] }] },
+        { "allOf": [{ "$ref": "#/$defs/assertImageTextRegexMatchAction" }, { "required": ["assertScreenshotTextRegexMatch"] }] },
+        { "allOf": [{ "$ref": "#/$defs/assertImageTextRegexMatchAction" }, { "required": ["screenshotTextRegexMatch"] }] },
+        { "allOf": [{ "$ref": "#/$defs/assertImageTextRegexMatchAction" }, { "required": ["断言图片文本匹配"] }] },
+        { "allOf": [{ "$ref": "#/$defs/assertImageTextRegexMatchAction" }, { "required": ["图片文本匹配"] }] },
+        { "allOf": [{ "$ref": "#/$defs/assertImageTextRegexMatchAction" }, { "required": ["断言截图文本匹配"] }] },
+        { "allOf": [{ "$ref": "#/$defs/assertImageTextRegexMatchAction" }, { "required": ["截图文本匹配"] }] },
         { "$ref": "#/$defs/nestedAction" }
       ]
     },
@@ -230,6 +244,12 @@
         "click": { "$ref": "#/$defs/nestedActionBody" },
         "点击": { "$ref": "#/$defs/nestedActionBody" },
         "轻点": { "$ref": "#/$defs/nestedActionBody" },
+        "tapPosition": { "$ref": "#/$defs/nestedTapPositionBody" },
+        "tapAt": { "$ref": "#/$defs/nestedTapPositionBody" },
+        "positionTap": { "$ref": "#/$defs/nestedTapPositionBody" },
+        "点击位置": { "$ref": "#/$defs/nestedTapPositionBody" },
+        "按位置点击": { "$ref": "#/$defs/nestedTapPositionBody" },
+        "坐标点击": { "$ref": "#/$defs/nestedTapPositionBody" },
         "longPress": { "$ref": "#/$defs/nestedActionBody" },
         "longTap": { "$ref": "#/$defs/nestedActionBody" },
         "pressAndHold": { "$ref": "#/$defs/nestedActionBody" },
@@ -244,6 +264,14 @@
         "视觉点击": { "$ref": "#/$defs/nestedActionBody" },
         "模板点击": { "$ref": "#/$defs/nestedActionBody" },
         "图片点击": { "$ref": "#/$defs/nestedActionBody" },
+        "assertImageColorRatio": { "$ref": "#/$defs/nestedActionBody" },
+        "imageColorRatio": { "$ref": "#/$defs/nestedActionBody" },
+        "assertImageContainsColor": { "$ref": "#/$defs/nestedActionBody" },
+        "imageContainsColor": { "$ref": "#/$defs/nestedActionBody" },
+        "断言图片颜色占比": { "$ref": "#/$defs/nestedActionBody" },
+        "图片颜色占比": { "$ref": "#/$defs/nestedActionBody" },
+        "图片含颜色量": { "$ref": "#/$defs/nestedActionBody" },
+        "图片含蓝色量": { "$ref": "#/$defs/nestedActionBody" },
         "input": { "$ref": "#/$defs/nestedActionBody" },
         "type": { "$ref": "#/$defs/nestedActionBody" },
         "输入": { "$ref": "#/$defs/nestedActionBody" },
@@ -311,6 +339,14 @@
         "screenRecordingTextRegexMatch": { "$ref": "#/$defs/nestedActionBody" },
         "断言录屏文本匹配": { "$ref": "#/$defs/nestedActionBody" },
         "录屏文本匹配": { "$ref": "#/$defs/nestedActionBody" },
+        "assertImageTextRegexMatch": { "$ref": "#/$defs/nestedActionBody" },
+        "imageTextRegexMatch": { "$ref": "#/$defs/nestedActionBody" },
+        "assertScreenshotTextRegexMatch": { "$ref": "#/$defs/nestedActionBody" },
+        "screenshotTextRegexMatch": { "$ref": "#/$defs/nestedActionBody" },
+        "断言图片文本匹配": { "$ref": "#/$defs/nestedActionBody" },
+        "图片文本匹配": { "$ref": "#/$defs/nestedActionBody" },
+        "断言截图文本匹配": { "$ref": "#/$defs/nestedActionBody" },
+        "截图文本匹配": { "$ref": "#/$defs/nestedActionBody" },
         "captureAppLogStart": { "$ref": "#/$defs/nestedActionBody" },
         "startAppLogCapture": { "$ref": "#/$defs/nestedActionBody" },
         "开始采集App日志": { "$ref": "#/$defs/nestedActionBody" },
@@ -341,6 +377,7 @@
         "asRoi": { "type": "boolean" },
         "attr": { "$ref": "#/$defs/nonEmptyString" },
         "clearFirst": { "type": "boolean" },
+        "color": { "$ref": "#/$defs/nonEmptyString" },
         "durationMs": { "type": "integer", "minimum": 0 },
         "endElementXRatio": { "$ref": "#/$defs/ratio" },
         "endElementYRatio": { "$ref": "#/$defs/ratio" },
@@ -357,6 +394,8 @@
         "fullHeight": { "type": "boolean" },
         "fullWidth": { "type": "boolean" },
         "filter": { "$ref": "#/$defs/appLogFilter" },
+        "ignoreMissingElement": { "type": "boolean" },
+        "ignoreMissingElementReason": { "$ref": "#/$defs/tapMissingElementReason" },
         "pattern": { "$ref": "#/$defs/nonEmptyString" },
         "plugin": { "$ref": "#/$defs/nonEmptyString" },
         "recognizer": { "$ref": "#/$defs/screenRecordingTextRecognizer" },
@@ -368,6 +407,8 @@
         "maxFrames": { "type": "integer", "minimum": 1 },
         "maxReadBatches": { "type": "integer", "minimum": 1 },
         "maxSessionBytes": { "type": "integer", "minimum": 1048576 },
+        "minPixels": { "type": "integer", "minimum": 1 },
+        "minRatio": { "$ref": "#/$defs/ratio" },
         "readLimit": { "type": "integer", "minimum": 1 },
         "resourceId": { "$ref": "#/$defs/id" },
         "roi": { "$ref": "#/$defs/roi" },
@@ -398,7 +439,29 @@
         "wait": { "$ref": "#/$defs/wait" },
         "xRatio": { "$ref": "#/$defs/ratio" },
         "yRatio": { "$ref": "#/$defs/ratio" }
-      }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "ignoreMissingElement": { "const": true }
+            },
+            "required": ["ignoreMissingElement"]
+          },
+          "then": {
+            "required": ["ignoreMissingElementReason"]
+          }
+        },
+        {
+          "if": { "required": ["ignoreMissingElementReason"] },
+          "then": {
+            "properties": {
+              "ignoreMissingElement": { "const": true }
+            },
+            "required": ["ignoreMissingElement"]
+          }
+        }
+      ]
     },
     "tapAction": {
       "type": "object",
@@ -412,6 +475,8 @@
         "element": { "$ref": "#/$defs/nonEmptyString" },
         "elementXRatio": { "$ref": "#/$defs/ratio" },
         "elementYRatio": { "$ref": "#/$defs/ratio" },
+        "ignoreMissingElement": { "type": "boolean" },
+        "ignoreMissingElementReason": { "$ref": "#/$defs/tapMissingElementReason" },
         "settleMs": { "type": "integer", "minimum": 0 },
         "xRatio": { "$ref": "#/$defs/ratio" },
         "yRatio": { "$ref": "#/$defs/ratio" },
@@ -431,7 +496,68 @@
           "required": ["xRatio", "yRatio"],
           "not": { "required": ["element"] }
         }
+      ],
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "ignoreMissingElement": { "const": true }
+            },
+            "required": ["ignoreMissingElement"]
+          },
+          "then": {
+            "required": ["element", "ignoreMissingElementReason"],
+            "not": {
+              "anyOf": [
+                { "required": ["xRatio"] },
+                { "required": ["yRatio"] }
+              ]
+            }
+          }
+        },
+        {
+          "if": { "required": ["ignoreMissingElementReason"] },
+          "then": {
+            "properties": {
+              "ignoreMissingElement": { "const": true }
+            },
+            "required": ["ignoreMissingElement"]
+          }
+        }
       ]
+    },
+    "tapPositionAction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["xRatio", "yRatio"],
+      "properties": {
+        "tapPosition": { "$ref": "#/$defs/id" },
+        "tapAt": { "$ref": "#/$defs/id" },
+        "positionTap": { "$ref": "#/$defs/id" },
+        "点击位置": { "$ref": "#/$defs/id" },
+        "按位置点击": { "$ref": "#/$defs/id" },
+        "坐标点击": { "$ref": "#/$defs/id" },
+        "desc": { "$ref": "#/$defs/nonEmptyString" },
+        "element": { "$ref": "#/$defs/nonEmptyString" },
+        "settleMs": { "type": "integer", "minimum": 0 },
+        "xRatio": { "$ref": "#/$defs/ratio" },
+        "yRatio": { "$ref": "#/$defs/ratio" },
+        "wait": { "$ref": "#/$defs/wait" }
+      }
+    },
+    "nestedTapPositionBody": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "xRatio", "yRatio"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "desc": { "$ref": "#/$defs/nonEmptyString" },
+        "element": { "$ref": "#/$defs/nonEmptyString" },
+        "settleMs": { "type": "integer", "minimum": 0 },
+        "xRatio": { "$ref": "#/$defs/ratio" },
+        "yRatio": { "$ref": "#/$defs/ratio" },
+        "wait": { "$ref": "#/$defs/wait" }
+      }
     },
     "swipeAction": {
       "type": "object",
@@ -686,6 +812,26 @@
         "resourceId": { "$ref": "#/$defs/id" }
       }
     },
+    "assertImageTextRegexMatchAction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["pattern"],
+      "properties": {
+        "assertImageTextRegexMatch": { "$ref": "#/$defs/id" },
+        "imageTextRegexMatch": { "$ref": "#/$defs/id" },
+        "assertScreenshotTextRegexMatch": { "$ref": "#/$defs/id" },
+        "screenshotTextRegexMatch": { "$ref": "#/$defs/id" },
+        "断言图片文本匹配": { "$ref": "#/$defs/id" },
+        "图片文本匹配": { "$ref": "#/$defs/id" },
+        "断言截图文本匹配": { "$ref": "#/$defs/id" },
+        "截图文本匹配": { "$ref": "#/$defs/id" },
+        "desc": { "$ref": "#/$defs/nonEmptyString" },
+        "source": { "$ref": "#/$defs/nonEmptyString" },
+        "pattern": { "$ref": "#/$defs/nonEmptyString" },
+        "recognizer": { "$ref": "#/$defs/screenRecordingTextRecognizer" },
+        "roi": { "$ref": "#/$defs/roi" }
+      }
+    },
     "appLogFilter": {
       "type": "object",
       "additionalProperties": false,
@@ -768,6 +914,9 @@
     },
     "screenRecordingTextRecognizer": {
       "enum": ["paddle", "paddle-ocr", "kt-visual-paddle", "multimodal", "multimodal-ocr", "vision"]
+    },
+    "tapMissingElementReason": {
+      "enum": ["optionalFirmwareUpgradePrompt"]
     },
     "ratio": {
       "type": "number",

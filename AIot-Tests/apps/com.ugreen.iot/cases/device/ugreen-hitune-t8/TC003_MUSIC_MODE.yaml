@@ -1,0 +1,75 @@
+schemaVersion: "1.0"
+id: TC003_MUSIC_MODE
+name: T8-音乐模式低音增强蓝牙交互
+dataRefs:
+  - id: device
+    file: ../../../data/device/ugreen-hitune-t8.yaml
+elementRefs:
+  - id: t8
+    file: ../../../elements/device/ugreen-hitune-t8.yaml
+setupFragments:
+  - device.openTargetDevice
+actions:
+  - captureAppLogStart:
+      id: start-t8-music-mode-app-log
+      saveAs: t8MusicModeLogCapture
+      desc: 开始采集 T8 音乐模式蓝牙交互 App 日志
+      maxBufferEntries: 1000
+      maxSessionBytes: 5242880
+      ttlMs: 60000
+      filter:
+        ios:
+          processRegex: "${device.log.iosProcessRegex}"
+  - tap:
+      id: switch-t8-music-mode-to-spatial-before-bass-boost
+      element: t8.musicModeSpatial
+      desc: 先切换到空间音效，保证后续低音增强点击产生实际 BLE 写操作
+      settleMs: 1000
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - tap:
+      id: switch-t8-music-mode-to-bass-boost
+      element: t8.musicModeBassBoost
+      desc: 切换 T8 音乐模式到低音增强
+      settleMs: 1000
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - wait:
+      id: wait-after-t8-music-mode-bass-boost
+      durationMs: 1000
+      desc: 等待低音增强模式蓝牙交互日志输出
+  - screenshot:
+      id: capture-t8-music-mode-after-bass-boost-tap
+      element: t8.musicModeBassBoost
+      resourceId: t8-music-mode-after-bass-boost-tap
+      saveAs: t8MusicModeAfterBassBoostTapScreenshot
+      desc: 保存点击低音增强后的按钮元素截图
+      wait:
+        timeoutMs: 3000
+        intervalMs: 500
+  - assertImageColorRatio:
+      id: assert-t8-music-mode-bass-boost-selected
+      source: "@{case.t8MusicModeAfterBassBoostTapScreenshot}"
+      color: green
+      minRatio: 0.01
+      minPixels: 120
+      desc: 通过低音增强按钮元素截图的绿色占比确认音乐模式选中态已切换
+  - captureAppLogEnd:
+      id: stop-t8-music-mode-app-log
+      source: "@{case.t8MusicModeLogCapture}"
+      resourceId: t8-music-mode-app-log
+      saveAs: t8MusicModeLogFile
+      desc: 结束采集并保存 T8 音乐模式蓝牙交互 App 日志
+      readLimit: 500
+      maxReadBatches: 10
+      maxEntries: 1000
+  - customAssertAppLog:
+      id: assert-t8-music-mode-log-has-ios-ble-write
+      source: "@{case.t8MusicModeLogFile}"
+      plugin: ugreen-audio
+      assertion: ios-ble-write-triggered
+      desc: 使用 UGREEN audio 日志插件确认音乐模式交互后 iOS 触发 BLE 特征写入
+      args:
+        containsAll: "${device.log.iosBleWriteContainsAll}"

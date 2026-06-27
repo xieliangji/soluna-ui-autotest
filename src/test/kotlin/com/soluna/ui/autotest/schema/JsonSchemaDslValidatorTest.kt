@@ -71,7 +71,7 @@ class JsonSchemaDslValidatorTest {
     fun `validates example parameter data schema`() {
         listOf(
             Path.of("AIot-Tests/apps/com.ugreen.iot/data/app-state.yaml"),
-            Path.of("AIot-Tests/apps/com.ugreen.iot/data/common/mine.yaml"),
+            Path.of("AIot-Tests/apps/com.ugreen.iot/data/common/mine.zh-CN.yaml"),
             Path.of("AIot-Tests/apps/com.ugreen.iot/data/common/visual-templates.yaml"),
         ).forEach { path ->
             val node = yamlMapper.readTree(Files.readString(path))
@@ -154,6 +154,209 @@ class JsonSchemaDslValidatorTest {
                 "Expected valid plan schema for $path",
             )
         }
+    }
+
+    @Test
+    fun `validates image color ratio action schema`() {
+        val node = yamlMapper.readTree(
+            """
+            schemaVersion: "1.0"
+            id: image-color-ratio
+            name: Image Color Ratio
+            productModel: Test Product
+            deviceConfig: devices/ios/device.yaml
+            stages:
+              - id: main
+                name: Main
+                cases:
+                  - id: route-map
+                    name: Route Map
+                    actions:
+                      - screenshot:
+                          id: capture-map
+                          resourceId: map-image
+                          saveAs: mapScreenshot
+                      - assertImageColorRatio:
+                          id: assert-map-blue-dot
+                          source: "@{case.mapScreenshot}"
+                          color: blue
+                          minRatio: 0.001
+                          minPixels: 50
+                          roi:
+                            x: 0.2
+                            y: 0.3
+                            width: 0.6
+                            height: 0.4
+            """.trimIndent(),
+        )
+
+        assertEquals(
+            emptyList(),
+            validator.validate("/schemas/v1/plan.schema.json", node),
+        )
+    }
+
+    @Test
+    fun `validates optional missing element tap action schema`() {
+        val node = yamlMapper.readTree(
+            """
+            schemaVersion: "1.0"
+            id: optional-tap
+            name: Optional Tap
+            productModel: Test Product
+            deviceConfig: devices/ios/device.yaml
+            stages:
+              - id: main
+                name: Main
+                cases:
+                  - id: dismiss-firmware
+                    name: Dismiss Firmware
+                    actions:
+                      - tap:
+                          id: dismiss-firmware-prompt-if-present
+                          element: common.firmwareUpgradeIgnoreButton
+                          ignoreMissingElement: true
+                          ignoreMissingElementReason: optionalFirmwareUpgradePrompt
+                          wait:
+                            timeoutMs: 5000
+                            intervalMs: 500
+            """.trimIndent(),
+        )
+
+        assertEquals(
+            emptyList(),
+            validator.validate("/schemas/v1/plan.schema.json", node),
+        )
+    }
+
+    @Test
+    fun `validates tap position action schema`() {
+        val node = yamlMapper.readTree(
+            """
+            schemaVersion: "1.0"
+            id: tap-position
+            name: Tap Position
+            productModel: Test Product
+            deviceConfig: devices/ios/device.yaml
+            stages:
+              - id: main
+                name: Main
+                cases:
+                  - id: slider
+                    name: Slider
+                    actions:
+                      - tapPosition:
+                          id: set-slider
+                          element: settings.volumeSlider
+                          xRatio: 0.64
+                          yRatio: 0.30
+                      - 按位置点击:
+                          id: dismiss-backdrop
+                          xRatio: 0.50
+                          yRatio: 0.10
+            """.trimIndent(),
+        )
+
+        assertEquals(
+            emptyList(),
+            validator.validate("/schemas/v1/plan.schema.json", node),
+        )
+    }
+
+    @Test
+    fun `rejects tap position action without y ratio`() {
+        val node = yamlMapper.readTree(
+            """
+            schemaVersion: "1.0"
+            id: tap-position
+            name: Tap Position
+            productModel: Test Product
+            deviceConfig: devices/ios/device.yaml
+            stages:
+              - id: main
+                name: Main
+                cases:
+                  - id: slider
+                    name: Slider
+                    actions:
+                      - tapPosition:
+                          id: set-slider
+                          element: settings.volumeSlider
+                          xRatio: 0.64
+            """.trimIndent(),
+        )
+
+        val violations = validator.validate("/schemas/v1/plan.schema.json", node)
+
+        assertTrue(
+            violations.isNotEmpty(),
+            "Expected tapPosition without yRatio to fail schema validation",
+        )
+    }
+
+    @Test
+    fun `validates image text regex assertion schema`() {
+        val node = yamlMapper.readTree(
+            """
+            schemaVersion: "1.0"
+            id: image-text
+            name: Image Text
+            productModel: Test Product
+            deviceConfig: devices/ios/device.yaml
+            stages:
+              - id: main
+                name: Main
+                cases:
+                  - id: manual
+                    name: Manual
+                    actions:
+                      - screenshot:
+                          id: capture-manual
+                          resourceId: manual-page
+                          saveAs: manualScreenshot
+                      - assertImageTextRegexMatch:
+                          id: assert-manual-ocr
+                          source: "@{case.manualScreenshot}"
+                          pattern: "(?s)产品说明书.*UGREEN HiTune T8"
+                          recognizer: paddle
+            """.trimIndent(),
+        )
+
+        assertEquals(
+            emptyList(),
+            validator.validate("/schemas/v1/plan.schema.json", node),
+        )
+    }
+
+    @Test
+    fun `rejects optional missing element tap without predefined reason`() {
+        val node = yamlMapper.readTree(
+            """
+            schemaVersion: "1.0"
+            id: optional-tap
+            name: Optional Tap
+            productModel: Test Product
+            deviceConfig: devices/ios/device.yaml
+            stages:
+              - id: main
+                name: Main
+                cases:
+                  - id: dismiss-firmware
+                    name: Dismiss Firmware
+                    actions:
+                      - tap:
+                          id: dismiss-firmware-prompt-if-present
+                          element: common.firmwareUpgradeIgnoreButton
+                          ignoreMissingElement: true
+            """.trimIndent(),
+        )
+
+        val violations = validator.validate("/schemas/v1/plan.schema.json", node)
+
+        assertTrue(
+            violations.isNotEmpty(),
+            "Expected optional tap without ignoreMissingElementReason to fail schema validation",
+        )
     }
 
     @Test

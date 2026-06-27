@@ -1,0 +1,180 @@
+schemaVersion: "1.0"
+id: TC009_MORE_RENAME
+name: T8-更多页修改耳机名称
+dataRefs:
+  - id: device
+    file: ../../../data/device/ugreen-hitune-t8.yaml
+elementRefs:
+  - id: t8
+    file: ../../../elements/device/ugreen-hitune-t8.yaml
+setupFragments:
+  - device.openTargetDevice
+actions:
+  - tap:
+      id: open-t8-more-page-for-rename
+      element: t8.moreButton
+      desc: 打开 T8 更多页
+      settleMs: 1000
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - assertSourceRegexMatch:
+      id: assert-t8-more-name-default-before-rename
+      pattern: "(?s)${device.more.defaultName}"
+      desc: 校验更多页显示默认耳机名称
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - tap:
+      id: prime-t8-rename-dialog
+      element: t8.moreDeviceNameRow
+      desc: 首次打开名称编辑框，触发 iOS 首次编辑态
+      settleMs: 500
+  - tap:
+      id: dismiss-t8-rename-dialog-after-prime
+      element: t8.renameDialogCloseButton
+      desc: 点击弹框关闭按钮退出首次编辑态
+      settleMs: 1000
+  - tap:
+      id: reopen-t8-rename-dialog-for-short-name
+      element: t8.moreDeviceNameRow
+      desc: 重新打开名称编辑框输入 2 个字符名称
+      settleMs: 500
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - tapPosition:
+      id: clear-t8-rename-input-before-short-name
+      element: t8.renameDialogInputContainer
+      xRatio: 0.92
+      yRatio: 0.50
+      desc: 点击输入框右侧清除按钮
+      settleMs: 300
+  - input:
+      id: input-t8-short-name
+      element: t8.renameDialogInputContainer
+      value: ${device.more.shortName}
+      clearFirst: false
+      desc: 输入 2 个字符耳机名称
+  - tap:
+      id: confirm-t8-short-name
+      element: t8.renameDialogConfirmButton
+      desc: 确认修改为 2 个字符名称
+      settleMs: 1000
+  - assertSourceRegexMatch:
+      id: assert-t8-more-name-short
+      pattern: "(?s)${device.more.shortName}"
+      desc: 校验更多页显示 2 个字符名称
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - tap:
+      id: back-to-t8-detail-after-short-name
+      element: t8.morePageBackButton
+      desc: 返回详情页校验标题同步更新
+      settleMs: 1000
+  - assertSourceRegexMatch:
+      id: assert-t8-detail-title-short-name
+      pattern: "(?s)${device.more.shortName}"
+      desc: 校验详情页标题同步为 2 个字符名称
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - tap:
+      id: reopen-t8-more-page-for-long-name
+      element: t8.moreButton
+      desc: 再次打开更多页准备输入 30 个字符名称
+      settleMs: 1000
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - tap:
+      id: open-t8-rename-dialog-for-long-name
+      element: t8.moreDeviceNameRow
+      desc: 打开名称编辑框输入 30 个字符名称
+      settleMs: 500
+  - tapPosition:
+      id: clear-t8-rename-input-before-long-name
+      element: t8.renameDialogInputContainer
+      xRatio: 0.92
+      yRatio: 0.50
+      desc: 点击输入框右侧清除按钮
+      settleMs: 300
+  - input:
+      id: input-t8-long-name
+      element: t8.renameDialogInputContainer
+      value: ${device.more.longName}
+      clearFirst: false
+      desc: 输入 30 个字符耳机名称
+  - tap:
+      id: confirm-t8-long-name
+      element: t8.renameDialogConfirmButton
+      desc: 确认修改为 30 个字符名称
+      settleMs: 1000
+  - assertSourceRegexMatch:
+      id: assert-t8-more-name-long
+      pattern: "(?s)${device.more.longName}"
+      desc: 校验更多页显示 30 个字符名称
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - tap:
+      id: open-t8-rename-dialog-for-cancel
+      element: t8.moreDeviceNameRow
+      desc: 打开名称编辑框验证取消不保存
+      settleMs: 500
+  - tapPosition:
+      id: clear-t8-rename-input-before-cancel
+      element: t8.renameDialogInputContainer
+      xRatio: 0.92
+      yRatio: 0.50
+      desc: 点击输入框右侧清除按钮
+      settleMs: 300
+  - input:
+      id: input-t8-cancel-name
+      element: t8.renameDialogInputContainer
+      value: ${device.more.cancelName}
+      clearFirst: false
+      desc: 输入待取消的耳机名称
+  - tap:
+      id: cancel-t8-rename-dialog
+      element: t8.renameDialogCancelButton
+      desc: 取消本次名称修改
+      settleMs: 1000
+  - assertSourceRegexMatch:
+      id: assert-t8-more-name-still-long-after-cancel
+      pattern: "(?s)${device.more.longName}"
+      desc: 校验取消后仍保持 30 个字符名称
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - tap:
+      id: restore-open-t8-rename-dialog
+      element: t8.moreDeviceNameRow
+      desc: 打开名称编辑框恢复默认名称
+      settleMs: 500
+  - tapPosition:
+      id: clear-t8-rename-input-before-restore
+      element: t8.renameDialogInputContainer
+      xRatio: 0.92
+      yRatio: 0.50
+      desc: 点击输入框右侧清除按钮
+      settleMs: 300
+  - input:
+      id: restore-input-t8-default-name
+      element: t8.renameDialogInputContainer
+      value: ${device.more.defaultName}
+      clearFirst: false
+      desc: 输入默认耳机名称用于恢复状态
+  - tap:
+      id: restore-confirm-t8-default-name
+      element: t8.renameDialogConfirmButton
+      desc: 确认恢复默认耳机名称
+      settleMs: 1000
+  - assertSourceRegexMatch:
+      id: assert-t8-more-name-restored
+      pattern: "(?s)${device.more.defaultName}"
+      desc: 校验更多页名称已恢复默认值
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500

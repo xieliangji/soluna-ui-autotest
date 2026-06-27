@@ -1,0 +1,78 @@
+schemaVersion: "1.0"
+id: TC005_GAME_MODE
+name: T8-游戏模式蓝牙交互
+dataRefs:
+  - id: device
+    file: ../../../data/device/ugreen-hitune-t8.yaml
+elementRefs:
+  - id: t8
+    file: ../../../elements/device/ugreen-hitune-t8.yaml
+setupFragments:
+  - device.openTargetDevice
+  - device.ensureGameModeOff
+actions:
+  - captureAppLogStart:
+      id: start-t8-game-mode-app-log
+      saveAs: t8GameModeLogCapture
+      desc: 开始采集 T8 游戏模式蓝牙交互 App 日志
+      maxBufferEntries: 1000
+      maxSessionBytes: 5242880
+      ttlMs: 60000
+      filter:
+        ios:
+          processRegex: "${device.log.iosProcessRegex}"
+  - tap:
+      id: enable-t8-game-mode
+      element: t8.gameModeSwitch
+      desc: 开启 T8 游戏模式
+      settleMs: 1000
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - screenshot:
+      id: capture-t8-game-mode-enabled
+      element: t8.gameModeSwitch
+      resourceId: t8-game-mode-enabled
+      saveAs: t8GameModeEnabledScreenshot
+      desc: 保存游戏模式开关元素截图
+      wait:
+        timeoutMs: 3000
+        intervalMs: 500
+  - assertElementAttrEquals:
+      id: assert-t8-game-mode-enabled
+      element: t8.gameModeSwitch
+      attr: value
+      expected: "1"
+      desc: 通过 iOS 开关 value 属性确认游戏模式已开启
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - wait:
+      id: wait-after-t8-game-mode-enabled
+      durationMs: 1000
+      desc: 等待游戏模式蓝牙交互日志输出
+  - captureAppLogEnd:
+      id: stop-t8-game-mode-app-log
+      source: "@{case.t8GameModeLogCapture}"
+      resourceId: t8-game-mode-app-log
+      saveAs: t8GameModeLogFile
+      desc: 结束采集并保存 T8 游戏模式蓝牙交互 App 日志
+      readLimit: 500
+      maxReadBatches: 10
+      maxEntries: 1000
+  - customAssertAppLog:
+      id: assert-t8-game-mode-log-has-ios-ble-write
+      source: "@{case.t8GameModeLogFile}"
+      plugin: ugreen-audio
+      assertion: ios-ble-write-triggered
+      desc: 使用 UGREEN audio 日志插件确认游戏模式交互后 iOS 触发 BLE 特征写入
+      args:
+        containsAll: "${device.log.iosBleWriteContainsAll}"
+  - tap:
+      id: restore-t8-game-mode-off
+      element: t8.gameModeSwitch
+      desc: 关闭 T8 游戏模式，恢复默认状态
+      settleMs: 1000
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500

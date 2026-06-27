@@ -1,0 +1,124 @@
+schemaVersion: "1.0"
+id: t8-device-fragments
+description: T8-specific device-list navigation fragments without copy-based locators.
+fragments:
+  loggedInDevicePage:
+    name: Ensure Logged-in T8 Device Page
+    elementRefs:
+      - id: t8
+        file: ../../elements/device/ugreen-hitune-t8.yaml
+    actions:
+      - restartApp:
+          id: restart-for-t8-logged-in-device-page
+          appId: "${app.id}"
+          desc: 重启目标应用
+      - wait:
+          id: wait-after-t8-logged-in-device-page-restart
+          durationMs: 5000
+          desc: 重启后等待启动稳定
+      - assertElementExists:
+          id: assert-t8-device-list-first-card-visible
+          element: t8.deviceListFirstCard
+          desc: 校验设备列表中存在可打开的首个设备卡片
+          wait:
+            timeoutMs: 30000
+            intervalMs: 500
+
+  openTargetDevice:
+    name: Open T8 Target Device
+    elementRefs:
+      - id: t8
+        file: ../../elements/device/ugreen-hitune-t8.yaml
+    actions:
+      - screenshot:
+          id: capture-t8-device-list-first-card-before-open
+          element: t8.deviceListFirstCard
+          resourceId: t8-device-list-first-card-before-open
+          saveAs: t8DeviceListFirstCardBeforeOpenScreenshot
+          desc: 打开设备前保存首个设备卡片截图用于蓝牙连接状态颜色校验
+          wait:
+            timeoutMs: 15000
+            intervalMs: 500
+      - assertImageColorRatio:
+          id: assert-t8-device-list-first-card-before-open-bluetooth-icon-green
+          source: "@{case.t8DeviceListFirstCardBeforeOpenScreenshot}"
+          color: green
+          minRatio: 0.002
+          minPixels: 20
+          desc: 通过设备卡片截图绿色占比确认 T8 处于已连接状态
+      - tap:
+          id: open-t8-device-list-first-card
+          element: t8.deviceListFirstCard
+          desc: 点击设备列表首个设备卡片进入 T8 详情页
+          wait:
+            timeoutMs: 15000
+            intervalMs: 500
+          settleMs: 1000
+      - assertElementExists:
+          id: assert-t8-detail-page-opened
+          element: t8.detailScrollView
+          desc: 校验 T8 详情页滚动容器已出现
+          wait:
+            timeoutMs: 15000
+            intervalMs: 500
+      - tap:
+          id: dismiss-t8-firmware-upgrade-prompt-if-present
+          element: t8.firmwareUpgradeIgnoreButton
+          ignoreMissingElement: true
+          ignoreMissingElementReason: optionalFirmwareUpgradePrompt
+          desc: 固件升级提示弹窗只在有新版本时出现；如出现则点击忽略
+          wait:
+            timeoutMs: 5000
+            intervalMs: 500
+          settleMs: 1000
+
+  ensureGameModeOff:
+    name: Ensure T8 Game Mode Off
+    elementRefs:
+      - id: t8
+        file: ../../elements/device/ugreen-hitune-t8.yaml
+    actions:
+      - swipe:
+          id: scroll-t8-detail-to-game-mode-for-reset
+          element: t8.detailScrollView
+          startElementXRatio: 0.50
+          startElementYRatio: 0.83
+          endElementXRatio: 0.50
+          endElementYRatio: 0.49
+          durationMs: 500
+          desc: 在详情页滚动容器内滑动露出 T8 游戏模式开关用于状态归一
+      - tap:
+          id: dismiss-t8-firmware-upgrade-prompt-before-game-mode-reset-if-present
+          element: t8.firmwareUpgradeIgnoreButton
+          ignoreMissingElement: true
+          ignoreMissingElementReason: optionalFirmwareUpgradePrompt
+          desc: 状态归一前固件升级提示可能出现；如出现则点击忽略
+          wait:
+            timeoutMs: 5000
+            intervalMs: 500
+          settleMs: 1000
+      - if:
+          assertElementAttrEquals: detect-t8-game-mode-on-before-reset
+          element: t8.gameModeSwitch
+          attr: value
+          expected: "1"
+          desc: 检测 T8 游戏模式当前是否已开启
+        then:
+          - tap:
+              id: turn-t8-game-mode-off-before-case
+              element: t8.gameModeSwitch
+              desc: 若游戏模式已开启则先关闭，避免正式用例反向切换
+              settleMs: 1000
+              wait:
+                timeoutMs: 5000
+                intervalMs: 500
+        else: []
+      - assertElementAttrEquals:
+          id: assert-t8-game-mode-off-before-case
+          element: t8.gameModeSwitch
+          attr: value
+          expected: "0"
+          desc: 确认 T8 游戏模式已归一为关闭状态
+          wait:
+            timeoutMs: 5000
+            intervalMs: 500

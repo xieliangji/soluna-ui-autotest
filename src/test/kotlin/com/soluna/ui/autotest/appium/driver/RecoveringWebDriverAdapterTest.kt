@@ -93,6 +93,79 @@ class RecoveringWebDriverAdapterTest {
     }
 
     @Test
+    fun `viewport swipe uses recovered physical session`() {
+        val serverManager = RecordingServerManager(
+            handles = mutableListOf(
+                AppiumServerHandle("http://127.0.0.1:4725", managed = true, processId = 1),
+                AppiumServerHandle("http://127.0.0.1:4725", managed = true, processId = 2),
+            ),
+            running = true,
+        )
+        val delegate = RecordingWebDriverAdapter()
+        val adapter = recoveringAdapter(serverManager, delegate)
+        val session = adapter.startSession(startRequest())
+
+        serverManager.running = false
+        adapter.swipeViewport(
+            sessionId = session.sessionId,
+            durationMs = 600,
+            startXRatio = 0.5,
+            startYRatio = 0.8,
+            endXRatio = 0.5,
+            endYRatio = 0.2,
+        )
+
+        assertEquals(listOf("physical-1", "physical-2"), delegate.startedSessions)
+        assertEquals(
+            listOf(ViewportSwipeCall("physical-2", 600, 0.5, 0.8, 0.5, 0.2)),
+            delegate.viewportSwipeCalls,
+        )
+    }
+
+    @Test
+    fun `element swipe re-finds logical element after recovery`() {
+        val serverManager = RecordingServerManager(
+            handles = mutableListOf(
+                AppiumServerHandle("http://127.0.0.1:4725", managed = true, processId = 1),
+                AppiumServerHandle("http://127.0.0.1:4725", managed = true, processId = 2),
+            ),
+            running = true,
+        )
+        val delegate = RecordingWebDriverAdapter()
+        val adapter = recoveringAdapter(serverManager, delegate)
+        val session = adapter.startSession(startRequest())
+        val element = adapter.findElement(
+            sessionId = session.sessionId,
+            locator = LocatorDefinition("id", "list"),
+            wait = null,
+        )
+
+        serverManager.running = false
+        adapter.swipe(
+            sessionId = session.sessionId,
+            element = element,
+            durationMs = 700,
+            startXRatio = 0.5,
+            startYRatio = 0.9,
+            endXRatio = 0.5,
+            endYRatio = 0.1,
+        )
+
+        assertEquals(listOf("physical-1", "physical-2"), delegate.startedSessions)
+        assertEquals(
+            listOf(
+                FindElementCall("physical-1", LocatorDefinition("id", "list")),
+                FindElementCall("physical-2", LocatorDefinition("id", "list")),
+            ),
+            delegate.findElementCalls,
+        )
+        assertEquals(
+            listOf(SwipeCall("physical-2", "physical-2:element-2", 700, 0.5, 0.9, 0.5, 0.1)),
+            delegate.swipeCalls,
+        )
+    }
+
+    @Test
     fun `restarts WDA and rebuilds physical session when WDA is not running before operation`() {
         val serverManager = RecordingServerManager(
             handles = mutableListOf(
@@ -324,6 +397,8 @@ class RecoveringWebDriverAdapterTest {
         val findElementCalls = mutableListOf<FindElementCall>()
         val tapCalls = mutableListOf<TapCall>()
         val viewportTapCalls = mutableListOf<ViewportTapCall>()
+        val swipeCalls = mutableListOf<SwipeCall>()
+        val viewportSwipeCalls = mutableListOf<ViewportSwipeCall>()
         private var sessionCounter = 0
         private var elementCounter = 0
         private val activeSessions = mutableSetOf<String>()
@@ -384,6 +459,44 @@ class RecoveringWebDriverAdapterTest {
             viewportTapCalls += ViewportTapCall(sessionId, xRatio, yRatio)
         }
 
+        override fun swipe(
+            sessionId: String,
+            element: DriverElement,
+            durationMs: Long,
+            startXRatio: Double,
+            startYRatio: Double,
+            endXRatio: Double,
+            endYRatio: Double,
+        ) {
+            swipeCalls += SwipeCall(
+                sessionId = sessionId,
+                elementId = element.elementId,
+                durationMs = durationMs,
+                startXRatio = startXRatio,
+                startYRatio = startYRatio,
+                endXRatio = endXRatio,
+                endYRatio = endYRatio,
+            )
+        }
+
+        override fun swipeViewport(
+            sessionId: String,
+            durationMs: Long,
+            startXRatio: Double,
+            startYRatio: Double,
+            endXRatio: Double,
+            endYRatio: Double,
+        ) {
+            viewportSwipeCalls += ViewportSwipeCall(
+                sessionId = sessionId,
+                durationMs = durationMs,
+                startXRatio = startXRatio,
+                startYRatio = startYRatio,
+                endXRatio = endXRatio,
+                endYRatio = endYRatio,
+            )
+        }
+
         override fun inputText(
             sessionId: String,
             element: DriverElement,
@@ -418,4 +531,23 @@ private data class ViewportTapCall(
     val sessionId: String,
     val xRatio: Double,
     val yRatio: Double,
+)
+
+private data class SwipeCall(
+    val sessionId: String,
+    val elementId: String,
+    val durationMs: Long,
+    val startXRatio: Double,
+    val startYRatio: Double,
+    val endXRatio: Double,
+    val endYRatio: Double,
+)
+
+private data class ViewportSwipeCall(
+    val sessionId: String,
+    val durationMs: Long,
+    val startXRatio: Double,
+    val startYRatio: Double,
+    val endXRatio: Double,
+    val endYRatio: Double,
 )

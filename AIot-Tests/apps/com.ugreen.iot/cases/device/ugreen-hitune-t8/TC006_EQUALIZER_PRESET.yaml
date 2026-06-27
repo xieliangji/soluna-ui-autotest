@@ -1,0 +1,102 @@
+schemaVersion: "1.0"
+id: TC006_EQUALIZER_PRESET
+name: T8-均衡器预设蓝牙交互
+dataRefs:
+  - id: device
+    file: ../../../data/device/ugreen-hitune-t8.yaml
+elementRefs:
+  - id: t8
+    file: ../../../elements/device/ugreen-hitune-t8.yaml
+setupFragments:
+  - device.openTargetDevice
+actions:
+  - swipe:
+      id: scroll-t8-detail-to-equalizer-entry
+      element: t8.detailScrollView
+      startElementXRatio: 0.50
+      startElementYRatio: 0.83
+      endElementXRatio: 0.50
+      endElementYRatio: 0.49
+      durationMs: 500
+      desc: 在详情页滚动容器内滑动露出 T8 均衡器入口
+  - tap:
+      id: dismiss-t8-firmware-upgrade-prompt-after-equalizer-scroll-if-present
+      element: t8.firmwareUpgradeIgnoreButton
+      ignoreMissingElement: true
+      ignoreMissingElementReason: optionalFirmwareUpgradePrompt
+      desc: 详情页滚动后固件升级提示可能再次出现；如出现则点击忽略
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+      settleMs: 1000
+  - tap:
+      id: open-t8-equalizer-page
+      element: t8.equalizerEntry
+      desc: 打开 T8 均衡器页面
+      settleMs: 1000
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - captureAppLogStart:
+      id: start-t8-equalizer-preset-app-log
+      saveAs: t8EqualizerPresetLogCapture
+      desc: 开始采集 T8 均衡器预设蓝牙交互 App 日志
+      maxBufferEntries: 1000
+      maxSessionBytes: 5242880
+      ttlMs: 60000
+      filter:
+        ios:
+          processRegex: "${device.log.iosProcessRegex}"
+  - tap:
+      id: switch-t8-equalizer-to-electronic
+      element: t8.equalizerElectronicPreset
+      desc: 切换 T8 均衡器预设到电子
+      settleMs: 1000
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - wait:
+      id: wait-after-t8-equalizer-electronic
+      durationMs: 1000
+      desc: 等待均衡器预设蓝牙交互日志输出
+  - screenshot:
+      id: capture-t8-equalizer-electronic-selected
+      element: t8.equalizerElectronicPreset
+      resourceId: t8-equalizer-electronic-selected
+      saveAs: t8EqualizerElectronicSelectedScreenshot
+      desc: 保存电子预设卡片元素截图
+      wait:
+        timeoutMs: 3000
+        intervalMs: 500
+  - assertImageColorRatio:
+      id: assert-t8-equalizer-electronic-selected
+      source: "@{case.t8EqualizerElectronicSelectedScreenshot}"
+      color: green
+      minRatio: 0.01
+      minPixels: 120
+      desc: 通过电子预设卡片元素截图的绿色占比确认选中态已切换
+  - captureAppLogEnd:
+      id: stop-t8-equalizer-preset-app-log
+      source: "@{case.t8EqualizerPresetLogCapture}"
+      resourceId: t8-equalizer-preset-app-log
+      saveAs: t8EqualizerPresetLogFile
+      desc: 结束采集并保存 T8 均衡器预设蓝牙交互 App 日志
+      readLimit: 500
+      maxReadBatches: 10
+      maxEntries: 1000
+  - customAssertAppLog:
+      id: assert-t8-equalizer-preset-log-has-ios-ble-write
+      source: "@{case.t8EqualizerPresetLogFile}"
+      plugin: ugreen-audio
+      assertion: ios-ble-write-triggered
+      desc: 使用 UGREEN audio 日志插件确认均衡器预设交互后 iOS 触发 BLE 特征写入
+      args:
+        containsAll: "${device.log.iosBleWriteContainsAll}"
+  - tap:
+      id: restore-t8-equalizer-to-bass-boost
+      element: t8.equalizerBassBoostPreset
+      desc: 将 T8 均衡器预设恢复为低音增强，稳定后续用例初始状态
+      settleMs: 1000
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500

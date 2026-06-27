@@ -462,6 +462,66 @@ class PlanReferenceResolverTest {
         )
     }
 
+    @Test
+    fun `uses built in language insensitive locator text reason`() {
+        val root = Files.createTempDirectory("soluna-built-in-policy-test")
+        write(
+            root.resolve("plans/device.yaml"),
+            """
+            schemaVersion: "1.0"
+            id: device-plan
+            name: Device Plan
+            productModel: Test Product
+            deviceConfig: ../devices/ios.yaml
+            app:
+              id: com.example
+              platform: ios
+            stages:
+              - id: main
+                name: Main
+                caseRefs:
+                  - file: ../cases/device.yaml
+            """.trimIndent(),
+        )
+        write(
+            root.resolve("cases/device.yaml"),
+            """
+            schemaVersion: "1.0"
+            id: open-device
+            name: Open Device
+            elementRefs:
+              - id: common
+                file: ../elements/common.yaml
+            actions:
+              - tap:
+                  id: open-target-device
+                  element: common.targetDevice
+            """.trimIndent(),
+        )
+        write(
+            root.resolve("elements/common.yaml"),
+            """
+            schemaVersion: "1.0"
+            id: common-elements
+            elements:
+              targetDevice:
+                parameterizedTextReason: language_insensitive_text
+                ios:
+                  strategy: xpath
+                  value: "//*[contains(@name,'${'$'}{device.targetMacSuffix}')]"
+            """.trimIndent(),
+        )
+
+        val planPath = root.resolve("plans/device.yaml")
+        val parsed = YamlPlanParser().parse(Files.readString(planPath))
+        val assembled = PlanReferenceResolver().resolve(parsed, planPath)
+
+        assertEquals(
+            "//*[contains(@name,'${'$'}{device.targetMacSuffix}')]",
+            assembled.stages.single().cases.single().actions.single().locator?.value,
+        )
+    }
+
     private fun write(
         path: Path,
         content: String,

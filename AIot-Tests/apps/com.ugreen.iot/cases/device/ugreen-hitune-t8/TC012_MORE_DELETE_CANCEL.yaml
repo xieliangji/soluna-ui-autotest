@@ -1,0 +1,50 @@
+schemaVersion: "1.0"
+id: TC012_MORE_DELETE_CANCEL
+name: T8-更多页删除设备取消
+dataRefs:
+  - id: device
+    file: ../../../data/device/ugreen-hitune-t8.yaml
+elementRefs:
+  - id: t8
+    file: ../../../elements/device/ugreen-hitune-t8.yaml
+setupFragments:
+  - device.openTargetDevice
+actions:
+  - tap:
+      id: open-t8-more-page-for-delete-cancel
+      element: t8.moreButton
+      desc: 打开 T8 更多页
+      settleMs: 1000
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - tap:
+      id: open-t8-delete-device-dialog
+      element: t8.moreDeleteDeviceRow
+      desc: 打开删除设备确认弹窗
+      settleMs: 1000
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - assertElementExists:
+      id: assert-t8-delete-device-dialog-visible
+      element: t8.moreDialogCancelButton
+      desc: 校验删除设备弹窗已显示取消按钮
+      wait:
+        timeoutMs: 3000
+        intervalMs: 500
+  - tap:
+      id: cancel-t8-delete-device-dialog
+      element: t8.moreDialogCancelButton
+      desc: 点击取消关闭删除设备弹窗；确认删除为破坏性动作，当前仅占位不执行
+      settleMs: 1000
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - assertElementExists:
+      id: assert-t8-more-delete-row-still-visible
+      element: t8.moreDeleteDeviceRow
+      desc: 校验取消后仍停留在更多页且设备未删除
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500

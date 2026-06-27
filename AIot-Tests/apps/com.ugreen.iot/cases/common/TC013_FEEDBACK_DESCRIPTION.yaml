@@ -3,7 +3,7 @@ id: TC013_FEEDBACK_DESCRIPTION
 name: 我的-意见反馈-问题描述或建议
 dataRefs:
   - id: mine
-    file: ../../data/common/mine.yaml
+    file: ../../data/common/mine.zh-CN.yaml
 elementRefs:
   - id: common
     file: ../../elements/common.yaml

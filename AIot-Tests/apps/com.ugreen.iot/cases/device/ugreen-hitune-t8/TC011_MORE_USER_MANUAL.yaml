@@ -1,0 +1,57 @@
+schemaVersion: "1.0"
+id: TC011_MORE_USER_MANUAL
+name: T8-更多页使用说明书OCR校验
+dataRefs:
+  - id: device
+    file: ../../../data/device/ugreen-hitune-t8.yaml
+elementRefs:
+  - id: t8
+    file: ../../../elements/device/ugreen-hitune-t8.yaml
+setupFragments:
+  - device.openTargetDevice
+actions:
+  - tap:
+      id: open-t8-more-page-for-user-manual
+      element: t8.moreButton
+      desc: 打开 T8 更多页
+      settleMs: 1000
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - tap:
+      id: open-t8-user-manual-page
+      element: t8.moreUserManualRow
+      desc: 打开 T8 使用说明书页面
+      settleMs: 1000
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - wait:
+      id: wait-for-t8-user-manual-network-load
+      durationMs: 15000
+      desc: 使用说明书依赖网络加载，等待页面或 PDF 内容渲染
+  - screenshot:
+      id: capture-t8-user-manual-page
+      resourceId: t8-user-manual-page
+      saveAs: t8UserManualScreenshot
+      desc: 保存使用说明书页面截图用于 OCR 校验
+  - assertImageTextRegexMatch:
+      id: assert-t8-user-manual-product-keyword
+      source: "@{case.t8UserManualScreenshot}"
+      pattern: ${device.more.manualProductKeyword}
+      recognizer: paddle
+      desc: 通过截图 OCR 校验说明书页面包含产品说明书关键字
+  - assertImageTextRegexMatch:
+      id: assert-t8-user-manual-model-keyword
+      source: "@{case.t8UserManualScreenshot}"
+      pattern: ${device.more.manualModelPattern}
+      recognizer: paddle
+      desc: 通过截图 OCR 校验说明书页面包含 T8 产品型号信息
+  - tap:
+      id: back-from-t8-user-manual-page
+      element: t8.userManualBackButton
+      desc: 从使用说明书页面返回更多页
+      settleMs: 1000
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500

@@ -1,0 +1,43 @@
+schemaVersion: "1.0"
+id: TC018_PROFILE_AVATAR_VIEW
+name: 个人中心-个人信息-用户头像查看
+elementRefs:
+  - id: common
+    file: ../../elements/common.yaml
+actions:
+  - tap:
+      id: open-mine-tab
+      element: common.mineTab
+      desc: 进入我的页
+  - assertElementAttrRegexMatch:
+      id: assert-profile-entry-visible
+      element: common.profileEntry
+      attr: enabled
+      pattern: "true"
+      desc: 校验头像/个人信息入口可见
+  - tap:
+      id: open-profile-page
+      element: common.profileEntry
+      desc: 点击头像区域进入个人信息页
+  - assertElementAttrRegexMatch:
+      id: assert-profile-page-visible
+      element: common.profilePageRoot
+      attr: enabled
+      pattern: "true"
+      desc: 校验个人信息页可见
+  - assertElementAttrRegexMatch:
+      id: assert-profile-avatar-visible
+      element: common.profileAvatarImage
+      attr: enabled
+      pattern: "true"
+      desc: 校验头像区域可见
+  - tap:
+      id: back-to-mine-page
+      element: common.backButton
+      desc: 返回我的页
+  - assertElementAttrRegexMatch:
+      id: assert-mine-list-after-back
+      element: common.mineList
+      attr: enabled
+      pattern: "true"
+      desc: 校验已返回我的列表页

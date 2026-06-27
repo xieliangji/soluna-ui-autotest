@@ -1,0 +1,45 @@
+schemaVersion: "1.0"
+id: TC022_PROFILE_ACCOUNT_CANCELLATION_SEND_CODE
+name: 个人中心-个人信息-账号注销-发送验证码
+dataRefs:
+  - id: mine
+    file: ../../data/common/mine.zh-CN.yaml
+elementRefs:
+  - id: common
+    file: ../../elements/common.yaml
+actions:
+  - tap:
+      id: open-mine-tab
+      element: common.mineTab
+      desc: 进入我的页
+  - tap:
+      id: open-profile-page
+      element: common.profileEntry
+      desc: 进入个人信息页
+  - tap:
+      id: open-account-cancellation-page
+      element: common.accountCancellationEntry
+      desc: 进入账号注销验证码页
+  - tap:
+      id: confirm-open-account-cancellation-verification-page
+      element: common.accountCancellationStartButton
+      desc: 进入账号注销验证码发送页
+  - assertElementAttrRegexMatch:
+      id: assert-account-cancellation-code-input-visible
+      element: common.profileVerificationCodeInput
+      attr: enabled
+      pattern: "true"
+      desc: 校验账号注销验证码输入框可见
+  - tap:
+      id: send-account-cancellation-verification-code
+      element: common.profileVerificationSendCodeButton
+      desc: 触发账号注销验证码发送
+  - assertElementAttrRegexMatch:
+      id: assert-account-cancellation-send-code-countdown
+      element: common.profileVerificationSendCodeButton
+      attr: name/label
+      pattern: "${mine.profile.verification.countdownPattern}"
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+      desc: 校验发送验证码按钮进入倒计时

@@ -123,6 +123,13 @@ interface WebDriverAdapter {
 
     fun takeScreenshot(sessionId: String): ScreenshotData
 
+    fun takeElementScreenshot(
+        sessionId: String,
+        element: DriverElement,
+    ): ScreenshotData {
+        error("takeElementScreenshot is not supported by this WebDriverAdapter")
+    }
+
     fun startScreenRecording(
         sessionId: String,
         options: ScreenRecordingOptions = ScreenRecordingOptions(),

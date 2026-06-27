@@ -199,4 +199,53 @@ describe('log session manager', () => {
     expect(read.entries[0].message).to.equal('BLE command reported')
     await manager.dispose()
   })
+
+  it('filters ios json wrapped syslog lines by parsed process', async () => {
+    const baseDir = await mkdtemp(path.join(tmpdir(), 'soluna-log-test-'))
+    const child = createFakeChild()
+
+    const manager = new LogSessionManager({
+      baseDir,
+      sessionIdFactory: () => 'session-ios-json-filter',
+      spawnProcess: () => child,
+      lookupDeviceByUdid: async () => ({
+        found: true,
+        device: {
+          platform: 'ios',
+          udid: 'ios-123',
+          name: 'iPhone',
+          model: 'iPhone',
+          osVersion: '18',
+        },
+      }),
+      resolveIosCommand: async () => 'ios',
+      cleanupIntervalMs: 100000,
+    })
+
+    await manager.createSession({
+      udid: 'ios-123',
+      filter: {
+        ios: {
+          processRegex: 'iot_audio',
+          messageRegex: 'BLE',
+        },
+      },
+    })
+
+    child.stdout.emit('data', Buffer.from('{"msg":"Jun 22 14:49:49 iPhone bluetoothd[10] <Notice>: BLE scanner"}\n'))
+    child.stdout.emit('data', Buffer.from('{"msg":"Jun 22 14:49:50 iPhone iot_audio(XCTAutomationSupport)[11] <Notice>: UI idle"}\n'))
+    child.stdout.emit('data', Buffer.from('{"msg":"Jun 22 14:49:51 iPhone iot_audio(CoreBluetooth)[11] <Notice>: BLE command reported"}\n'))
+
+    await new Promise((resolve) => setTimeout(resolve, 20))
+
+    const read = await manager.readSession({
+      sessionId: 'session-ios-json-filter',
+      cursor: 0,
+      limit: 10,
+    })
+    expect(read.entries.map((entry) => entry.process)).to.deep.equal(['iot_audio(CoreBluetooth)'])
+    expect(read.entries[0].message).to.equal('BLE command reported')
+    expect(read.entries[0].raw).to.contain('"msg"')
+    await manager.dispose()
+  })
 })

@@ -64,7 +64,7 @@ elements:
       value: MineTab
 ```
 
-If copy-based matching is unavoidable, put the copy in parameter data and reference it from the locator. Do not hardcode business copy in locator values.
+Prefer stable accessibility ids, structural locators, element-relative ratios, or visual templates over UI copy. Parameterizing business copy does not make it a stable locator. Locator text parameters are allowed only for language-insensitive values such as MAC suffixes or device model names, and must use `parameterizedTextReason: language_insensitive_text`. Fixed text values in locators are allowed only for language-insensitive values such as brand names, version markers, or resource-style accessibility names, and must use `hardcodedTextReason: language_insensitive_text`. `language_insensitive_text` is the only allowed text-locator reason and is not project-configurable. Language-specific UI copy belongs in language-versioned data files and should be used by assertions, inputs, OCR, or log-aided assertions instead of element locators. Locator expressions must not use coordinate or size attributes such as `@x`, `@y`, `@width`, or `@height`; use `tapPosition` with an element-relative ratio for click offsets instead.
 
 ## Runtime Values
 
@@ -90,7 +90,7 @@ source: "@{case.loginVideo}"
 
 ### tap
 
-Use for element taps. Prefer element taps over viewport coordinates.
+Use for ordinary element taps. Prefer `tap` for center clicks on stable elements. Use `tapPosition` when the click target is a specific position inside a region.
 
 ```yaml
 - tap:
@@ -103,18 +103,47 @@ Use for element taps. Prefer element taps over viewport coordinates.
 
 Optional fields:
 
-- `elementXRatio`, `elementYRatio`: Click inside the visible element area. Defaults to center `0.5`.
 - `settleMs`: Post-tap settle delay. Defaults to `800`.
-- `xRatio`, `yRatio`: Viewport tap ratios. Use only when no stable element or visual template can model the action.
+- `ignoreMissingElement`, `ignoreMissingElementReason`: Element taps only. Use only for approved conditional UI where absence is expected, such as a firmware-upgrade prompt that appears only when a newer backend/device version exists. `ignoreMissingElementReason` is a predefined enum; current allowed value: `optionalFirmwareUpgradePrompt`. Missing-element lookup failures and explicit wait timeouts are skipped only with this approved reason.
 
-Viewport tap example:
+Conditional firmware prompt example:
 
 ```yaml
 - tap:
+    id: dismiss-firmware-upgrade-prompt-if-present
+    element: common.firmwareUpgradeIgnoreButton
+    ignoreMissingElement: true
+    ignoreMissingElementReason: optionalFirmwareUpgradePrompt
+    wait:
+      timeoutMs: 5000
+      intervalMs: 500
+```
+
+### tapPosition
+
+Use for explicit position clicks. `xRatio` and `yRatio` are required. Without `element`, ratios are relative to the full viewport. With `element`, ratios are relative to the current visible area of that element.
+
+Element-region example:
+
+```yaml
+- tapPosition:
+    id: set-volume-to-10
+    element: device.promptSoundVolumeSlider
+    xRatio: 0.64
+    yRatio: 0.30
+    wait:
+      timeoutMs: 5000
+      intervalMs: 500
+```
+
+Viewport example:
+
+```yaml
+- tapPosition:
     id: dismiss-backdrop
     xRatio: 0.50
     yRatio: 0.15
-    desc: Dismiss modal backdrop when it exposes no element.
+    desc: Dismiss modal backdrop when it exposes no stable element.
 ```
 
 ### input
@@ -308,10 +337,60 @@ Use explicit screenshots when another service or module must consume the resourc
 - screenshot:
     id: capture-result-page
     resourceId: result-page
+    saveAs: resultScreenshot
     desc: Capture result page for downstream review.
 ```
 
+With `saveAs`, the screenshot action stores the captured local image path in `@{case.<name>}` by default. It also updates `@{case.lastScreenshot}`. Add `element: alias.name` when the useful evidence is a specific UI element; the runner captures the element image instead of the full screen.
+
 Failure trace screenshots are diagnostics and do not replace explicit screenshot actions.
+
+### assertImageTextRegexMatch
+
+Use for OCR on a stable screenshot, such as a product manual or scanned PDF page. Capture the page first, then assert required keywords on the screenshot. Do not use recording OCR for stable pages.
+
+```yaml
+- screenshot:
+    id: capture-manual-page
+    resourceId: manual-page
+    saveAs: manualScreenshot
+- assertImageTextRegexMatch:
+    id: assert-manual-keywords
+    source: "@{case.manualScreenshot}"
+    pattern: "(?s)产品说明书.*UGREEN HiTune T8"
+    recognizer: paddle
+```
+
+`source` defaults to `@{case.lastScreenshot}`. Optional fields: `roi`, `recognizer`.
+
+### assertImageColorRatio
+
+Use for visual checks where the stable signal is color coverage rather than a specific template. Capture or provide an image file first, then assert a kt-visual named color ratio.
+
+Prefer an element screenshot when a precise element can be located. Use a full-screen screenshot plus `roi` only when no stable element exists.
+
+```yaml
+- screenshot:
+    id: capture-map
+    resourceId: route-map
+    saveAs: routeMapScreenshot
+- assertImageColorRatio:
+    id: assert-blue-location-marker
+    source: "@{case.routeMapScreenshot}"
+    color: blue
+    minRatio: 0.0005
+    minPixels: 50
+    roi:
+      x: 0.20
+      y: 0.35
+      width: 0.60
+      height: 0.45
+    wait:
+      timeoutMs: 3000
+      intervalMs: 500
+```
+
+Supported colors follow kt-visual `NamedColor`: `red`, `orange`, `yellow`, `green`, `cyan`, `blue`, `purple`, `pink`, `white`, `black`, and `gray`. Use `roi` to constrain small markers or repeated colors. The keyword intentionally checks named color families, not exact RGB values.
 
 ### startScreenRecording
 

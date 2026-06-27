@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode
 
 class DslPolicyValidator(
     private val keywordRegistry: KeywordRegistry = DefaultKeywordRegistry,
+    private val policyConfig: DslPolicyConfig = DslPolicyConfig(),
 ) {
     private val logicControlKeys = setOf(
         "if",
@@ -18,6 +19,7 @@ class DslPolicyValidator(
     )
 
     private val parameterReference = Regex("""\$\{[^}]+}""")
+    private val coordinateAttributeExpression = Regex("""(?i)@(x|y|width|height)\b""")
     private val actionFields = setOf(
         "appId",
         "args",
@@ -26,6 +28,7 @@ class DslPolicyValidator(
         "candidateMaxFrames",
         "candidateStrategy",
         "clearFirst",
+        "color",
         "desc",
         "durationMs",
         "endElementXRatio",
@@ -46,11 +49,15 @@ class DslPolicyValidator(
         "filter",
         "attr",
         "id",
+        "ignoreMissingElement",
+        "ignoreMissingElementReason",
         "maxBufferEntries",
         "maxEntries",
         "maxFrames",
         "maxReadBatches",
         "maxSessionBytes",
+        "minPixels",
+        "minRatio",
         "pattern",
         "plugin",
         "readLimit",
@@ -81,7 +88,11 @@ class DslPolicyValidator(
         "xRatio",
         "yRatio",
     )
+    private val predefinedTapMissingElementReasons = setOf(
+        "optionalFirmwareUpgradePrompt",
+    )
     private val textStrategies = setOf("text", "文本", "label", "name")
+    private val textAttributeSelector = """(?:@?(?:text|label|name|value)|string\(\s*@(?:text|label|name|value)\s*\))"""
     private val expressionStrategies = setOf(
         "xpath",
         "predicate",
@@ -94,19 +105,27 @@ class DslPolicyValidator(
     )
 
     private val exactTextExpression = Regex(
-        pattern = """(?i)(@text|text|label|name|value)\s*(==|=)\s*['"][^'$"][^'"]*['"]""",
+        pattern = """(?i)$textAttributeSelector\s*(==|=)\s*['"][^'$"][^'"]*['"]""",
     )
 
     private val textAttributeComparisonExpression = Regex(
-        pattern = """(?i)(@text|text|label|name|value)\s*(==|=)\s*['"]""",
+        pattern = """(?i)$textAttributeSelector\s*(==|=)\s*['"]""",
     )
 
     private val containsTextExpression = Regex(
-        pattern = """(?i)contains\s*\(\s*(@text|text|label|name|value)\s*,\s*['"][^'$"][^'"]*['"]\s*\)""",
+        pattern = """(?i)contains\s*\(\s*$textAttributeSelector\s*,\s*['"][^'$"][^'"]*['"]\s*\)""",
     )
 
     private val containsTextAttributeExpression = Regex(
-        pattern = """(?i)contains\s*\(\s*(@text|text|label|name|value)\s*,\s*['"]""",
+        pattern = """(?i)contains\s*\(\s*$textAttributeSelector\s*,\s*['"]""",
+    )
+
+    private val startsWithTextExpression = Regex(
+        pattern = """(?i)starts-with\s*\(\s*$textAttributeSelector\s*,\s*['"][^'$"][^'"]*['"]\s*\)""",
+    )
+
+    private val startsWithTextAttributeExpression = Regex(
+        pattern = """(?i)starts-with\s*\(\s*$textAttributeSelector\s*,\s*['"]""",
     )
 
     private val uiAutomatorTextExpression = Regex(
@@ -130,11 +149,15 @@ class DslPolicyValidator(
     )
 
     private val exactTextLiteralExpression = Regex(
-        pattern = """(?i)(?:@text|text|label|name|value)\s*(?:==|=)\s*['"]([^'$"][^'"]*)['"]""",
+        pattern = """(?i)$textAttributeSelector\s*(?:==|=)\s*['"]([^'$"][^'"]*)['"]""",
     )
 
     private val containsTextLiteralExpression = Regex(
-        pattern = """(?i)contains\s*\(\s*(?:@text|text|label|name|value)\s*,\s*['"]([^'$"][^'"]*)['"]\s*\)""",
+        pattern = """(?i)contains\s*\(\s*$textAttributeSelector\s*,\s*['"]([^'$"][^'"]*)['"]\s*\)""",
+    )
+
+    private val startsWithTextLiteralExpression = Regex(
+        pattern = """(?i)starts-with\s*\(\s*$textAttributeSelector\s*,\s*['"]([^'$"][^'"]*)['"]\s*\)""",
     )
 
     private val uiAutomatorTextLiteralExpression = Regex(
@@ -143,17 +166,6 @@ class DslPolicyValidator(
 
     private val predicateTextLiteralExpression = Regex(
         pattern = """(?i)(?:label|name|value|text)\s+(?:CONTAINS|BEGINSWITH|ENDSWITH|MATCHES)(?:\[[cd]]+)?\s*['"]([^'$"][^'"]*)['"]""",
-    )
-
-    private val iconNameTextLocatorPurpose = "iconName"
-
-    private val approvedTextLocatorPurposes = setOf(
-        "brandLogo",
-        "languageTitle",
-    )
-
-    private val parameterizedTextLocatorPurposes = setOf(
-        "languageTitle",
     )
 
     fun validatePlan(planNode: JsonNode): List<DslViolation> {
@@ -184,7 +196,8 @@ class DslPolicyValidator(
                         locator = element,
                         path = "$.elements.$name",
                         violations = violations,
-                        inheritedTextLocatorPurpose = null,
+                        inheritedParameterizedTextReason = null,
+                        inheritedHardcodedTextReason = null,
                     )
                 }
                 listOf("android", "ios").forEach { platform ->
@@ -193,7 +206,8 @@ class DslPolicyValidator(
                             locator = element.get(platform),
                             path = "$.elements.$name.$platform",
                             violations = violations,
-                            inheritedTextLocatorPurpose = element.textLocatorPurpose(),
+                            inheritedParameterizedTextReason = element.parameterizedTextReason(),
+                            inheritedHardcodedTextReason = element.hardcodedTextReason(),
                         )
                     }
                 }
@@ -384,6 +398,11 @@ class DslPolicyValidator(
         when (canonicalKeyword) {
             "tap" -> {
                 validatePointerTargetPayload(payload, path, violations, actionName = "Tap")
+                validateTapMissingElementPolicy(payload, path, violations)
+            }
+
+            "tapPosition" -> {
+                validateTapPositionPayload(payload, path, violations)
             }
 
             "longPress" -> {
@@ -450,8 +469,16 @@ class DslPolicyValidator(
                 requireNestedFields(payload, path, violations, "pattern")
             }
 
+            "assertImageTextRegexMatch" -> {
+                requireNestedFields(payload, path, violations, "pattern")
+            }
+
             "tapVisualTemplate" -> {
                 requireNestedFields(payload, path, violations, "template")
+            }
+
+            "assertImageColorRatio" -> {
+                requireNestedFields(payload, path, violations, "source", "color", "minRatio")
             }
 
             "captureAppLogStart" -> {
@@ -499,6 +526,72 @@ class DslPolicyValidator(
                 path = path,
                 message = "$actionName action requires both elementXRatio and elementYRatio when overriding element-relative position",
             )
+        }
+    }
+
+    private fun validateTapPositionPayload(
+        payload: JsonNode,
+        path: String,
+        violations: MutableList<DslViolation>,
+    ) {
+        val hasXRatio = payload.hasNonNullField("xRatio")
+        val hasYRatio = payload.hasNonNullField("yRatio")
+        val hasElementXRatio = payload.hasNonNullField("elementXRatio")
+        val hasElementYRatio = payload.hasNonNullField("elementYRatio")
+        if (!(hasXRatio && hasYRatio)) {
+            violations += DslViolation(
+                path = path,
+                message = "Tap position action requires both xRatio and yRatio",
+            )
+        }
+        if (hasElementXRatio || hasElementYRatio) {
+            violations += DslViolation(
+                path = path,
+                message = "Tap position action uses xRatio/yRatio within the selected region and must not use elementXRatio/elementYRatio",
+            )
+        }
+        if (payload.hasNonNullField("ignoreMissingElement") || payload.hasNonNullField("ignoreMissingElementReason")) {
+            violations += DslViolation(
+                path = path,
+                message = "Tap position action does not support ignoreMissingElement; use tap for optional conditional elements",
+            )
+        }
+    }
+
+    private fun validateTapMissingElementPolicy(
+        payload: JsonNode,
+        path: String,
+        violations: MutableList<DslViolation>,
+    ) {
+        val ignoreMissingElement = payload.get("ignoreMissingElement")?.asBoolean(false) == true
+        val hasReason = payload.hasNonNullField("ignoreMissingElementReason")
+        if (ignoreMissingElement && !hasReason) {
+            violations += DslViolation(
+                path = path,
+                message = "Tap action with ignoreMissingElement=true requires ignoreMissingElementReason",
+            )
+        }
+        if (!ignoreMissingElement && hasReason) {
+            violations += DslViolation(
+                path = path,
+                message = "Tap action can only use ignoreMissingElementReason with ignoreMissingElement=true",
+            )
+        }
+        if (ignoreMissingElement && !payload.hasNonNullField("element")) {
+            violations += DslViolation(
+                path = path,
+                message = "Tap action can only use ignoreMissingElement with element taps",
+            )
+        }
+        if (hasReason) {
+            val reason = payload.get("ignoreMissingElementReason")?.asText()
+            if (reason !in predefinedTapMissingElementReasons) {
+                violations += DslViolation(
+                    path = "$path.ignoreMissingElementReason",
+                    message = "Tap action ignoreMissingElementReason must be one of " +
+                        predefinedTapMissingElementReasons.joinToString(", "),
+                )
+            }
         }
     }
 
@@ -613,13 +706,22 @@ class DslPolicyValidator(
         locator: JsonNode,
         path: String,
         violations: MutableList<DslViolation>,
-        inheritedTextLocatorPurpose: String? = null,
+        inheritedParameterizedTextReason: String? = null,
+        inheritedHardcodedTextReason: String? = null,
     ) {
         val strategy = locator.path("strategy").takeIf { it.isTextual }?.asText()?.trim().orEmpty()
         val value = locator.path("value").takeIf { it.isTextual }?.asText()?.trim().orEmpty()
-        val textLocatorPurpose = locator.textLocatorPurpose() ?: inheritedTextLocatorPurpose
+        val parameterizedTextReason = locator.parameterizedTextReason() ?: inheritedParameterizedTextReason
+        val hardcodedTextReason = locator.hardcodedTextReason() ?: inheritedHardcodedTextReason
         if (strategy.isEmpty() || value.isEmpty()) {
             return
+        }
+
+        if (coordinateAttributeExpression.containsMatchIn(value)) {
+            violations += DslViolation(
+                path = "$path.value",
+                message = "Locator expressions must not use coordinate or size attributes such as @x, @y, @width, or @height",
+            )
         }
 
         val normalizedStrategy = strategy.lowercase()
@@ -631,34 +733,42 @@ class DslPolicyValidator(
         }
 
         if (parameterReference.containsMatchIn(value)) {
-            if (textLocatorPurpose in parameterizedTextLocatorPurposes) {
+            if (parameterizedTextReason.isNullOrBlank()) {
+                violations += DslViolation(
+                    path = "$path.value",
+                    message = "Parameterized text locators require parameterizedTextReason",
+                )
                 return
             }
-            violations += DslViolation(
-                path = "$path.value",
-                message = "Parameterized text locators are only allowed for approved stable text purposes such as languageTitle",
-            )
-            return
+            if (parameterizedTextReason !in policyConfig.parameterizedTextReasons) {
+                violations += DslViolation(
+                    path = "$path.parameterizedTextReason",
+                    message = "Parameterized text locator reason '$parameterizedTextReason' is not allowed. Allowed reasons: " +
+                        policyConfig.parameterizedTextReasons.sorted().joinToString(", "),
+                )
+                return
+            }
         }
 
         val hasHardcodedText = normalizedStrategy in textStrategies || hasHardcodedTextExpression(value)
 
-        if (hasHardcodedText &&
-            textLocatorPurpose == iconNameTextLocatorPurpose &&
-            normalizedStrategy in expressionStrategies &&
-            hasOnlyIconNameHardcodedText(value)
-        ) {
+        if (!hardcodedTextReason.isNullOrBlank() && hardcodedTextReason !in policyConfig.hardcodedTextReasons) {
+            violations += DslViolation(
+                path = "$path.hardcodedTextReason",
+                message = "Hardcoded text locator reason '$hardcodedTextReason' is not allowed. Allowed reasons: " +
+                    policyConfig.hardcodedTextReasons.sorted().joinToString(", "),
+            )
             return
         }
 
-        if (hasHardcodedText && textLocatorPurpose in approvedTextLocatorPurposes) {
+        if (hasHardcodedText && hardcodedTextReason in policyConfig.hardcodedTextReasons) {
             return
         }
 
         if (hasHardcodedText) {
             violations += DslViolation(
                 path = "$path.value",
-                message = "Locator expressions must not hardcode fixed UI copy. Avoid text-based locators outside approved stable text purposes such as iconName, brandLogo, or languageTitle",
+                message = "Locator expressions must not hardcode fixed UI copy unless hardcodedTextReason explains why the text is language-insensitive",
             )
         }
     }
@@ -666,13 +776,9 @@ class DslPolicyValidator(
     private fun hasHardcodedTextExpression(value: String): Boolean {
         return exactTextExpression.findAll(value).any { !stateValueComparisonExpression.matches(it.value) } ||
             containsTextExpression.containsMatchIn(value) ||
+            startsWithTextExpression.containsMatchIn(value) ||
             uiAutomatorTextExpression.containsMatchIn(value) ||
             predicateTextExpression.containsMatchIn(value)
-    }
-
-    private fun hasOnlyIconNameHardcodedText(value: String): Boolean {
-        val literals = hardcodedTextLiterals(value)
-        return literals.isNotEmpty() && literals.all { it.startsWith("icon ") }
     }
 
     private fun hardcodedTextLiterals(value: String): List<String> {
@@ -680,6 +786,7 @@ class DslPolicyValidator(
             exactTextLiteralExpression.findAll(value)
                 .filter { !stateValueComparisonExpression.matches(it.value) } +
                 containsTextLiteralExpression.findAll(value) +
+                startsWithTextLiteralExpression.findAll(value) +
                 uiAutomatorTextLiteralExpression.findAll(value) +
                 predicateTextLiteralExpression.findAll(value)
             )
@@ -690,13 +797,24 @@ class DslPolicyValidator(
     private fun hasTextAttributeExpression(value: String): Boolean {
         return textAttributeComparisonExpression.containsMatchIn(value) ||
             containsTextAttributeExpression.containsMatchIn(value) ||
+            startsWithTextAttributeExpression.containsMatchIn(value) ||
             uiAutomatorTextAttributeExpression.containsMatchIn(value) ||
             predicateTextAttributeExpression.containsMatchIn(value)
     }
 
-    private fun JsonNode.textLocatorPurpose(): String? {
-        return path("textLocatorPurpose")
+    private fun JsonNode.parameterizedTextReason(): String? {
+        return path("parameterizedTextReason")
             .takeIf { it.isTextual }
             ?.asText()
+            ?.trim()
+            ?.takeIf { it.isNotEmpty() }
+    }
+
+    private fun JsonNode.hardcodedTextReason(): String? {
+        return path("hardcodedTextReason")
+            .takeIf { it.isTextual }
+            ?.asText()
+            ?.trim()
+            ?.takeIf { it.isNotEmpty() }
     }
 }

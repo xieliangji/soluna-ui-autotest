@@ -3,7 +3,7 @@ id: TC008_PERSONAL_INFO_PROTECTION_WITHDRAW_CONTENT
 name: 个人信息保护-撤回同意发送验证码
 dataRefs:
   - id: mine
-    file: ../../data/common/mine.yaml
+    file: ../../data/common/mine.zh-CN.yaml
 elementRefs:
   - id: common
     file: ../../elements/common.yaml

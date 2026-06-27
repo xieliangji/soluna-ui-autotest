@@ -94,6 +94,7 @@ data class WdaHandle(
 
 class LocalGoIosWdaManager(
     private val processLauncher: WdaProcessLauncher = ProcessBuilderWdaProcessLauncher,
+    private val tunnelDetector: WdaTunnelDetector = ProcessHandleWdaTunnelDetector,
     private val statusProbe: WdaStatusProbe = JavaNetWdaStatusProbe(),
     private val portAllocator: WdaPortAllocator = ServerSocketWdaPortAllocator,
     private val probeIntervalMs: Long = 250,
@@ -101,6 +102,7 @@ class LocalGoIosWdaManager(
 ) : WdaManager {
     private val logger = LoggerFactory.getLogger(LocalGoIosWdaManager::class.java)
     private val processes = ConcurrentHashMap<Long, WdaProcess>()
+    private val tunnels = ConcurrentHashMap<Long, RunningWdaTunnel>()
 
     override fun ensureRunning(config: WdaConfig): WdaHandle {
         logger.debug(
@@ -134,7 +136,8 @@ class LocalGoIosWdaManager(
         }
 
         val usesTunnel = config.requiresTunnel()
-        val runtimeConfig = config.withRuntimePorts(usesTunnel)
+        val existingTunnel = if (usesTunnel) findReusableTunnel(config) else null
+        val runtimeConfig = config.withRuntimePorts(usesTunnel, existingTunnel)
         val hostPort = runtimeConfig.hostPort ?: error("WDA host port was not allocated")
         val url = "http://${runtimeConfig.host}:$hostPort"
         val startedProcesses = mutableListOf<WdaProcess>()
@@ -151,18 +154,31 @@ class LocalGoIosWdaManager(
 
         try {
             val tunnel = if (usesTunnel) {
-                launch(
+                existingTunnel ?: launch(
                     label = "go-ios tunnel",
                     command = buildTunnelCommand(runtimeConfig),
                     environment = runtimeConfig.environment,
                     logFile = runtimeConfig.logDirectory?.resolve("go-ios-tunnel.log"),
                 ).also { process ->
-                    startedProcesses += process
                     waitForAlive(process, "go-ios tunnel")
                     sleeper(runtimeConfig.tunnelStartupDelayMs)
-                }
+                }.toRunningTunnel(runtimeConfig)
             } else {
                 null
+            }
+
+            if (tunnel != null) {
+                tunnels[tunnel.pid] = tunnel
+            }
+
+            if (tunnel != null && existingTunnel != null) {
+                logger.debug(
+                    "wda.manager reusing existing go-ios tunnel udid={} tunnelPid={} tunnelInfoPort={} userspaceTunnelPort={}",
+                    runtimeConfig.udid,
+                    tunnel.pid,
+                    tunnel.tunnelInfoPort,
+                    tunnel.userspaceTunnelPort,
+                )
             }
 
             val runwda = launch(
@@ -238,7 +254,7 @@ class LocalGoIosWdaManager(
         if (!handle.managed) {
             return
         }
-        listOf(handle.forwardProcessId, handle.runwdaProcessId, handle.tunnelProcessId)
+        listOf(handle.forwardProcessId, handle.runwdaProcessId)
             .mapNotNull { processId -> processId?.let { processes.remove(it) } }
             .forEach { process -> stopProcess(process) }
     }
@@ -252,7 +268,6 @@ class LocalGoIosWdaManager(
         val processIds = listOfNotNull(
             handle.runwdaProcessId,
             handle.forwardProcessId,
-            handle.tunnelProcessId.takeIf { handle.usesTunnel },
         )
         val processesAlive = processIds.all { processId ->
             processes[processId]?.isAlive() == true
@@ -310,14 +325,23 @@ class LocalGoIosWdaManager(
         )
     }
 
-    private fun WdaConfig.withRuntimePorts(usesTunnel: Boolean): WdaConfig {
+    private fun WdaConfig.withRuntimePorts(
+        usesTunnel: Boolean,
+        existingTunnel: RunningWdaTunnel?,
+    ): WdaConfig {
         val allocatedHostPort = hostPort ?: portAllocator.findAvailablePort()
         if (!usesTunnel) {
             logger.debug("wda.manager allocated hostPort={} usesTunnel=false udid={}", allocatedHostPort, udid)
             return copy(hostPort = allocatedHostPort)
         }
-        val allocatedTunnelInfoPort = tunnelInfoPort ?: portAllocator.findAvailablePort()
-        val allocatedUserspaceTunnelPort = if (tunnelMode == "userspace") {
+        val allocatedTunnelInfoPort = if (existingTunnel != null) {
+            existingTunnel.tunnelInfoPort ?: tunnelInfoPort
+        } else {
+            tunnelInfoPort ?: portAllocator.findAvailablePort()
+        }
+        val allocatedUserspaceTunnelPort = if (existingTunnel != null) {
+            existingTunnel.userspaceTunnelPort ?: userspaceTunnelPort
+        } else if (tunnelMode == "userspace") {
             userspaceTunnelPort ?: portAllocator.findAvailablePort()
         } else {
             userspaceTunnelPort
@@ -335,6 +359,22 @@ class LocalGoIosWdaManager(
             tunnelInfoPort = allocatedTunnelInfoPort,
             userspaceTunnelPort = allocatedUserspaceTunnelPort,
         )
+    }
+
+    private fun findReusableTunnel(config: WdaConfig): RunningWdaTunnel? {
+        val knownTunnel = tunnels.values.firstOrNull { tunnel ->
+            (tunnel.udid == null || tunnel.udid == config.udid) &&
+                (tunnel.process?.isAlive() ?: true)
+        }
+        if (knownTunnel != null) {
+            return knownTunnel
+        }
+
+        val detectedTunnel = tunnelDetector.findRunningTunnel(config.udid)
+        if (detectedTunnel != null) {
+            tunnels[detectedTunnel.pid] = detectedTunnel
+        }
+        return detectedTunnel
     }
 
     private fun MutableList<String>.addTunnelInfoArgs(config: WdaConfig) {
@@ -434,6 +474,61 @@ class LocalGoIosWdaManager(
             }
         }
     }
+}
+
+data class RunningWdaTunnel(
+    val pid: Long,
+    val udid: String?,
+    val tunnelInfoPort: Int?,
+    val userspaceTunnelPort: Int?,
+    internal val process: WdaProcess? = null,
+)
+
+interface WdaTunnelDetector {
+    fun findRunningTunnel(udid: String): RunningWdaTunnel?
+}
+
+object ProcessHandleWdaTunnelDetector : WdaTunnelDetector {
+    override fun findRunningTunnel(udid: String): RunningWdaTunnel? {
+        val tunnels = ProcessHandle.allProcesses().toList()
+            .mapNotNull { handle -> handle.toRunningWdaTunnel() }
+        return tunnels.firstOrNull { it.udid == udid } ?: tunnels.firstOrNull()
+    }
+
+    private fun ProcessHandle.toRunningWdaTunnel(): RunningWdaTunnel? {
+        val info = info()
+        val command = info.command().orElse("")
+        val args = info.arguments().orElse(emptyArray()).toList()
+        val executable = command.substringAfterLast('/')
+        if (executable !in setOf("ios", "go-ios")) {
+            return null
+        }
+        if (!args.contains("tunnel") || !args.contains("start")) {
+            return null
+        }
+        return RunningWdaTunnel(
+            pid = pid(),
+            udid = args.optionValue("--udid"),
+            tunnelInfoPort = args.optionValue("--tunnel-info-port")?.toIntOrNull(),
+            userspaceTunnelPort = args.optionValue("--userspace-port")?.toIntOrNull(),
+        )
+    }
+
+    private fun List<String>.optionValue(name: String): String? {
+        firstOrNull { it.startsWith("$name=") }?.let { return it.substringAfter("=") }
+        val index = indexOf(name)
+        return if (index >= 0) getOrNull(index + 1) else null
+    }
+}
+
+private fun WdaProcess.toRunningTunnel(config: WdaConfig): RunningWdaTunnel {
+    return RunningWdaTunnel(
+        pid = pid,
+        udid = config.udid,
+        tunnelInfoPort = config.tunnelInfoPort,
+        userspaceTunnelPort = config.userspaceTunnelPort,
+        process = this,
+    )
 }
 
 class WdaStartupException(

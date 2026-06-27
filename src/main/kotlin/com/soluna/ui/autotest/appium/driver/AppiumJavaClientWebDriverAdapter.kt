@@ -379,6 +379,17 @@ class AppiumJavaClientWebDriverAdapter(
         return ScreenshotData(bytes = bytes)
     }
 
+    override fun takeElementScreenshot(
+        sessionId: String,
+        element: DriverElement,
+    ): ScreenshotData {
+        val webElement = resolveElement(sessionId, element)
+        val bytes = runCommandWithTimeout(sessionId, "elementScreenshot") {
+            webElement.getScreenshotAs(OutputType.BYTES)
+        }
+        return ScreenshotData(bytes = bytes)
+    }
+
     override fun startScreenRecording(
         sessionId: String,
         options: ScreenRecordingOptions,

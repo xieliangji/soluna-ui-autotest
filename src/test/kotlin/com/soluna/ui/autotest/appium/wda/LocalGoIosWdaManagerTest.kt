@@ -13,6 +13,7 @@ class LocalGoIosWdaManagerTest {
         val launcher = RecordingWdaProcessLauncher()
         val manager = LocalGoIosWdaManager(
             processLauncher = launcher,
+            tunnelDetector = NoRunningTunnelDetector,
             statusProbe = AlwaysReadyWdaStatusProbe,
             portAllocator = FixedWdaPortAllocator(18100, 28100, 28101),
             sleeper = {},
@@ -66,6 +67,7 @@ class LocalGoIosWdaManagerTest {
         val launcher = RecordingWdaProcessLauncher()
         val manager = LocalGoIosWdaManager(
             processLauncher = launcher,
+            tunnelDetector = NoRunningTunnelDetector,
             statusProbe = AlwaysReadyWdaStatusProbe,
             portAllocator = FixedWdaPortAllocator(18101),
             sleeper = {},
@@ -110,6 +112,7 @@ class LocalGoIosWdaManagerTest {
         val launcher = RecordingWdaProcessLauncher()
         val manager = LocalGoIosWdaManager(
             processLauncher = launcher,
+            tunnelDetector = NoRunningTunnelDetector,
             statusProbe = AlwaysReadyWdaStatusProbe,
             portAllocator = FixedWdaPortAllocator(18104, 28104, 28105),
             sleeper = {},
@@ -161,6 +164,7 @@ class LocalGoIosWdaManagerTest {
         val launcher = RecordingWdaProcessLauncher()
         val manager = LocalGoIosWdaManager(
             processLauncher = launcher,
+            tunnelDetector = NoRunningTunnelDetector,
             statusProbe = AlwaysReadyWdaStatusProbe,
             portAllocator = FixedWdaPortAllocator(18102),
             sleeper = {},
@@ -175,17 +179,92 @@ class LocalGoIosWdaManagerTest {
         val restarted = manager.restart(first, config)
 
         assertTrue(restarted.usesTunnel)
-        assertEquals(6, launcher.commands.size)
+        assertEquals(5, launcher.commands.size)
         assertEquals(
             listOf(
                 first.forwardProcessId,
                 first.runwdaProcessId,
-                first.tunnelProcessId,
             ),
             launcher.destroyedPids,
         )
         assertTrue(restarted.forwardProcessId != first.forwardProcessId)
         assertTrue(restarted.runwdaProcessId != first.runwdaProcessId)
+        assertEquals(first.tunnelProcessId, restarted.tunnelProcessId)
+    }
+
+    @Test
+    fun `reuses existing ios tunnel instead of launching another tunnel`() {
+        val launcher = RecordingWdaProcessLauncher()
+        val manager = LocalGoIosWdaManager(
+            processLauncher = launcher,
+            tunnelDetector = FixedWdaTunnelDetector(
+                RunningWdaTunnel(
+                    pid = 900L,
+                    udid = "ios-001",
+                    tunnelInfoPort = 28100,
+                    userspaceTunnelPort = 28101,
+                ),
+            ),
+            statusProbe = AlwaysReadyWdaStatusProbe,
+            portAllocator = FixedWdaPortAllocator(18100),
+            sleeper = {},
+        )
+
+        val handle = manager.ensureRunning(
+            WdaConfig(
+                udid = "ios-001",
+                osVersion = "17.1",
+                runwdaStartupDelayMs = 0,
+            ),
+        )
+
+        assertEquals(900L, handle.tunnelProcessId)
+        assertEquals(28100, handle.tunnelInfoPort)
+        assertEquals(
+            listOf(
+                listOf(
+                    "ios",
+                    "--udid=ios-001",
+                    "--tunnel-info-port=28100",
+                    "runwda",
+                ),
+                listOf(
+                    "ios",
+                    "--udid=ios-001",
+                    "--tunnel-info-port=28100",
+                    "forward",
+                    "18100",
+                    "8100",
+                ),
+            ),
+            launcher.commands,
+        )
+    }
+
+    @Test
+    fun `startup failure does not stop ios tunnel`() {
+        val launcher = RecordingWdaProcessLauncher()
+        val manager = LocalGoIosWdaManager(
+            processLauncher = launcher,
+            tunnelDetector = NoRunningTunnelDetector,
+            statusProbe = NeverReadyWdaStatusProbe,
+            portAllocator = FixedWdaPortAllocator(18100, 28100, 28101),
+            sleeper = {},
+        )
+
+        assertFailsWith<WdaStartupException> {
+            manager.ensureRunning(
+                WdaConfig(
+                    udid = "ios-001",
+                    osVersion = "17.1",
+                    startupTimeoutMs = 0,
+                    runwdaStartupDelayMs = 0,
+                ),
+            )
+        }
+
+        assertEquals(3, launcher.commands.size)
+        assertEquals(listOf<Long?>(102L, 101L), launcher.destroyedPids)
     }
 
     @Test
@@ -194,6 +273,7 @@ class LocalGoIosWdaManagerTest {
         val statusProbe = RecordingWdaStatusProbe()
         val manager = LocalGoIosWdaManager(
             processLauncher = launcher,
+            tunnelDetector = NoRunningTunnelDetector,
             statusProbe = statusProbe,
             sleeper = {},
         )
@@ -215,6 +295,26 @@ class LocalGoIosWdaManagerTest {
     private object AlwaysReadyWdaStatusProbe : WdaStatusProbe {
         override fun isReady(url: String): Boolean {
             return true
+        }
+    }
+
+    private object NeverReadyWdaStatusProbe : WdaStatusProbe {
+        override fun isReady(url: String): Boolean {
+            return false
+        }
+    }
+
+    private object NoRunningTunnelDetector : WdaTunnelDetector {
+        override fun findRunningTunnel(udid: String): RunningWdaTunnel? {
+            return null
+        }
+    }
+
+    private class FixedWdaTunnelDetector(
+        private val tunnel: RunningWdaTunnel?,
+    ) : WdaTunnelDetector {
+        override fun findRunningTunnel(udid: String): RunningWdaTunnel? {
+            return tunnel
         }
     }
 

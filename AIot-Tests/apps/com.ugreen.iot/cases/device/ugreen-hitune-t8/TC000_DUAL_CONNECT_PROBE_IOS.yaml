@@ -1,0 +1,35 @@
+schemaVersion: "1.0"
+id: TC000_DUAL_CONNECT_PROBE_IOS
+name: T8-设备双连页探针-iOS
+dataRefs:
+  - id: device
+    file: ../../../data/device/ugreen-hitune-t8.yaml
+elementRefs:
+  - id: t8
+    file: ../../../elements/device/ugreen-hitune-t8.yaml
+setupFragments:
+  - device.openTargetDevice
+actions:
+  - swipe:
+      id: scroll-t8-detail-to-dual-connect-entry
+      element: t8.detailScrollView
+      startElementXRatio: 0.50
+      startElementYRatio: 0.83
+      endElementXRatio: 0.50
+      endElementYRatio: 0.26
+      durationMs: 500
+      desc: 在详情页滚动容器内滑动露出设备双连入口
+      settleMs: 1000
+  - tap:
+      id: open-t8-dual-connect-page
+      element: t8.dualConnectEntry
+      desc: 点击 T8 设备双连入口
+      settleMs: 1500
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - screenshot:
+      id: capture-t8-dual-connect-page-probe
+      resourceId: t8-dual-connect-page-probe
+      saveAs: t8DualConnectPageProbe
+      desc: 保存 T8 设备双连页面探针截图

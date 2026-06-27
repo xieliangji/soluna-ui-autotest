@@ -1,0 +1,167 @@
+schemaVersion: "1.0"
+id: TC008_CUSTOM_EQUALIZER
+name: T8-自定义均衡器蓝牙交互
+dataRefs:
+  - id: device
+    file: ../../../data/device/ugreen-hitune-t8.yaml
+elementRefs:
+  - id: t8
+    file: ../../../elements/device/ugreen-hitune-t8.yaml
+setupFragments:
+  - device.openTargetDevice
+actions:
+  - swipe:
+      id: scroll-t8-detail-to-equalizer-entry
+      element: t8.detailScrollView
+      startElementXRatio: 0.50
+      startElementYRatio: 0.83
+      endElementXRatio: 0.50
+      endElementYRatio: 0.49
+      durationMs: 500
+      desc: 在详情页滚动容器内滑动露出 T8 均衡器入口
+  - tap:
+      id: dismiss-t8-firmware-upgrade-prompt-after-custom-equalizer-scroll-if-present
+      element: t8.firmwareUpgradeIgnoreButton
+      ignoreMissingElement: true
+      ignoreMissingElementReason: optionalFirmwareUpgradePrompt
+      desc: 详情页滚动后固件升级提示可能再次出现；如出现则点击忽略
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+      settleMs: 1000
+  - tap:
+      id: open-t8-equalizer-page
+      element: t8.equalizerEntry
+      desc: 打开 T8 均衡器页面
+      settleMs: 1000
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - tapPosition:
+      id: open-t8-custom-equalizer-page
+      element: t8.equalizerCustomEntry
+      xRatio: 0.50
+      yRatio: 0.82
+      desc: 点击 T8 均衡器页最后一个自定义入口进入自定义均衡器
+      settleMs: 1000
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - assertElementExists:
+      id: assert-t8-custom-equalizer-page-visible
+      element: t8.customEqualizerTitle
+      desc: 校验 T8 自定义均衡器页面已打开
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - tap:
+      id: reset-t8-custom-equalizer-before-log
+      element: t8.customEqualizerResetButton
+      desc: 采集日志前先重置自定义均衡器，保证后续上调会产生明确变化
+      settleMs: 1000
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - captureAppLogStart:
+      id: start-t8-custom-equalizer-app-log
+      saveAs: t8CustomEqualizerLogCapture
+      desc: 开始采集 T8 自定义均衡器蓝牙交互 App 日志
+      maxBufferEntries: 1000
+      maxSessionBytes: 5242880
+      ttlMs: 60000
+      filter:
+        ios:
+          processRegex: "${device.log.iosProcessRegex}"
+  - swipe:
+      id: drag-t8-custom-equalizer-62hz-up
+      element: t8.customEqualizerFirstBandTouchArea
+      startElementXRatio: 0.50
+      startElementYRatio: 0.50
+      endElementXRatio: 0.50
+      endElementYRatio: 0.25
+      durationMs: 500
+      desc: 上调自定义均衡器 62Hz 频段
+      settleMs: 1000
+  - tap:
+      id: save-t8-custom-equalizer
+      element: t8.customEqualizerSaveButton
+      desc: 保存 T8 自定义均衡器设置
+      settleMs: 1000
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - wait:
+      id: wait-after-t8-custom-equalizer-save
+      durationMs: 1000
+      desc: 等待自定义均衡器蓝牙交互日志输出
+  - captureAppLogEnd:
+      id: stop-t8-custom-equalizer-app-log
+      source: "@{case.t8CustomEqualizerLogCapture}"
+      resourceId: t8-custom-equalizer-app-log
+      saveAs: t8CustomEqualizerLogFile
+      desc: 结束采集并保存 T8 自定义均衡器蓝牙交互 App 日志
+      readLimit: 500
+      maxReadBatches: 10
+      maxEntries: 1000
+  - customAssertAppLog:
+      id: assert-t8-custom-equalizer-log-has-ios-ble-write
+      source: "@{case.t8CustomEqualizerLogFile}"
+      plugin: ugreen-audio
+      assertion: ios-ble-write-triggered
+      desc: 使用 UGREEN audio 日志插件确认自定义均衡器交互后 iOS 触发 BLE 特征写入
+      args:
+        containsAll: "${device.log.iosBleWriteContainsAll}"
+  - tapPosition:
+      id: reopen-t8-custom-equalizer-page-before-delete
+      element: t8.equalizerCustomEntry
+      xRatio: 0.50
+      yRatio: 0.82
+      desc: 保存后从均衡器列表重新进入最后一个自定义均衡器用于清理
+      settleMs: 1000
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - assertElementExists:
+      id: assert-t8-custom-equalizer-page-visible-before-delete
+      element: t8.customEqualizerTitle
+      desc: 校验 T8 自定义均衡器页面已重新打开
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - screenshot:
+      id: capture-t8-custom-equalizer-name-row-before-delete
+      element: t8.customEqualizerNameRow
+      resourceId: t8-custom-equalizer-name-row-before-delete
+      saveAs: t8CustomEqualizerNameRowBeforeDeleteScreenshot
+      desc: 保存自定义均衡器名称行元素截图用于删除图标模板匹配
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - saveElementRect:
+      id: save-t8-custom-equalizer-name-row-roi-before-delete
+      element: t8.customEqualizerNameRow
+      saveAs: t8CustomEqualizerNameRowDeleteRoi
+      asRoi: true
+      desc: 保存自定义均衡器名称行 ROI 用于删除图标模板匹配
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - tapVisualTemplate:
+      id: tap-t8-custom-equalizer-delete-icon
+      template: "${device.visualTemplates.customEqualizerDeleteIcon}"
+      threshold: 0.72
+      scales: [0.8, 0.9, 1.0, 1.1, 1.2]
+      roi: "@{case.t8CustomEqualizerNameRowDeleteRoi}"
+      desc: 在自定义均衡器名称行 ROI 内匹配并点击删除图标
+      settleMs: 1000
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - tap:
+      id: confirm-delete-t8-custom-equalizer
+      element: t8.customEqualizerDeleteConfirmButton
+      desc: 确认删除本次自定义均衡器，恢复可重复执行状态
+      settleMs: 1000
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500

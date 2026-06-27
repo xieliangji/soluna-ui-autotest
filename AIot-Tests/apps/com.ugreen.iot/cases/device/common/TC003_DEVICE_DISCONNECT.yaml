@@ -1,0 +1,71 @@
+schemaVersion: "1.0"
+id: TC003_DEVICE_DISCONNECT
+name: 设备列表-长按设备项-断开连接
+dataRefs:
+  - id: mine
+    file: ../../../data/common/mine.zh-CN.yaml
+elementRefs:
+  - id: common
+    file: ../../../elements/common.yaml
+actions:
+  - assertElementExists:
+      id: assert-first-device-card-visible
+      element: common.firstDeviceCard
+      desc: 校验设备列表存在第一个设备项
+      wait:
+        timeoutMs: 10000
+        intervalMs: 500
+  - assertElementAttrRegexMatch:
+      id: assert-first-device-is-connected-before-disconnect
+      element: common.firstDeviceStatus
+      attr: value/name/label
+      pattern: "${mine.device.onlineStatusPattern}"
+      desc: 校验第一个设备当前为已连接状态；非已连接设备没有断开连接功能项
+      wait:
+        timeoutMs: 15000
+        intervalMs: 500
+  - longPress:
+      id: open-action-menu-for-disconnect
+      element: common.firstDeviceCard
+      durationMs: 1200
+      desc: 长按第一个已连接设备项打开操作窗
+      wait:
+        timeoutMs: 8000
+        intervalMs: 500
+  - tap:
+      id: disconnect-device-from-action-menu
+      element: common.deviceActionMenuSecondOption
+      desc: 已连接设备操作窗第二项为断开连接
+      wait:
+        timeoutMs: 8000
+        intervalMs: 500
+  - wait:
+      id: wait-after-disconnect
+      durationMs: 3000
+      desc: 等待断开连接操作完成
+  - assertElementAttrRegexMatch:
+      id: assert-first-device-disconnected-before-restart
+      element: common.firstDeviceStatus
+      attr: value/name/label
+      pattern: "${mine.device.offlineStatusPattern}"
+      desc: 校验点击断开连接后设备变为未连接状态
+      wait:
+        timeoutMs: 10000
+        intervalMs: 500
+  - restartApp:
+      id: restart-after-disconnect-for-auto-reconnect
+      appId: "${app.id}"
+      desc: 重启应用触发设备自动重连
+  - wait:
+      id: wait-after-restart-for-auto-reconnect
+      durationMs: 8000
+      desc: 等待重启后设备自动重连
+  - assertElementAttrRegexMatch:
+      id: assert-first-device-reconnected-after-restart
+      element: common.firstDeviceStatus
+      attr: value/name/label
+      pattern: "${mine.device.onlineStatusPattern}"
+      desc: 校验重启后设备已自动重连
+      wait:
+        timeoutMs: 30000
+        intervalMs: 1000

@@ -53,6 +53,12 @@ describe('GET /soluna/device', () => {
         stderr: '',
       }
     }
+    if (command === 'go-ios' && args[0] === '--udid=ios-1' && args[1] === 'devicename') {
+      return {
+        stdout: '{"devicename":"QA iPhone"}\n',
+        stderr: '',
+      }
+    }
     if (command === lookupCommand && args[0] === 'ios') {
       throw new Error('not found')
     }
@@ -86,6 +92,15 @@ describe('GET /soluna/device', () => {
     expect(response.body.value.device.platform).to.equal('android')
   })
 
+  it('returns 200 with ios real device name from devicename command', async () => {
+    const response = await request(app).get('/soluna/device').query({udid: 'ios-1'})
+    expect(response.status).to.equal(200)
+    expect(response.body.value.exists).to.equal(true)
+    expect(response.body.value.device.platform).to.equal('ios')
+    expect(response.body.value.device.name).to.equal('QA iPhone')
+    expect(response.body.value.device.model).to.equal('iPhone15,4')
+  })
+
   it('returns 200 with all connected devices', async () => {
     const response = await request(app).get('/soluna/devices')
     expect(response.status).to.equal(200)
@@ -96,6 +111,7 @@ describe('GET /soluna/device', () => {
       'android',
       'ios',
     ])
+    expect(response.body.value.devices[2].name).to.equal('QA iPhone')
   })
 
   it('returns empty list when no devices connected', async () => {

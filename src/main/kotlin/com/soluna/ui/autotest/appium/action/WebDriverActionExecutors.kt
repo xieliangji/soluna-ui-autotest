@@ -4,8 +4,10 @@ import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.node.JsonNodeFactory
 import com.fasterxml.jackson.databind.node.TextNode
 import com.soluna.ktvisual.api.Visual
+import com.soluna.ktvisual.model.ColorDetectionResult
 import com.soluna.ktvisual.model.MatchOptions
 import com.soluna.ktvisual.model.MatchResult
+import com.soluna.ktvisual.model.NamedColor
 import com.soluna.ktvisual.model.Region
 import com.soluna.ui.autotest.appium.action.asBooleanOrNull
 import com.soluna.ui.autotest.appium.action.asDoubleOrNull
@@ -44,6 +46,8 @@ import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import javax.imageio.ImageIO
+import org.openqa.selenium.NoSuchElementException
+import org.openqa.selenium.TimeoutException
 
 class TapActionExecutor(
     private val driver: com.soluna.ui.autotest.appium.driver.WebDriverAdapter,
@@ -72,11 +76,40 @@ class TapActionExecutor(
             return _root_ide_package_.com.soluna.ui.autotest.core.execution.ActionExecutionResult.passed("tap viewport executed")
         }
 
-        val element = driver.findElement(
-            sessionId = sessionId,
-            locator = action.requireLocator(),
-            wait = action.wait.toDriverWaitOptions(),
-        )
+        val ignoreMissingElement = action.args["ignoreMissingElement"]?.asBooleanOrNull() ?: false
+        val ignoreMissingElementReason = action.args["ignoreMissingElementReason"]?.asTextOrNull()
+        require(ignoreMissingElement || ignoreMissingElementReason == null) {
+            "Tap action '${action.id ?: action.keyword}' can only use ignoreMissingElementReason with ignoreMissingElement=true"
+        }
+        val allowedMissingReason = if (ignoreMissingElement) {
+            TapMissingElementReason.fromExternalName(
+                ignoreMissingElementReason
+                    ?: error("Tap action '${action.id ?: action.keyword}' requires ignoreMissingElementReason when ignoreMissingElement=true"),
+            )
+        } else {
+            null
+        }
+        val element = try {
+            driver.findElement(
+                sessionId = sessionId,
+                locator = action.requireLocator(),
+                wait = action.wait.toDriverWaitOptions(),
+            )
+        } catch (e: NoSuchElementException) {
+            if (allowedMissingReason == null) {
+                throw e
+            }
+            return ActionExecutionResult.passed(
+                "tap skipped because target element is absent for ${allowedMissingReason.externalName}",
+            )
+        } catch (e: TimeoutException) {
+            if (allowedMissingReason == null) {
+                throw e
+            }
+            return ActionExecutionResult.passed(
+                "tap skipped because target element wait timed out for ${allowedMissingReason.externalName}",
+            )
+        }
         driver.tap(
             sessionId = sessionId,
             element = element,
@@ -91,6 +124,23 @@ class TapActionExecutor(
         val settleMs = action.args["settleMs"]?.asLongOrNull() ?: defaultSettleMs
         if (settleMs > 0) {
             sleeper.sleep(settleMs)
+        }
+    }
+}
+
+private enum class TapMissingElementReason(
+    val externalName: String,
+) {
+    OPTIONAL_FIRMWARE_UPGRADE_PROMPT("optionalFirmwareUpgradePrompt"),
+    ;
+
+    companion object {
+        fun fromExternalName(value: String): TapMissingElementReason {
+            return entries.firstOrNull { it.externalName == value }
+                ?: error(
+                    "ignoreMissingElementReason must be one of " +
+                        entries.joinToString(", ") { it.externalName },
+                )
         }
     }
 }
@@ -372,8 +422,17 @@ class ScreenshotActionExecutor(
         context: ExecutionContext,
     ): ActionExecutionResult {
         val sessionId = context.requireDriverSessionId()
-        val screenshot = driver.takeScreenshot(sessionId)
-        sink.accept(
+        val screenshot = if (action.locator == null) {
+            driver.takeScreenshot(sessionId)
+        } else {
+            val element = driver.findElement(
+                sessionId = sessionId,
+                locator = action.requireLocator(),
+                wait = action.wait.toDriverWaitOptions(),
+            )
+            driver.takeElementScreenshot(sessionId, element)
+        }
+        val captured = sink.accept(
             ExplicitScreenshot(
                 runId = context.runId,
                 planId = context.plan.id,
@@ -383,7 +442,121 @@ class ScreenshotActionExecutor(
                 data = screenshot,
             ),
         )
+        val saveAs = action.args["saveAs"]?.asTextOrNull()
+        if (saveAs != null) {
+            val path = captured?.localPath
+                ?: error("Screenshot action '${action.id ?: action.keyword}' requires a screenshot sink when saveAs is used")
+            val scope = action.args["scope"]?.asTextOrNull() ?: "case"
+            context.variables.set(
+                scope = scope,
+                name = saveAs,
+                value = TextNode(path.toString()),
+                caseId = context.caseVariableScopeId(),
+            )
+        }
+        if (captured != null) {
+            context.variables.set(
+                scope = "case",
+                name = "lastScreenshot",
+                value = TextNode(captured.localPath.toString()),
+                caseId = context.caseVariableScopeId(),
+            )
+        }
         return ActionExecutionResult.passed("screenshot captured")
+    }
+}
+
+class AssertImageColorRatioActionExecutor(
+    private val sleeper: Sleeper = ThreadSleeper,
+) : ActionExecutor {
+    override val keyword: String = "assertImageColorRatio"
+
+    override fun execute(
+        action: ActionDefinition,
+        context: ExecutionContext,
+    ): ActionExecutionResult {
+        val source = action.args["source"]?.asTextOrNull()
+            ?: action.value?.takeIf { it.isTextual }?.asText()
+            ?: error("Image color ratio assertion action '${action.id ?: action.keyword}' requires source")
+        val color = action.args["color"]?.asTextOrNull()
+            ?.let { NamedImageColor.fromExternalName(it, action.id ?: action.keyword) }
+            ?: error("Image color ratio assertion action '${action.id ?: action.keyword}' requires color")
+        val minRatio = action.args["minRatio"]?.asDoubleOrNull()
+            ?: error("Image color ratio assertion action '${action.id ?: action.keyword}' requires minRatio")
+        require(minRatio in 0.0..1.0) {
+            "Image color ratio assertion action '${action.id ?: action.keyword}' requires minRatio between 0 and 1"
+        }
+        val minPixels = action.args["minPixels"]?.asIntOrNull()
+        require(minPixels == null || minPixels >= 1) {
+            "Image color ratio assertion action '${action.id ?: action.keyword}' requires minPixels >= 1"
+        }
+
+        val sourcePath = Path.of(source.resolveRuntimeText(context))
+        val roi = action.args["roi"]?.toFrameRoi(action.id ?: action.keyword, context)
+        return action.pollAssertion(sleeper) {
+            if (!Files.isRegularFile(sourcePath)) {
+                return@pollAssertion ActionExecutionResult.failed("Image color ratio source '$sourcePath' does not exist")
+            }
+            val bytes = Files.readAllBytes(sourcePath)
+            val image = ImageIO.read(ByteArrayInputStream(bytes))
+                ?: return@pollAssertion ActionExecutionResult.failed("Image color ratio source '$sourcePath' is not a readable image")
+            val result = Visual.detectColor(bytes, color.namedColor, roi?.toRegion(image.width, image.height))
+            result.toActionResult(color.externalName, minRatio, minPixels)
+        }
+    }
+
+    private fun ColorDetectionResult.toActionResult(
+        color: String,
+        minRatio: Double,
+        minPixels: Int?,
+    ): ActionExecutionResult {
+        val ratioPassed = ratio >= minRatio
+        val pixelsPassed = minPixels == null || matchingPixels >= minPixels
+        return if (ratioPassed && pixelsPassed) {
+            ActionExecutionResult.passed(
+                "image color '$color' ratio $ratio with $matchingPixels/$totalPixels pixels passed",
+            )
+        } else {
+            val pixelRequirement = minPixels?.let { " and at least $it pixels" }.orEmpty()
+            ActionExecutionResult.failed(
+                "Expected image color '$color' ratio >= $minRatio$pixelRequirement, " +
+                    "but was $ratio with $matchingPixels/$totalPixels pixels",
+            )
+        }
+    }
+}
+
+private enum class NamedImageColor(
+    val externalName: String,
+    val namedColor: NamedColor,
+    val aliases: Set<String> = emptySet(),
+) {
+    RED("red", NamedColor.RED, setOf("红", "红色")),
+    ORANGE("orange", NamedColor.ORANGE, setOf("橙", "橙色")),
+    YELLOW("yellow", NamedColor.YELLOW, setOf("黄", "黄色")),
+    GREEN("green", NamedColor.GREEN, setOf("绿", "绿色")),
+    CYAN("cyan", NamedColor.CYAN, setOf("青", "青色")),
+    BLUE("blue", NamedColor.BLUE, setOf("蓝", "蓝色")),
+    PURPLE("purple", NamedColor.PURPLE, setOf("紫", "紫色")),
+    PINK("pink", NamedColor.PINK, setOf("粉", "粉色")),
+    WHITE("white", NamedColor.WHITE, setOf("白", "白色")),
+    BLACK("black", NamedColor.BLACK, setOf("黑", "黑色")),
+    GRAY("gray", NamedColor.GRAY, setOf("grey", "灰", "灰色")),
+    ;
+
+    companion object {
+        fun fromExternalName(
+            value: String,
+            actionName: String,
+        ): NamedImageColor {
+            val normalized = value.trim().lowercase()
+            return entries.firstOrNull { color ->
+                normalized == color.externalName || normalized in color.aliases
+            } ?: error(
+                "Image color ratio assertion action '$actionName' requires color to be one of " +
+                    entries.joinToString(", ") { it.externalName },
+            )
+        }
     }
 }
 
@@ -697,6 +870,59 @@ class AssertScreenRecordingTextRegexMatchActionExecutor(
         val combinedText: String?,
         val error: Throwable?,
     )
+}
+
+class AssertImageTextRegexMatchActionExecutor(
+    private val textRecognizer: VisualTextRecognizer? = null,
+    private val textRecognizerProvider: VisualTextRecognizerProvider = DefaultVisualTextRecognizerProvider,
+) : ActionExecutor {
+    override val keyword: String = "assertImageTextRegexMatch"
+
+    override fun execute(
+        action: ActionDefinition,
+        context: ExecutionContext,
+    ): ActionExecutionResult {
+        val source = action.args["source"]?.asTextOrNull()
+            ?: "@{case.lastScreenshot}"
+        val imagePath = Path.of(source.resolveRuntimeText(context))
+        require(Files.isRegularFile(imagePath)) {
+            "Image text assertion action '${action.id ?: action.keyword}' requires an existing image file: $imagePath"
+        }
+        val pattern = action.requirePatternText(context)
+        val recognizerKind = action.args["recognizer"]?.asTextOrNull()
+            ?.let { ScreenRecordingTextRecognizer.fromExternalName(it, action.id ?: action.keyword) }
+            ?: ScreenRecordingTextRecognizer.PADDLE
+        val recognizer = textRecognizer ?: textRecognizerProvider.recognizerFor(recognizerKind)
+        val roi = action.args["roi"]?.toFrameRoi(action.id ?: action.keyword, context)
+        val ocrSource = if (roi != null) {
+            val roiDir = Files.createDirectories(imagePath.parent.resolve("${imagePath.fileName.toString().substringBeforeLast('.')}-ocr-roi"))
+            roi.crop(imagePath, roiDir)
+        } else {
+            imagePath
+        }
+
+        val recognizedText = try {
+            recognizer.recognize(ocrSource).joinToString(separator = "\n")
+        } catch (err: Exception) {
+            return ActionExecutionResult.failed(
+                "Image text OCR failed for '$ocrSource': ${err.imageTextCauseChain()}",
+            )
+        }
+        return if (pattern.containsMatchIn(recognizedText)) {
+            ActionExecutionResult.passed("image text regex match passed")
+        } else {
+            ActionExecutionResult.failed(
+                "Expected image text to match '${pattern.pattern}', OCR text was: ${recognizedText.take(1000)}",
+            )
+        }
+    }
+
+    private fun Throwable.imageTextCauseChain(): String =
+        generateSequence(this) { it.cause }
+            .joinToString(separator = " <- ") { err ->
+                "${err::class.java.simpleName}: ${err.message ?: "no message"}"
+            }
+            .take(1000)
 }
 
 private fun defaultMultimodalCandidateParallelism(): Int =
@@ -1217,10 +1443,12 @@ fun defaultWebDriverActionExecutors(
         LongPressActionExecutor(driver),
         SwipeActionExecutor(driver),
         TapVisualTemplateActionExecutor(driver),
+        AssertImageColorRatioActionExecutor(),
         InputActionExecutor(driver),
         StartScreenRecordingActionExecutor(driver),
         StopScreenRecordingActionExecutor(driver, resourceSink),
         AssertScreenRecordingTextRegexMatchActionExecutor(sink = resourceSink),
+        AssertImageTextRegexMatchActionExecutor(),
         CaptureAppLogStartActionExecutor(extClient, deviceUdid, platform),
         CaptureAppLogEndActionExecutor(extClient, resourceSink),
         CustomAssertAppLogActionExecutor(),

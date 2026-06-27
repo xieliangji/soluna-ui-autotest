@@ -6,6 +6,7 @@ import type {IosInstalledApplication, WdaBundleLookupResult} from '../types/ios'
 
 interface GoIosDeviceDetails {
   udid: string
+  DeviceName?: string
   ProductName?: string
   ProductType?: string
   ProductVersion?: string
@@ -60,10 +61,32 @@ function normalizeDeviceDetail(raw: unknown): GoIosDeviceDetails | null {
 
   return {
     udid,
+    DeviceName: getStringValue(record, ['DeviceName', 'deviceName', 'devicename']),
     ProductName: getStringValue(record, ['ProductName', 'productName']),
     ProductType: getStringValue(record, ['ProductType', 'productType']),
     ProductVersion: getStringValue(record, ['ProductVersion', 'productVersion']),
   }
+}
+
+function parseIosDeviceNameOutput(output: string): string | undefined {
+  for (const rawLine of output.split(/\r?\n/)) {
+    const line = rawLine.trim()
+    if (!line) {
+      continue
+    }
+    try {
+      const parsed = JSON.parse(line)
+      if (parsed && typeof parsed === 'object') {
+        const name = getStringValue(parsed as RawRecord, ['devicename', 'deviceName', 'DeviceName', 'name'])
+        if (name) {
+          return name
+        }
+      }
+    } catch {
+      return line
+    }
+  }
+  return undefined
 }
 
 function parseGoIosListOutput(output: string): GoIosListResponse {
@@ -191,7 +214,7 @@ function toUnifiedIosDeviceInfo(device: GoIosDeviceDetails): UnifiedDeviceInfo {
   return {
     platform: 'ios',
     udid: device.udid,
-    name: device.ProductName || 'iOS Device',
+    name: device.DeviceName || device.ProductName || 'iOS Device',
     model: device.ProductType || 'Unknown',
     osVersion: device.ProductVersion || 'Unknown',
   }
@@ -215,6 +238,34 @@ async function fetchGoIosDeviceList(runner: CommandRunner): Promise<GoIosDeviceD
   return parsed.deviceList ?? []
 }
 
+async function fetchIosDeviceName(
+  udid: string,
+  runner: CommandRunner
+): Promise<string | undefined> {
+  const iosCmd = await resolveIosCommand(runner)
+  if (!iosCmd) {
+    return undefined
+  }
+
+  try {
+    const result = await runner(iosCmd, [`--udid=${udid}`, 'devicename'])
+    return parseIosDeviceNameOutput(result.stdout)
+  } catch {
+    return undefined
+  }
+}
+
+async function enrichIosDeviceName(
+  device: GoIosDeviceDetails,
+  runner: CommandRunner
+): Promise<GoIosDeviceDetails> {
+  const deviceName = await fetchIosDeviceName(device.udid, runner)
+  return {
+    ...device,
+    DeviceName: deviceName || device.DeviceName,
+  }
+}
+
 export async function findIosDeviceByUdid(
   udid: string,
   runner: CommandRunner = runCommand
@@ -226,12 +277,13 @@ export async function findIosDeviceByUdid(
     return null
   }
 
-  return toUnifiedIosDeviceInfo(candidate)
+  return toUnifiedIosDeviceInfo(await enrichIosDeviceName(candidate, runner))
 }
 
 export async function listIosDevices(runner: CommandRunner = runCommand): Promise<UnifiedDeviceInfo[]> {
   const list = await fetchGoIosDeviceList(runner)
-  return list.map(toUnifiedIosDeviceInfo)
+  const enriched = await Promise.all(list.map((device) => enrichIosDeviceName(device, runner)))
+  return enriched.map(toUnifiedIosDeviceInfo)
 }
 
 export async function listIosInstalledApps(
@@ -291,6 +343,7 @@ export async function findWdaBundleByUdid(
 
 export const __internal = {
   parseGoIosListOutput,
+  parseIosDeviceNameOutput,
   parseIosAppsOutput,
   findWdaInstalledApplication,
 }

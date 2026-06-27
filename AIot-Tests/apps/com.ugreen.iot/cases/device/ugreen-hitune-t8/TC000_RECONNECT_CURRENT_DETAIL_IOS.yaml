@@ -1,0 +1,25 @@
+schemaVersion: "1.0"
+id: TC000_RECONNECT_CURRENT_DETAIL_IOS
+name: T8-iOS当前详情页恢复连接调试
+dataRefs:
+  - id: device
+    file: ../../../data/device/ugreen-hitune-t8.yaml
+elementRefs:
+  - id: t8
+    file: ../../../elements/device/ugreen-hitune-t8.yaml
+actions:
+  - tap:
+      id: reconnect-t8-from-current-detail
+      element: t8.detailConnectButton
+      desc: 在当前 T8 详情页点击连接按钮恢复连接
+      settleMs: 3000
+      wait:
+        timeoutMs: 10000
+        intervalMs: 500
+  - assertSourceRegexMatch:
+      id: assert-t8-current-detail-reconnected
+      pattern: "(?s)${device.more.defaultName}"
+      desc: 校验恢复连接后仍在 T8 详情页
+      wait:
+        timeoutMs: 15000
+        intervalMs: 500

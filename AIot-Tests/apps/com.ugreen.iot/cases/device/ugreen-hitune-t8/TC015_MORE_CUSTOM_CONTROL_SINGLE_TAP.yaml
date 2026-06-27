@@ -1,0 +1,220 @@
+schemaVersion: "1.0"
+id: TC015_MORE_CUSTOM_CONTROL_SINGLE_TAP
+name: T8-更多页自定义控制单击蓝牙交互
+dataRefs:
+  - id: device
+    file: ../../../data/device/ugreen-hitune-t8.yaml
+elementRefs:
+  - id: t8
+    file: ../../../elements/device/ugreen-hitune-t8.yaml
+setupFragments:
+  - device.openTargetDevice
+actions:
+  - tap:
+      id: open-t8-more-page-for-single-tap-control
+      element: t8.moreButton
+      desc: 打开 T8 更多页
+      settleMs: 1000
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - tap:
+      id: open-t8-single-tap-custom-control-page
+      element: t8.moreCustomControlRow
+      desc: 打开 T8 自定义控制页面
+      settleMs: 1000
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - assertElementExists:
+      id: assert-t8-single-tap-control-page-visible
+      element: t8.customControlGesturePanel
+      desc: 校验 T8 自定义控制页面已打开
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - captureAppLogStart:
+      id: start-t8-single-tap-control-app-log
+      saveAs: t8SingleTapControlLogCapture
+      desc: 开始采集 T8 单击自定义控制蓝牙交互 App 日志
+      maxBufferEntries: 1000
+      maxSessionBytes: 5242880
+      ttlMs: 60000
+      filter:
+        ios:
+          processRegex: "${device.log.iosProcessRegex}"
+  - tap:
+      id: normalize-open-t8-left-single-options
+      element: t8.customControlSingleTapRow
+      desc: 打开左耳当前单击动作选项用于归一状态
+      settleMs: 1000
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - tap:
+      id: normalize-t8-left-single-to-play-pause
+      element: t8.customControlOptionSecond
+      desc: 将左耳单击归一为播放/暂停
+      settleMs: 1000
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - assertElementExists:
+      id: assert-t8-left-single-baseline-play-pause
+      element: t8.customControlGesturePanel
+      desc: 校验自定义控制选择后已回到设置面板
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - tap:
+      id: open-t8-left-single-options
+      element: t8.customControlSingleTapRow
+      desc: 打开左耳单击动作选项
+      settleMs: 1000
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - tap:
+      id: set-t8-left-single-to-volume-up
+      element: t8.customControlOptionThird
+      desc: 将左耳单击设置为调大音量
+      settleMs: 1000
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - assertElementExists:
+      id: assert-t8-left-single-volume-up
+      element: t8.customControlGesturePanel
+      desc: 校验自定义控制选择后已回到设置面板
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - tap:
+      id: switch-t8-single-control-right-tab
+      element: t8.customControlRightTab
+      desc: 切换到右耳自定义控制
+      settleMs: 1000
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - tap:
+      id: normalize-open-t8-right-single-options
+      element: t8.customControlSingleTapRow
+      desc: 打开右耳当前单击动作选项用于归一状态
+      settleMs: 1000
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - tap:
+      id: normalize-t8-right-single-to-play-pause
+      element: t8.customControlOptionSecond
+      desc: 将右耳单击归一为播放/暂停
+      settleMs: 1000
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - assertElementExists:
+      id: assert-t8-right-single-baseline-play-pause
+      element: t8.customControlGesturePanel
+      desc: 校验自定义控制选择后已回到设置面板
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - tap:
+      id: open-t8-right-single-options
+      element: t8.customControlSingleTapRow
+      desc: 打开右耳单击动作选项
+      settleMs: 1000
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - tap:
+      id: set-t8-right-single-to-volume-up
+      element: t8.customControlOptionThird
+      desc: 将右耳单击设置为调大音量
+      settleMs: 1000
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - assertElementExists:
+      id: assert-t8-right-single-volume-up
+      element: t8.customControlGesturePanel
+      desc: 校验自定义控制选择后已回到设置面板
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - wait:
+      id: wait-after-t8-single-control-changes
+      durationMs: 1000
+      desc: 等待单击自定义控制蓝牙交互日志输出
+  - captureAppLogEnd:
+      id: stop-t8-single-control-app-log
+      source: "@{case.t8SingleTapControlLogCapture}"
+      resourceId: t8-single-tap-control-app-log
+      saveAs: t8SingleTapControlLogFile
+      desc: 结束采集并保存 T8 单击自定义控制蓝牙交互 App 日志
+      readLimit: 500
+      maxReadBatches: 10
+      maxEntries: 1000
+  - customAssertAppLog:
+      id: assert-t8-single-control-log-has-ios-ble-write
+      source: "@{case.t8SingleTapControlLogFile}"
+      plugin: ugreen-audio
+      assertion: ios-ble-write-triggered
+      desc: 使用 UGREEN audio 日志插件确认单击自定义控制设置后 iOS 触发 BLE 特征写入
+      args:
+        containsAll: "${device.log.iosBleWriteContainsAll}"
+  - tap:
+      id: restore-open-t8-right-single-options
+      element: t8.customControlSingleTapRow
+      desc: 打开右耳单击动作选项用于恢复
+      settleMs: 1000
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - tap:
+      id: restore-t8-right-single-to-play-pause
+      element: t8.customControlOptionSecond
+      desc: 恢复右耳单击为播放/暂停
+      settleMs: 1000
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - assertElementExists:
+      id: assert-t8-right-single-restored
+      element: t8.customControlGesturePanel
+      desc: 校验自定义控制选择后已回到设置面板
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - tap:
+      id: switch-t8-single-control-left-tab-for-restore
+      element: t8.customControlLeftTab
+      desc: 切换到左耳准备恢复单击设置
+      settleMs: 1000
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - tap:
+      id: restore-open-t8-left-single-options
+      element: t8.customControlSingleTapRow
+      desc: 打开左耳单击动作选项用于恢复
+      settleMs: 1000
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - tap:
+      id: restore-t8-left-single-to-play-pause
+      element: t8.customControlOptionSecond
+      desc: 恢复左耳单击为播放/暂停
+      settleMs: 1000
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - assertElementExists:
+      id: assert-t8-left-single-restored
+      element: t8.customControlGesturePanel
+      desc: 校验自定义控制选择后已回到设置面板
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500

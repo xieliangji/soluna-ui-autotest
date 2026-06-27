@@ -1,0 +1,92 @@
+schemaVersion: "1.0"
+id: TC010_MORE_PROMPT_SOUND
+name: T8-更多页提示音语言与音量蓝牙交互
+dataRefs:
+  - id: device
+    file: ../../../data/device/ugreen-hitune-t8.yaml
+elementRefs:
+  - id: t8
+    file: ../../../elements/device/ugreen-hitune-t8.yaml
+setupFragments:
+  - device.openTargetDevice
+actions:
+  - tap:
+      id: open-t8-more-page-for-prompt-sound
+      element: t8.moreButton
+      desc: 打开 T8 更多页
+      settleMs: 1000
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - tap:
+      id: open-t8-prompt-sound-page
+      element: t8.morePromptSoundRow
+      desc: 打开提示音设置页
+      settleMs: 1000
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - assertElementExists:
+      id: assert-t8-prompt-sound-ring-option-visible
+      element: t8.promptSoundRingOption
+      desc: 校验 T8 提示音设置页显示铃声选项
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - captureAppLogStart:
+      id: start-t8-prompt-sound-app-log
+      saveAs: t8PromptSoundLogCapture
+      desc: 开始采集提示音语言与音量蓝牙交互 App 日志
+      maxBufferEntries: 1000
+      maxSessionBytes: 5242880
+      ttlMs: 60000
+      filter:
+        ios:
+          processRegex: "${device.log.iosProcessRegex}"
+  - tap:
+      id: switch-t8-prompt-sound-to-ring
+      element: t8.promptSoundRingOption
+      desc: 切换提示音为铃声
+      settleMs: 1000
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - tapPosition:
+      id: set-t8-prompt-volume-to-10
+      element: t8.promptSoundVolumeSlider
+      xRatio: 0.643
+      yRatio: 0.300
+      desc: 点击音量条高音量位置，将提示声音量设为 10
+      settleMs: 1000
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - wait:
+      id: wait-after-t8-prompt-sound-changes
+      durationMs: 1000
+      desc: 等待提示音语言和音量蓝牙交互日志输出
+  - captureAppLogEnd:
+      id: stop-t8-prompt-sound-app-log
+      source: "@{case.t8PromptSoundLogCapture}"
+      resourceId: t8-prompt-sound-app-log
+      saveAs: t8PromptSoundLogFile
+      desc: 结束采集并保存提示音语言与音量蓝牙交互 App 日志
+      readLimit: 500
+      maxReadBatches: 10
+      maxEntries: 1000
+  - customAssertAppLog:
+      id: assert-t8-prompt-sound-log-has-ios-ble-write
+      source: "@{case.t8PromptSoundLogFile}"
+      plugin: ugreen-audio
+      assertion: ios-ble-write-triggered
+      desc: 使用 UGREEN audio 日志插件确认提示音设置后 iOS 触发 BLE 特征写入
+      args:
+        containsAll: "${device.log.iosBleWriteContainsAll}"
+  - tap:
+      id: restore-t8-prompt-sound-to-chinese
+      element: t8.promptSoundChineseOption
+      desc: 恢复提示音为中文，保证后续用例起始状态稳定
+      settleMs: 1000
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500

@@ -16,6 +16,7 @@ class DslActionNormalizer(
         "attr",
         "asRoi",
         "clearFirst",
+        "color",
         "durationMs",
         "endElementXRatio",
         "endElementYRatio",
@@ -47,11 +48,15 @@ class DslActionNormalizer(
         "fullWidth",
         "framesPerSecond",
         "filter",
+        "ignoreMissingElement",
+        "ignoreMissingElementReason",
         "maxBufferEntries",
         "maxEntries",
         "maxFrames",
         "maxReadBatches",
         "maxSessionBytes",
+        "minPixels",
+        "minRatio",
         "candidateMaxFrames",
         "candidateStrategy",
         "plugin",
@@ -153,10 +158,11 @@ class DslActionNormalizer(
         val canonicalKeyword = keywordRegistry.normalize(keywordField)
             ?: error("Unsupported action keyword '$keywordField'")
         val payload = keywordPayload(keywordField, keywordValue, action)
+        val normalizedKeyword = if (canonicalKeyword == "tapPosition") "tap" else canonicalKeyword
 
         return objectMapper.createObjectNode().also { normalized ->
             normalized.put("id", payload.id)
-            normalized.put("keyword", canonicalKeyword)
+            normalized.put("keyword", normalizedKeyword)
             copyTextField(payload.node, normalized, from = "desc", to = "name")
             copyField(payload.node, normalized, "element")
             copyField(payload.node, normalized, "target")
@@ -171,13 +177,23 @@ class DslActionNormalizer(
             }
 
             val wait = payload.node.get("wait")
-            if (canonicalKeyword != "wait" && wait != null && wait.isObject) {
+            if (normalizedKeyword != "wait" && wait != null && wait.isObject) {
                 normalized.set<JsonNode>("wait", wait)
             }
 
             val args = objectMapper.createObjectNode()
-            actionArgumentFields.forEach { field ->
-                copyField(payload.node, args, field)
+            if (canonicalKeyword == "tapPosition" && payload.node.has("element")) {
+                copyField(payload.node, args, from = "xRatio", to = "elementXRatio")
+                copyField(payload.node, args, from = "yRatio", to = "elementYRatio")
+                actionArgumentFields
+                    .filterNot { it == "xRatio" || it == "yRatio" || it == "elementXRatio" || it == "elementYRatio" }
+                    .forEach { field ->
+                        copyField(payload.node, args, field)
+                    }
+            } else {
+                actionArgumentFields.forEach { field ->
+                    copyField(payload.node, args, field)
+                }
             }
             if (!args.isEmpty) {
                 normalized.set<JsonNode>("args", args)
@@ -276,6 +292,17 @@ class DslActionNormalizer(
     ) {
         if (source.has(fieldName)) {
             target.set<JsonNode>(fieldName, source.get(fieldName))
+        }
+    }
+
+    private fun copyField(
+        source: JsonNode,
+        target: ObjectNode,
+        from: String,
+        to: String,
+    ) {
+        if (source.has(from)) {
+            target.set<JsonNode>(to, source.get(from))
         }
     }
 }
