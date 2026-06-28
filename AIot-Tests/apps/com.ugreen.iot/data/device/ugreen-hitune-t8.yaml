@@ -20,3 +20,12 @@ values:
         - "CBMsgIdCharacteristicWriteValue"
         - "Writing value without response"
         - "com.ugreen.iot-central"
+      androidBlePayloadContainsAll:
+        - "[蓝牙下发]"
+        - "发送 ble 数据 data:"
+        - "[蓝牙上报]"
+        - "Payload 已解密"
+    highQualityCodec:
+      titlePattern: "(?s)高音质解码"
+      enabledCodecPattern: "(?s)LDAC"
+      disabledCodecPattern: "(?s)AAC"

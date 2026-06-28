@@ -1,0 +1,62 @@
+schemaVersion: "1.0"
+id: ugreen-hitune-t8-android-custom-debug
+name: UGREEN HiTune T8 Android Custom Debug
+productModel: UGREEN HiTune T8
+version: "0.1.0"
+metadata:
+  owner: qa
+  suite: device-ugreen-hitune-t8-debug
+  intent: Focused Android debug run for T8 custom equalizer and custom control flows
+parameters:
+  - id: appState
+    file: ../../data/app-state.yaml
+  - id: appStateLocal
+    file: ../../data/app-state.android.local.yaml
+    required: false
+fragmentRefs:
+  - id: appState
+    file: ../../fragments/app-state.yaml
+  - id: device
+    file: ../../fragments/device.yaml
+  - id: t8Device
+    file: ../../fragments/device/ugreen-hitune-t8.yaml
+deviceConfig: ../../../../devices/android/ZT4225X3C2.yaml
+artifactStore: ../../../../artifacts/minio.local.yaml
+app:
+  id: com.ugreen.iot
+  name: 绿联声学
+  platform: android
+  reset: false
+defaults:
+  implicitWaitMs: 8000
+  failureStrategy: stop-case
+  retryStrategy: no-retry
+trace:
+  screenshots:
+    enabled: true
+    beforeAction: onFailure
+    retainBeforeActionCount: 5
+    upload: onFailure
+localArtifacts:
+  cleanup:
+    mode: never
+stages:
+  - id: logged-in-device-page
+    name: Logged-in Device Page
+    setupFragments:
+      - appState.loggedInDevicePage
+    caseSetupActions:
+      - restartApp:
+          id: restart-before-t8-custom-debug-case
+          appId: "${app.id}"
+          desc: 用例前重启应用
+      - wait:
+          id: wait-after-t8-custom-debug-case-restart
+          durationMs: 5000
+          desc: 重启后等待启动稳定
+    caseRefs:
+      - file: ../../cases/device/ugreen-hitune-t8/TC008_CUSTOM_EQUALIZER.yaml
+      - file: ../../cases/device/ugreen-hitune-t8/TC014_MORE_CUSTOM_CONTROL.yaml
+      - file: ../../cases/device/ugreen-hitune-t8/TC015_MORE_CUSTOM_CONTROL_SINGLE_TAP.yaml
+      - file: ../../cases/device/ugreen-hitune-t8/TC016_MORE_CUSTOM_CONTROL_TRIPLE_TAP.yaml
+      - file: ../../cases/device/ugreen-hitune-t8/TC017_MORE_CUSTOM_CONTROL_LONG_PRESS.yaml

@@ -1,0 +1,49 @@
+schemaVersion: "1.0"
+id: ugreen-device-common-android-debug
+name: UGREEN Device Common Android Debug
+productModel: UGREEN
+version: "0.1.0"
+metadata:
+  owner: qa
+  suite: device-common-debug
+  intent: Android focused debug for shared device-list actions
+parameters:
+  - id: appState
+    file: ../../data/app-state.yaml
+  - id: appStateLocal
+    file: ../../data/app-state.android.local.yaml
+    required: false
+fragmentRefs:
+  - id: appState
+    file: ../../fragments/app-state.yaml
+deviceConfig: ../../../../devices/android/ZT4225X3C2.yaml
+artifactStore: ../../../../artifacts/minio.local.yaml
+app:
+  id: com.ugreen.iot
+  name: 绿联声学
+  platform: android
+  reset: false
+defaults:
+  implicitWaitMs: 8000
+  failureStrategy: stop-case
+  retryStrategy: no-retry
+trace:
+  screenshots:
+    enabled: true
+    beforeAction: onFailure
+    retainBeforeActionCount: 5
+    upload: onFailure
+localArtifacts:
+  cleanup:
+    mode: never
+stages:
+  - id: logged-in-device-page
+    name: Logged-in Device Page
+    setupFragments:
+      - appState.loggedInDevicePage
+    caseSetupFragments:
+      - appState.restartApp
+    caseRefs:
+      - file: ../../cases/device/common/TC001_DEVICE_RENAME.yaml
+      - file: ../../cases/device/common/TC002_DEVICE_DELETE_CANCEL.yaml
+      - file: ../../cases/device/common/TC003_DEVICE_DISCONNECT.yaml

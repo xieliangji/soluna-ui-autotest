@@ -1540,9 +1540,38 @@ private fun WebDriverAdapter.firstNonBlankAttribute(
     attrCandidates: List<String>,
 ): String {
     return attrCandidates.firstNotNullOfOrNull { attr ->
+        firstNonBlankAttributeCandidate(sessionId, element, attr)
+    }.orEmpty()
+}
+
+private fun WebDriverAdapter.firstNonBlankAttributeCandidate(
+    sessionId: String,
+    element: DriverElement,
+    attr: String,
+): String? {
+    val direct = runCatching {
         getElementAttribute(sessionId, element, attr)
             ?.takeIf { it.isNotBlank() }
-    }.orEmpty()
+    }.getOrNull()
+    if (direct != null) {
+        return direct
+    }
+    return when (attr.lowercase()) {
+        "value" -> runCatching {
+            getElementAttribute(sessionId, element, "checked")
+                ?.takeIf { it.isNotBlank() }
+                ?.toSwitchValue()
+        }.getOrNull()
+        else -> null
+    }
+}
+
+private fun String.toSwitchValue(): String {
+    return when (lowercase()) {
+        "true" -> "1"
+        "false" -> "0"
+        else -> this
+    }
 }
 
 private fun ActionDefinition.pollAssertion(

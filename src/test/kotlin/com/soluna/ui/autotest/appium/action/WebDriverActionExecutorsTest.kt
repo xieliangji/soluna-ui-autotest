@@ -1124,6 +1124,60 @@ class WebDriverActionExecutorsTest {
     }
 
     @Test
+    fun `assert element attr equals action skips unsupported attribute candidates`() {
+        val driver = RecordingWebDriverAdapter(
+            attributes = mapOf("text" to "SolunaTester"),
+            throwingAttributes = setOf("value"),
+        )
+        val executor = AssertElementAttrEqualsActionExecutor(driver)
+        val action = ActionDefinition(
+            id = "assert-nickname",
+            keyword = "assertElementAttrEquals",
+            locator = LocatorDefinition(
+                strategy = "id",
+                value = "nickname",
+            ),
+            value = objectMapper.valueToTree("SolunaTester"),
+            args = mapOf("attr" to objectMapper.valueToTree("value/text")),
+        )
+
+        val result = executor.execute(action, context())
+
+        assertEquals(ExecutionStatus.PASSED, result.status)
+        assertEquals(
+            listOf("find:session-1:id=nickname:null", "attr:element-1:value", "attr:element-1:checked", "attr:element-1:text"),
+            driver.calls,
+        )
+    }
+
+    @Test
+    fun `assert element attr equals action maps missing value to checked switch state`() {
+        val driver = RecordingWebDriverAdapter(
+            attributes = mapOf("checked" to "true"),
+            throwingAttributes = setOf("value"),
+        )
+        val executor = AssertElementAttrEqualsActionExecutor(driver)
+        val action = ActionDefinition(
+            id = "assert-switch-on",
+            keyword = "assertElementAttrEquals",
+            locator = LocatorDefinition(
+                strategy = "xpath",
+                value = "//android.widget.Switch[1]",
+            ),
+            value = objectMapper.valueToTree("1"),
+            args = mapOf("attr" to objectMapper.valueToTree("value")),
+        )
+
+        val result = executor.execute(action, context())
+
+        assertEquals(ExecutionStatus.PASSED, result.status)
+        assertEquals(
+            listOf("find:session-1:xpath=//android.widget.Switch[1]:null", "attr:element-1:value", "attr:element-1:checked"),
+            driver.calls,
+        )
+    }
+
+    @Test
     fun `assert element attr equals action fails on mismatched attribute`() {
         val driver = RecordingWebDriverAdapter(attributes = mapOf("text" to "OldName"))
         val executor = AssertElementAttrEqualsActionExecutor(driver)
@@ -1749,6 +1803,7 @@ class WebDriverActionExecutorsTest {
         private val findFailuresBeforeSuccess: Int = 0,
         private val throwNoSuchElement: Boolean = false,
         private val throwTimeoutException: Boolean = false,
+        private val throwingAttributes: Set<String> = emptySet(),
     ) : WebDriverAdapter {
         val calls = mutableListOf<String>()
         private val attributeReadCounts = mutableMapOf<String, Int>()
@@ -1868,6 +1923,9 @@ class WebDriverActionExecutorsTest {
             name: String,
         ): String? {
             calls += "attr:${element.elementId}:$name"
+            if (name in throwingAttributes) {
+                error("unsupported attribute: $name")
+            }
             attributeSequences[name]?.let { values ->
                 val index = attributeReadCounts.getOrDefault(name, 0)
                 attributeReadCounts[name] = index + 1

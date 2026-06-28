@@ -67,5 +67,5 @@ actions:
       pattern: "${mine.device.onlineStatusPattern}"
       desc: 校验重启后设备已自动重连
       wait:
-        timeoutMs: 30000
+        timeoutMs: 180000
         intervalMs: 1000

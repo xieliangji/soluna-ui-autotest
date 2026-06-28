@@ -522,7 +522,7 @@ export class LogSessionManager implements LogSessionService {
     if (platform === 'android') {
       return {
         command: 'adb',
-        args: ['-s', udid, 'logcat', '-v', 'threadtime'],
+        args: ['-s', udid, 'logcat', '-T', '1', '-v', 'threadtime'],
       }
     }
 

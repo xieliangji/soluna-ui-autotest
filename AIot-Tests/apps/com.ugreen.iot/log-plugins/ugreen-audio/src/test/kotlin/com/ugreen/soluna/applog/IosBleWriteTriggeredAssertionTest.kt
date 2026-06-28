@@ -14,12 +14,13 @@ class IosBleWriteTriggeredAssertionTest {
     private val mapper = ObjectMapper()
 
     @Test
-    fun `plugin exposes only the iOS BLE write assertion`() {
+    fun `plugin exposes legacy and platform-neutral BLE write assertions`() {
         val plugin = UgreenAudioAppLogPlugin()
 
-        assertTrue(plugin.assertion("ios-ble-write-triggered") === IosBleWriteTriggeredAssertion)
+        assertTrue(plugin.assertion("ios-ble-write-triggered") === BleWriteTriggeredAssertion)
+        assertTrue(plugin.assertion("ble-write-triggered") === BleWriteTriggeredAssertion)
+        assertTrue(plugin.assertion("android-ble-write-triggered") === BleWriteTriggeredAssertion)
         assertTrue(plugin.assertion("ble-command-ack") == null)
-        assertTrue(plugin.assertion("android-spp-command-report") == null)
     }
 
     @Test
@@ -33,7 +34,7 @@ class IosBleWriteTriggeredAssertionTest {
             """.trimIndent() + "\n",
         )
 
-        val result = IosBleWriteTriggeredAssertion.evaluate(input(logFile = logFile, args = null))
+        val result = BleWriteTriggeredAssertion.evaluate(input(logFile = logFile, args = null))
 
         assertTrue(result.passed)
     }
@@ -43,7 +44,7 @@ class IosBleWriteTriggeredAssertionTest {
         val logFile = Files.createTempFile("app-log-", ".jsonl")
         Files.writeString(logFile, "{\"message\":\"CBMsgIdCharacteristicWriteValue from com.ugreen.iot-central\"}\n")
 
-        val result = IosBleWriteTriggeredAssertion.evaluate(
+        val result = BleWriteTriggeredAssertion.evaluate(
             input(
                 logFile = logFile,
                 args = mapper.createObjectNode().also {
@@ -58,11 +59,20 @@ class IosBleWriteTriggeredAssertionTest {
     }
 
     @Test
-    fun `rejects Android captures`() {
+    fun `passes Android captures with default payload exchange markers`() {
         val logFile = Files.createTempFile("app-log-", ".jsonl")
-        Files.writeString(logFile, "{\"message\":\"CBMsgIdCharacteristicWriteValue\"}\n")
+        Files.writeString(
+            logFile,
+            """
+            {"tag":"ReactNativeJS","message":"'[Headphones]', '[蓝牙下发] ⬇️ 10:49:30.521'"}
+            {"tag":"ReactNativeJS","message":"'[Headphones]', '  命令: PROMPT_LANG'"}
+            {"tag":"UGRNBluetoothBridge","message":"发送 ble 数据 data: AAC002090010D0E87F4D97D364A56BF8BDBBD5F4A78E4068"}
+            {"tag":"ReactNativeJS","message":"'[Headphones]', '[UG3] Payload 已解密:0,1,1,2 -> 16 -> 4 bytes'"}
+            {"tag":"UGRNLogController","message":"[Headphones] [蓝牙上报] ⬆️ 10:49:31.080"}
+            """.trimIndent() + "\n",
+        )
 
-        val result = IosBleWriteTriggeredAssertion.evaluate(
+        val result = BleWriteTriggeredAssertion.evaluate(
             input(
                 logFile = logFile,
                 platform = "android",
@@ -70,7 +80,56 @@ class IosBleWriteTriggeredAssertionTest {
             ),
         )
 
-        assertFalse(result.passed)
+        assertTrue(result.passed)
+    }
+
+    @Test
+    fun `passes Android captures with configured Android command markers`() {
+        val logFile = Files.createTempFile("app-log-", ".jsonl")
+        Files.writeString(logFile, "{\"message\":\"[Headphones] 命令: PROMPT_LANG; [蓝牙下发] payload queued\"}\n")
+
+        val result = BleWriteTriggeredAssertion.evaluate(
+            input(
+                logFile = logFile,
+                platform = "android",
+                args = mapper.createObjectNode().also {
+                    it.putArray("androidContainsAll")
+                        .add("命令: PROMPT_LANG")
+                        .add("[蓝牙下发]")
+                },
+            ),
+        )
+
+        assertTrue(result.passed)
+    }
+
+    @Test
+    fun `Android ignores legacy iOS default markers and uses Android payload defaults`() {
+        val logFile = Files.createTempFile("app-log-", ".jsonl")
+        Files.writeString(
+            logFile,
+            """
+            {"message":"[蓝牙下发]"}
+            {"message":"发送 ble 数据 data: AAC002090010"}
+            {"message":"[蓝牙上报]"}
+            {"message":"Payload 已解密:0,1,1,2 -> 16 -> 4 bytes"}
+            """.trimIndent() + "\n",
+        )
+
+        val result = BleWriteTriggeredAssertion.evaluate(
+            input(
+                logFile = logFile,
+                platform = "android",
+                args = mapper.createObjectNode().also {
+                    it.putArray("containsAll")
+                        .add("CBMsgIdCharacteristicWriteValue")
+                        .add("Writing value without response")
+                        .add("com.ugreen.iot-central")
+                },
+            ),
+        )
+
+        assertTrue(result.passed)
     }
 
     @Test
@@ -78,7 +137,7 @@ class IosBleWriteTriggeredAssertionTest {
         val logFile = Files.createTempFile("app-log-", ".jsonl")
         Files.writeString(logFile, "{\"message\":\"CBMsgIdCharacteristicWriteValue\"}\n")
 
-        val result = IosBleWriteTriggeredAssertion.evaluate(
+        val result = BleWriteTriggeredAssertion.evaluate(
             input(
                 logFile = logFile,
                 args = mapper.createObjectNode().also {

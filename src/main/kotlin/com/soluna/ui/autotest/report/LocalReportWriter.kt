@@ -224,6 +224,21 @@ class LocalReportWriter(
                 .overview-details:not([open]) > summary::after { content: "展开"; }
                 .overview-body { padding: 0 18px 18px; }
                 table { border-collapse: separate; border-spacing: 0; width: 100%; overflow: hidden; border: 1px solid var(--line); border-radius: 8px; }
+                .overview-table, .failure-table { table-layout: fixed; }
+                .overview-table th:nth-child(1) { width: 18%; }
+                .overview-table th:nth-child(2) { width: 22%; }
+                .overview-table th:nth-child(3) { width: 8%; }
+                .overview-table th:nth-child(4) { width: 8%; }
+                .overview-table th:nth-child(5) { width: 9%; }
+                .overview-table th:nth-child(6) { width: 25%; }
+                .overview-table th:nth-child(7) { width: 10%; }
+                .failure-table th:nth-child(1) { width: 14%; }
+                .failure-table th:nth-child(2) { width: 16%; }
+                .failure-table th:nth-child(3) { width: 9%; }
+                .failure-table th:nth-child(4) { width: 6%; }
+                .failure-table th:nth-child(5) { width: 21%; }
+                .failure-table th:nth-child(6) { width: 16%; }
+                .failure-table th:nth-child(7) { width: 18%; }
                 th, td { border-bottom: 1px solid var(--line); padding: 9px 11px; text-align: left; font-size: 13px; vertical-align: top; }
                 th { background: #edf4f0; color: #44524c; font-weight: 750; }
                 tr:last-child td { border-bottom: 0; }
@@ -248,6 +263,16 @@ class LocalReportWriter(
                 .empty { color: var(--muted); background: #f6f9f7; border: 1px dashed var(--line); border-radius: 8px; padding: 14px; }
                 .error { color: var(--danger); white-space: pre-wrap; }
                 .message { color: #3c4944; white-space: pre-wrap; }
+                .compact-cell { max-width: 0; min-width: 0; overflow: hidden; vertical-align: middle; }
+                .compact-text {
+                  display: block;
+                  max-width: 100%;
+                  min-width: 0;
+                  overflow: hidden;
+                  text-overflow: ellipsis;
+                  white-space: nowrap;
+                }
+                .compact-cell.error, .compact-cell.message { white-space: nowrap; }
                 dialog {
                   width: min(1040px, calc(100vw - 32px));
                   height: min(760px, calc(100vh - 48px));
@@ -360,7 +385,7 @@ class LocalReportWriter(
                   <div class="overview-body">
                     <div class="bar"><span style="width: ${casePassRate}%"></span></div>
                     <div class="progress-line">用例 ${data.summary.casePassed}/${data.summary.caseTotal} 通过，${data.summary.caseFailed} 失败，${data.summary.caseSkipped} 跳过</div>
-                    <table>
+                    <table class="overview-table">
                       <thead>
                         <tr><th>阶段</th><th>用例</th><th>状态</th><th>动作</th><th>耗时</th><th>失败原因</th><th>操作</th></tr>
                       </thead>
@@ -432,7 +457,7 @@ class LocalReportWriter(
                       <td><span class="${statusClass(case.status)}">${escape(statusText(case.status))}</span></td>
                       <td class="numeric-cell">${actions.count { it.status == "passed" }}/${actions.size}</td>
                       <td class="numeric-cell">${escape(formatDuration(duration))}</td>
-                      <td class="error">${escape(failure?.error ?: failedAction?.error ?: "")}</td>
+                      ${compactCell(failure?.error ?: failedAction?.error, "error")}
                       <td class="detail-cell">
                         <button class="detail-link" type="button" data-dialog-target="${escape(dialogId)}">动作明细</button>
                       </td>
@@ -502,14 +527,14 @@ class LocalReportWriter(
                   <td>${failure.index}</td>
                   <td>${escape(actionLabel(failure.actionKeyword, failure.actionId))}</td>
                   <td class="message">${escape(failure.message.orEmpty())}</td>
-                  <td class="error">${escape(failure.error.orEmpty())}</td>
+                  ${compactCell(failure.error, "error")}
                 </tr>
             """.trimIndent()
         }
         return """
             <section class="panel">
               <h2>失败摘要</h2>
-              <table>
+              <table class="failure-table">
                 <thead>
                   <tr><th>阶段</th><th>用例</th><th>环节</th><th>#</th><th>动作</th><th>消息</th><th>错误</th></tr>
                 </thead>
@@ -566,6 +591,14 @@ class LocalReportWriter(
               <td class="error">${escape(action.error.orEmpty())}</td>
             </tr>
         """.trimIndent()
+    }
+
+    private fun compactCell(
+        value: String?,
+        className: String,
+    ): String {
+        val text = value.orEmpty()
+        return """<td class="compact-cell $className"><span class="compact-text" title="${escape(text)}">${escape(text)}</span></td>"""
     }
 
     private fun LocalCaseReportData.allActions(): List<LocalActionReportData> {

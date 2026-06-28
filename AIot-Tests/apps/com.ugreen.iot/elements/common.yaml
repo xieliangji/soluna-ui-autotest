@@ -35,49 +35,82 @@ elements:
       strategy: xpath
       value: "//XCUIElementTypeButton[@visible='true' and @accessible='true' and @name='icon common add']"
   firstDeviceCard:
+    android:
+      strategy: xpath
+      value: "(//*[@resource-id='com.ugreen.iot:id/rvDevices']/*[@clickable='true' and @long-clickable='true'])[1]"
     ios:
       strategy: xpath
       value: "(//XCUIElementTypeTable[@visible='true']/XCUIElementTypeCell[@visible='true'])[1]"
   firstDeviceName:
+    android:
+      strategy: xpath
+      value: "(//*[@resource-id='com.ugreen.iot:id/rvDevices']/*[@clickable='true' and @long-clickable='true'])[1]//*[@resource-id='com.ugreen.iot:id/tv_name']"
     ios:
       strategy: xpath
       value: "(//XCUIElementTypeTable[@visible='true']/XCUIElementTypeCell[@visible='true'])[1]/XCUIElementTypeStaticText[1]"
   firstDeviceStatus:
+    android:
+      strategy: xpath
+      value: "(//*[@resource-id='com.ugreen.iot:id/rvDevices']/*[@clickable='true' and @long-clickable='true'])[1]//*[@resource-id='com.ugreen.iot:id/tv_state']"
     ios:
       strategy: xpath
       value: "(//XCUIElementTypeTable[@visible='true']/XCUIElementTypeCell[@visible='true'])[1]/XCUIElementTypeStaticText[2]"
   targetDeviceCardByMacSuffix:
     parameterizedTextReason: language_insensitive_text
+    android:
+      strategy: xpath
+      value: "(//*[@resource-id='com.ugreen.iot:id/rvDevices']/*[@clickable='true' and @long-clickable='true'][.//*[@resource-id='com.ugreen.iot:id/tv_mac' and contains(@text,'${device.targetMacSuffix}')]])[1]"
     ios:
       strategy: xpath
       value: "(//XCUIElementTypeTable[@visible='true']/XCUIElementTypeCell[@visible='true'][.//XCUIElementTypeStaticText[contains(string(@name),'${device.targetMacSuffix}') or contains(string(@label),'${device.targetMacSuffix}') or contains(string(@value),'${device.targetMacSuffix}')]])[1]"
   targetDeviceCardByName:
     parameterizedTextReason: language_insensitive_text
+    android:
+      strategy: xpath
+      value: "(//*[@resource-id='com.ugreen.iot:id/rvDevices']/*[@clickable='true' and @long-clickable='true'][.//*[@resource-id='com.ugreen.iot:id/tv_name' and contains(@text,'${device.targetName}')]])[1]"
     ios:
       strategy: xpath
       value: "(//XCUIElementTypeTable[@visible='true']/XCUIElementTypeCell[@visible='true'][.//XCUIElementTypeStaticText[contains(string(@name),'${device.targetName}') or contains(string(@label),'${device.targetName}') or contains(string(@value),'${device.targetName}')]])[1]"
   deviceActionMenuFirstOption:
+    android:
+      strategy: id
+      value: com.ugreen.iot:id/llRename
     ios:
       strategy: xpath
       value: "(//XCUIElementTypeButton[@visible='true' and @accessible='true'])[1]"
   deviceActionMenuSecondOption:
+    android:
+      strategy: id
+      value: com.ugreen.iot:id/llBreak
     ios:
       strategy: xpath
       value: "(//XCUIElementTypeButton[@visible='true' and @accessible='true'])[2]"
   deviceActionMenuLastOption:
+    android:
+      strategy: id
+      value: com.ugreen.iot:id/llDelete
     ios:
       strategy: xpath
       value: "(//XCUIElementTypeButton[@visible='true' and @accessible='true'])[last()]"
   deviceRenameInput:
+    android:
+      strategy: xpath
+      value: "//*[@resource-id='com.ugreen.iot:id/ll_dialog_container']//*[@class='android.widget.EditText']"
     ios:
       strategy: class
       value: XCUIElementTypeTextField
   deviceRenameConfirmButton:
+    android:
+      strategy: id
+      value: com.ugreen.iot:id/btn_positive
     ios:
       strategy: xpath
       value: "(//XCUIElementTypeButton[@visible='true' and @accessible='true'])[1]"
   firmwareUpgradeIgnoreButton:
     hardcodedTextReason: language_insensitive_text
+    android:
+      strategy: xpath
+      value: "(//android.view.ViewGroup[./android.widget.TextView[contains(@text,'V')] and ./android.widget.ScrollView and count(./android.view.ViewGroup[@clickable='true']) >= 2]/android.view.ViewGroup[@clickable='true'])[1]"
     ios:
       strategy: xpath
       value: "((//XCUIElementTypeOther[@visible='true' and @accessible='false' and ./XCUIElementTypeStaticText[@visible='true' and (contains(string(@name),'V') or contains(string(@label),'V') or contains(string(@value),'V'))] and ./XCUIElementTypeOther/XCUIElementTypeScrollView[@visible='true'] and count(./XCUIElementTypeOther[@visible='true' and @accessible='true']) = 2])[last()]/XCUIElementTypeOther[@visible='true' and @accessible='true'])[1]"

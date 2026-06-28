@@ -1,0 +1,300 @@
+schemaVersion: "1.0"
+id: TC001_HIGH_QUALITY_CODEC_ANDROID
+name: T8-高音质解码开关与互斥限制-Android
+dataRefs:
+  - id: device
+    file: ../../../data/device/ugreen-hitune-t8.yaml
+  - id: deviceAndroid
+    file: ../../../data/device/ugreen-hitune-t8.android.yaml
+elementRefs:
+  - id: t8
+    file: ../../../elements/device/ugreen-hitune-t8.yaml
+setupFragments:
+  - device.openTargetDevice
+  - t8Device.ensureHighQualityCodecOff
+actions:
+  - tap:
+      id: open-t8-high-quality-codec-page-initial
+      element: t8.highQualityCodecEntry
+      desc: 从详情页打开 T8 高音质解码页
+      settleMs: 1000
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - assertSourceRegexMatch:
+      id: assert-t8-high-quality-codec-page-title-visible-initial
+      pattern: "${device.highQualityCodec.titlePattern}"
+      desc: 确认已进入高音质解码页
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - assertElementAttrEquals:
+      id: assert-t8-high-quality-codec-off-initial
+      element: t8.highQualityCodecSwitch
+      attr: value
+      expected: "0"
+      desc: 确认高音质解码用例初始状态为关闭
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - screenshot:
+      id: capture-t8-high-quality-codec-off-initial
+      element: t8.highQualityCodecSwitch
+      resourceId: t8-high-quality-codec-off-initial
+      saveAs: t8HighQualityCodecOffInitialScreenshot
+      desc: 保存高音质解码关闭态开关截图
+      wait:
+        timeoutMs: 3000
+        intervalMs: 500
+  - assertImageColorRatio:
+      id: assert-t8-high-quality-codec-off-initial-gray
+      source: "@{case.t8HighQualityCodecOffInitialScreenshot}"
+      color: gray
+      minRatio: 0.05
+      minPixels: 50
+      desc: 通过灰色占比确认高音质解码关闭态
+  - assertSourceRegexMatch:
+      id: assert-t8-high-quality-codec-off-initial-aac
+      pattern: "${device.highQualityCodec.disabledCodecPattern}"
+      desc: 确认关闭态已连接设备编码显示 AAC
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - captureAppLogStart:
+      id: start-t8-high-quality-codec-enable-app-log
+      saveAs: t8HighQualityCodecEnableLogCapture
+      desc: 开始采集开启高音质解码的 Android 蓝牙日志
+      maxBufferEntries: 5000
+      maxSessionBytes: 10485760
+      ttlMs: 120000
+      filter:
+        android:
+          rawRegex: "${device.log.androidHighQualityCaptureRawRegex}"
+  - tap:
+      id: enable-t8-high-quality-codec
+      element: t8.highQualityCodecSwitch
+      desc: 开启 T8 高音质解码；Android 会断开重连并自动回详情页
+      settleMs: 3000
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - assertElementExists:
+      id: assert-t8-detail-returned-after-high-quality-enabled
+      element: t8.highQualityCodecEntry
+      desc: 等待开启高音质解码后自动回到详情页并恢复连接
+      wait:
+        timeoutMs: 30000
+        intervalMs: 1000
+  - wait:
+      id: wait-after-t8-high-quality-codec-enabled
+      durationMs: 12000
+      desc: 等待开启态蓝牙上报与系统编码日志稳定输出
+  - captureAppLogEnd:
+      id: stop-t8-high-quality-codec-enable-app-log
+      source: "@{case.t8HighQualityCodecEnableLogCapture}"
+      resourceId: t8-high-quality-codec-enable-app-log
+      saveAs: t8HighQualityCodecEnableLogFile
+      desc: 结束采集并保存开启高音质解码的 Android 蓝牙日志
+      readLimit: 1000
+      maxReadBatches: 20
+      maxEntries: 5000
+  - customAssertAppLog:
+      id: assert-t8-high-quality-codec-enable-log
+      source: "@{case.t8HighQualityCodecEnableLogFile}"
+      plugin: ugreen-audio
+      assertion: ble-write-triggered
+      desc: 确认开启高音质解码后 Android 日志包含 BLE 下发、上报 payload、highQuality=1、gameMode=0 与 LDAC 编码
+      args:
+        androidContainsAll: "${device.log.androidHighQualityOnContainsAll}"
+        androidContainsAny: "${device.log.androidHighQualityOnContainsAny}"
+  - assertElementAttrEquals:
+      id: assert-t8-game-mode-off-after-high-quality-enabled
+      element: t8.gameModeSwitch
+      attr: value
+      expected: "0"
+      desc: 确认高音质解码开启并恢复连接后游戏模式处于关闭状态
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - tap:
+      id: try-enable-t8-spatial-audio-while-high-quality-on
+      element: t8.musicModeSpatial
+      desc: 高音质解码开启时尝试切换空间音效
+      settleMs: 1000
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - assertElementExists:
+      id: assert-t8-spatial-audio-block-dialog-visible
+      element: t8.highQualitySpatialConflictMessage
+      desc: 确认空间音效被高音质解码互斥弹窗阻止
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - tap:
+      id: dismiss-t8-spatial-audio-block-dialog
+      element: t8.highQualityConflictConfirmButton
+      desc: 关闭空间音效互斥提示弹窗
+      settleMs: 1000
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - tap:
+      id: try-enable-t8-game-mode-while-high-quality-on
+      element: t8.gameModeSwitch
+      desc: 高音质解码开启时尝试开启游戏模式
+      settleMs: 1000
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - assertElementExists:
+      id: assert-t8-game-mode-block-dialog-visible
+      element: t8.highQualityGameConflictMessage
+      desc: 确认游戏模式被高音质解码互斥弹窗阻止
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - tap:
+      id: dismiss-t8-game-mode-block-dialog
+      element: t8.highQualityConflictConfirmButton
+      desc: 关闭游戏模式互斥提示弹窗
+      settleMs: 1000
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - assertElementAttrEquals:
+      id: assert-t8-game-mode-still-off-after-block-dialog
+      element: t8.gameModeSwitch
+      attr: value
+      expected: "0"
+      desc: 确认互斥弹窗关闭后游戏模式仍为关闭
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - tap:
+      id: open-t8-high-quality-codec-page-after-enable
+      element: t8.highQualityCodecEntry
+      desc: 回到高音质解码页确认开启态
+      settleMs: 1000
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - assertElementAttrEquals:
+      id: assert-t8-high-quality-codec-on-after-enable
+      element: t8.highQualityCodecSwitch
+      attr: value
+      expected: "1"
+      desc: 确认高音质解码开关已开启
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - screenshot:
+      id: capture-t8-high-quality-codec-on
+      element: t8.highQualityCodecSwitch
+      resourceId: t8-high-quality-codec-on
+      saveAs: t8HighQualityCodecOnScreenshot
+      desc: 保存高音质解码开启态开关截图
+      wait:
+        timeoutMs: 3000
+        intervalMs: 500
+  - assertImageColorRatio:
+      id: assert-t8-high-quality-codec-on-black
+      source: "@{case.t8HighQualityCodecOnScreenshot}"
+      color: black
+      minRatio: 0.05
+      minPixels: 50
+      desc: 通过黑色占比确认高音质解码开启态
+  - assertSourceRegexMatch:
+      id: assert-t8-high-quality-codec-on-ldac
+      pattern: "${device.highQualityCodec.enabledCodecPattern}"
+      desc: 确认开启态已连接设备编码显示 LDAC
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - captureAppLogStart:
+      id: start-t8-high-quality-codec-disable-app-log
+      saveAs: t8HighQualityCodecDisableLogCapture
+      desc: 开始采集关闭高音质解码的 Android 蓝牙日志
+      maxBufferEntries: 5000
+      maxSessionBytes: 10485760
+      ttlMs: 120000
+      filter:
+        android:
+          rawRegex: "${device.log.androidHighQualityCaptureRawRegex}"
+  - tap:
+      id: disable-t8-high-quality-codec
+      element: t8.highQualityCodecSwitch
+      desc: 关闭 T8 高音质解码；Android 会断开重连并自动回详情页
+      settleMs: 3000
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - assertElementExists:
+      id: assert-t8-detail-returned-after-high-quality-disabled
+      element: t8.highQualityCodecEntry
+      desc: 等待关闭高音质解码后自动回到详情页并恢复连接
+      wait:
+        timeoutMs: 30000
+        intervalMs: 1000
+  - wait:
+      id: wait-after-t8-high-quality-codec-disabled
+      durationMs: 12000
+      desc: 等待关闭态蓝牙上报与系统编码日志稳定输出
+  - captureAppLogEnd:
+      id: stop-t8-high-quality-codec-disable-app-log
+      source: "@{case.t8HighQualityCodecDisableLogCapture}"
+      resourceId: t8-high-quality-codec-disable-app-log
+      saveAs: t8HighQualityCodecDisableLogFile
+      desc: 结束采集并保存关闭高音质解码的 Android 蓝牙日志
+      readLimit: 1000
+      maxReadBatches: 20
+      maxEntries: 5000
+  - customAssertAppLog:
+      id: assert-t8-high-quality-codec-disable-log
+      source: "@{case.t8HighQualityCodecDisableLogFile}"
+      plugin: ugreen-audio
+      assertion: ble-write-triggered
+      desc: 确认关闭高音质解码后 Android 日志包含 BLE 下发、上报 payload、highQuality=0 与 AAC 编码
+      args:
+        androidContainsAll: "${device.log.androidHighQualityOffContainsAll}"
+        androidContainsAny: "${device.log.androidHighQualityOffContainsAny}"
+  - tap:
+      id: open-t8-high-quality-codec-page-final
+      element: t8.highQualityCodecEntry
+      desc: 回到高音质解码页确认最终关闭态
+      settleMs: 1000
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - assertElementAttrEquals:
+      id: assert-t8-high-quality-codec-off-final
+      element: t8.highQualityCodecSwitch
+      attr: value
+      expected: "0"
+      desc: 确认高音质解码用例结束后为关闭状态
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500
+  - screenshot:
+      id: capture-t8-high-quality-codec-off-final
+      element: t8.highQualityCodecSwitch
+      resourceId: t8-high-quality-codec-off-final
+      saveAs: t8HighQualityCodecOffFinalScreenshot
+      desc: 保存高音质解码最终关闭态开关截图
+      wait:
+        timeoutMs: 3000
+        intervalMs: 500
+  - assertImageColorRatio:
+      id: assert-t8-high-quality-codec-off-final-gray
+      source: "@{case.t8HighQualityCodecOffFinalScreenshot}"
+      color: gray
+      minRatio: 0.05
+      minPixels: 50
+      desc: 通过灰色占比确认高音质解码最终关闭态
+  - assertSourceRegexMatch:
+      id: assert-t8-high-quality-codec-off-final-aac
+      pattern: "${device.highQualityCodec.disabledCodecPattern}"
+      desc: 确认最终关闭态已连接设备编码显示 AAC
+      wait:
+        timeoutMs: 5000
+        intervalMs: 500

@@ -293,6 +293,57 @@ class SolunaCliApplicationTest {
     }
 
     @Test
+    fun `debug long press element command passes locator and ratios to debug manager`() {
+        var capturedRequest: AppiumDebugRequest? = null
+        val stdout = StringBuilder()
+        val stderr = StringBuilder()
+        val cli = SolunaCliApplication(
+            runDebug = { request ->
+                capturedRequest = request
+                AppiumDebugResult(
+                    action = request.action.name,
+                    serverUrl = "http://127.0.0.1:4723",
+                    wdaUrl = null,
+                    sessionId = "session-debug",
+                    output = "longPress-element: id=device_card, xRatio=0.4, yRatio=0.6, durationMs=1200",
+                )
+            },
+        )
+
+        val exitCode = cli.run(
+            arrayOf(
+                "debug",
+                "plans/android.yaml",
+                "longPress-element",
+                "--strategy",
+                "id",
+                "--locator",
+                "device_card",
+                "--element-x-ratio",
+                "0.4",
+                "--element-y-ratio",
+                "0.6",
+                "--duration-ms",
+                "1200",
+            ),
+            stdout,
+            stderr,
+        )
+
+        val request = assertNotNull(capturedRequest)
+        val action = assertIs<AppiumDebugAction.LongPressElement>(request.action)
+        assertEquals(0, exitCode)
+        assertEquals(Path.of("plans/android.yaml"), request.planPath)
+        assertEquals("id", action.locator.strategy)
+        assertEquals("device_card", action.locator.value)
+        assertEquals(0.4, action.xRatio)
+        assertEquals(0.6, action.yRatio)
+        assertEquals(1200L, action.durationMs)
+        assertTrue(stdout.toString().contains("action: longPress-element"))
+        assertEquals("", stderr.toString())
+    }
+
+    @Test
     fun `debug shell command delegates to shell runner`() {
         var capturedRequest: AppiumDebugShellRequest? = null
         val stdout = StringBuilder()

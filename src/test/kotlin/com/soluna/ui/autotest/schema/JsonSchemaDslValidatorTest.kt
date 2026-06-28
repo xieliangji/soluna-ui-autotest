@@ -559,7 +559,6 @@ class JsonSchemaDslValidatorTest {
                 Path.of("AIot-Tests/apps/com.ugreen.iot/elements/common.yaml"),
             ),
             "/schemas/v1/fragment-catalog.schema.json" to listOf(
-                Path.of("AIot-Tests/apps/com.ugreen.iot/fragments/app-lifecycle.yaml"),
                 Path.of("AIot-Tests/apps/com.ugreen.iot/fragments/app-state.yaml"),
                 Path.of("AIot-Tests/apps/com.ugreen.iot/fragments/device.yaml"),
             ),

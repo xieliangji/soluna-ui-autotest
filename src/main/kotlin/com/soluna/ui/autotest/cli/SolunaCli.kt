@@ -322,7 +322,7 @@ class SolunaCliApplication(
         var startYRatio: Double? = null
         var endXRatio: Double? = null
         var endYRatio: Double? = null
-        var durationMs: Long = 500
+        var durationMs: Long? = null
         var strategy: String? = null
         var locatorValue: String? = null
         var text: String? = null
@@ -480,7 +480,12 @@ class SolunaCliApplication(
                 startYRatio = startYRatio ?: throw CliUsageException("debug swipe requires --start-y-ratio"),
                 endXRatio = endXRatio ?: throw CliUsageException("debug swipe requires --end-x-ratio"),
                 endYRatio = endYRatio ?: throw CliUsageException("debug swipe requires --end-y-ratio"),
-                durationMs = durationMs,
+                durationMs = durationMs ?: 500,
+            )
+            "longPress", "long-press", "longTap", "pressAndHold" -> AppiumDebugAction.LongPress(
+                xRatio = xRatio ?: throw CliUsageException("debug longPress requires --x-ratio"),
+                yRatio = yRatio ?: throw CliUsageException("debug longPress requires --y-ratio"),
+                durationMs = durationMs ?: 1000,
             )
             "tap-element", "tapElement" -> AppiumDebugAction.TapElement(
                 locator = LocatorDefinition(
@@ -489,6 +494,15 @@ class SolunaCliApplication(
                 ),
                 xRatio = elementXRatio,
                 yRatio = elementYRatio,
+            )
+            "longPress-element", "longPressElement", "long-press-element", "longTap-element", "longTapElement" -> AppiumDebugAction.LongPressElement(
+                locator = LocatorDefinition(
+                    strategy = strategy ?: throw CliUsageException("debug longPress-element requires --strategy"),
+                    value = locatorValue ?: throw CliUsageException("debug longPress-element requires --locator"),
+                ),
+                xRatio = elementXRatio,
+                yRatio = elementYRatio,
+                durationMs = durationMs ?: 1000,
             )
             "swipe-element", "swipeElement" -> AppiumDebugAction.SwipeElement(
                 locator = LocatorDefinition(
@@ -499,7 +513,7 @@ class SolunaCliApplication(
                 startYRatio = startYRatio ?: throw CliUsageException("debug swipe-element requires --start-y-ratio"),
                 endXRatio = endXRatio ?: throw CliUsageException("debug swipe-element requires --end-x-ratio"),
                 endYRatio = endYRatio ?: throw CliUsageException("debug swipe-element requires --end-y-ratio"),
-                durationMs = durationMs,
+                durationMs = durationMs ?: 500,
             )
             "input" -> AppiumDebugAction.Input(
                 locator = LocatorDefinition(
@@ -657,6 +671,8 @@ class SolunaCliApplication(
               soluna debug <plan.yaml> screenshot --out <file> [--keep-infra]
               soluna debug <plan.yaml> tap --x-ratio <0..1> --y-ratio <0..1> [--keep-infra]
               soluna debug <plan.yaml> tap-element --strategy <strategy> --locator <value> [--element-x-ratio <0..1>] [--element-y-ratio <0..1>] [--keep-infra]
+              soluna debug <plan.yaml> longPress --x-ratio <0..1> --y-ratio <0..1> [--duration-ms n] [--keep-infra]
+              soluna debug <plan.yaml> longPress-element --strategy <strategy> --locator <value> [--element-x-ratio <0..1>] [--element-y-ratio <0..1>] [--duration-ms n] [--keep-infra]
               soluna debug <plan.yaml> swipe --start-x-ratio <0..1> --start-y-ratio <0..1> --end-x-ratio <0..1> --end-y-ratio <0..1> [--duration-ms n] [--keep-infra]
               soluna debug <plan.yaml> swipe-element --strategy <strategy> --locator <value> --start-x-ratio <0..1> --start-y-ratio <0..1> --end-x-ratio <0..1> --end-y-ratio <0..1> [--duration-ms n] [--keep-infra]
               soluna debug <plan.yaml> input --strategy <strategy> --locator <value> --text <text> [--clear-first true|false] [--keep-infra]
@@ -674,7 +690,7 @@ class SolunaCliApplication(
 
             Debug:
               debug starts a temporary Appium/WDA session from the plan device/app config and runs low-level actions.
-              shell keeps one session alive for step-by-step source/screenshot/tap/swipe/input/template debugging.
+              shell keeps one session alive for step-by-step source/screenshot/tap/longPress/swipe/input/template debugging.
               It does not execute plan setup, cases, reports, uploads, or notifications.
               --roi uses normalized screenshot coordinates: x,y,width,height.
 

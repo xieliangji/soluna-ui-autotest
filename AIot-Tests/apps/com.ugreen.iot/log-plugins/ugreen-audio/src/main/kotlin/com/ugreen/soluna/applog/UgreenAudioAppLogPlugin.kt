@@ -14,35 +14,63 @@ class UgreenAudioAppLogPlugin : AppLogAssertionPlugin {
 
     override fun assertion(name: String): AppLogAssertion? {
         return when (name) {
-            IosBleWriteTriggeredAssertion.name -> IosBleWriteTriggeredAssertion
+            BleWriteTriggeredAssertion.legacyName,
+            BleWriteTriggeredAssertion.name,
+            BleWriteTriggeredAssertion.androidName,
+            -> BleWriteTriggeredAssertion
             else -> null
         }
     }
 }
 
-object IosBleWriteTriggeredAssertion : AppLogAssertion {
-    override val name: String = "ios-ble-write-triggered"
+object BleWriteTriggeredAssertion : AppLogAssertion {
+    const val legacyName: String = "ios-ble-write-triggered"
+    const val androidName: String = "android-ble-write-triggered"
+    override val name: String = "ble-write-triggered"
+
+    private val defaultIosSpec = MatchSpec(
+        containsAll = listOf(
+            "CBMsgIdCharacteristicWriteValue",
+            "Writing value without response",
+            "com.ugreen.iot-central",
+        ),
+        containsAny = emptyList(),
+        regex = null,
+        messageRegex = null,
+        rawRegex = null,
+        caseSensitive = false,
+    )
+
+    private val defaultAndroidSpec = MatchSpec(
+        containsAll = listOf(
+            "[蓝牙下发]",
+            "发送 ble 数据 data:",
+            "[蓝牙上报]",
+            "Payload 已解密",
+        ),
+        containsAny = emptyList(),
+        regex = null,
+        messageRegex = null,
+        rawRegex = null,
+        caseSensitive = false,
+    )
 
     override fun evaluate(input: AppLogAssertionInput): AppLogAssertionResult {
-        if (!input.context.platform.equals("ios", ignoreCase = true)) {
-            return AppLogAssertionResult.failed(
-                "$name is only valid for iOS App log captures; platform=${input.context.platform}",
+        return when (input.context.platform?.lowercase(Locale.ROOT)) {
+            "ios" -> {
+                val spec = MatchSpec.from(input.args) ?: defaultIosSpec
+                evaluateWindow(input, spec, "Matched iOS BLE write trigger")
+            }
+            "android" -> {
+                val spec = MatchSpec.fromPlatform(input.args, "android")
+                    ?: MatchSpec.from(input.args)?.takeUnless { it.sameRequiredTerms(defaultIosSpec) }
+                    ?: defaultAndroidSpec
+                evaluateWindow(input, spec, "Matched Android BLE payload exchange")
+            }
+            else -> AppLogAssertionResult.failed(
+                "$name only supports iOS and Android App log captures; platform=${input.context.platform}",
             )
         }
-        val spec = MatchSpec.from(input.args)
-            ?: MatchSpec(
-                containsAll = listOf(
-                    "CBMsgIdCharacteristicWriteValue",
-                    "Writing value without response",
-                    "com.ugreen.iot-central",
-                ),
-                containsAny = emptyList(),
-                regex = null,
-                messageRegex = null,
-                rawRegex = null,
-                caseSensitive = false,
-            )
-        return evaluateWindow(input, spec, "Matched iOS BLE write trigger")
     }
 }
 
@@ -103,32 +131,58 @@ private data class MatchSpec(
         }.joinToString(", ")
     }
 
+    fun sameRequiredTerms(other: MatchSpec): Boolean {
+        return normalizeList(containsAll) == normalizeList(other.containsAll) &&
+            normalizeList(containsAny) == normalizeList(other.containsAny) &&
+            regex?.pattern == other.regex?.pattern &&
+            messageRegex?.pattern == other.messageRegex?.pattern &&
+            rawRegex?.pattern == other.rawRegex?.pattern
+    }
+
     private fun normalize(value: String): String {
         return if (caseSensitive) value else value.lowercase(Locale.ROOT)
     }
 
+    private fun normalizeList(values: List<String>): List<String> {
+        return values.map { normalize(it) }.sorted()
+    }
+
     companion object {
         fun from(args: JsonNode?): MatchSpec? {
+            return from(args, "")
+        }
+
+        fun fromPlatform(args: JsonNode?, platformPrefix: String): MatchSpec? {
+            return from(args, platformPrefix)
+        }
+
+        private fun from(
+            args: JsonNode?,
+            platformPrefix: String,
+        ): MatchSpec? {
             if (args == null || args.isMissingNode || args.isNull) {
                 return null
             }
-            val caseSensitive = args.path("caseSensitive").takeIf { it.isBoolean }?.asBoolean() ?: false
+            val prefix = platformPrefix.takeIf { it.isNotBlank() } ?: ""
+            val caseSensitive = args.path(key(prefix, "caseSensitive")).takeIf { it.isBoolean }?.asBoolean()
+                ?: args.path("caseSensitive").takeIf { it.isBoolean }?.asBoolean()
+                ?: false
             val regexOptions = if (caseSensitive) setOf(RegexOption.DOT_MATCHES_ALL) else {
                 setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE)
             }
             val containsAll = buildList {
-                addAll(args.path("contains").strings())
-                addAll(args.path("containsAll").strings())
-                args.path("command").textOrNull()?.let { add(it) }
-                args.path("status").textOrNull()?.let { add(it) }
+                addAll(args.path(key(prefix, "contains")).strings())
+                addAll(args.path(key(prefix, "containsAll")).strings())
+                args.path(key(prefix, "command")).textOrNull()?.let { add(it) }
+                args.path(key(prefix, "status")).textOrNull()?.let { add(it) }
             }
-            val containsAny = args.path("containsAny").strings()
+            val containsAny = args.path(key(prefix, "containsAny")).strings()
             val spec = MatchSpec(
                 containsAll = containsAll,
                 containsAny = containsAny,
-                regex = args.path("regex").textOrNull()?.let { Regex(it, regexOptions) },
-                messageRegex = args.path("messageRegex").textOrNull()?.let { Regex(it, regexOptions) },
-                rawRegex = args.path("rawRegex").textOrNull()?.let { Regex(it, regexOptions) },
+                regex = args.path(key(prefix, "regex")).textOrNull()?.let { Regex(it, regexOptions) },
+                messageRegex = args.path(key(prefix, "messageRegex")).textOrNull()?.let { Regex(it, regexOptions) },
+                rawRegex = args.path(key(prefix, "rawRegex")).textOrNull()?.let { Regex(it, regexOptions) },
                 caseSensitive = caseSensitive,
             )
             return spec.takeIf {
@@ -138,6 +192,16 @@ private data class MatchSpec(
                     it.messageRegex != null ||
                     it.rawRegex != null
             }
+        }
+
+        private fun key(
+            prefix: String,
+            field: String,
+        ): String {
+            if (prefix.isBlank()) {
+                return field
+            }
+            return prefix + field.replaceFirstChar { it.titlecase(Locale.ROOT) }
         }
     }
 }

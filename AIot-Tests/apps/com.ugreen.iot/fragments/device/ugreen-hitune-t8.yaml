@@ -1,77 +1,7 @@
 schemaVersion: "1.0"
 id: t8-device-fragments
-description: T8-specific device-list navigation fragments without copy-based locators.
+description: T8-specific device state normalization fragments.
 fragments:
-  loggedInDevicePage:
-    name: Ensure Logged-in T8 Device Page
-    elementRefs:
-      - id: t8
-        file: ../../elements/device/ugreen-hitune-t8.yaml
-    actions:
-      - restartApp:
-          id: restart-for-t8-logged-in-device-page
-          appId: "${app.id}"
-          desc: 重启目标应用
-      - wait:
-          id: wait-after-t8-logged-in-device-page-restart
-          durationMs: 5000
-          desc: 重启后等待启动稳定
-      - assertElementExists:
-          id: assert-t8-device-list-first-card-visible
-          element: t8.deviceListFirstCard
-          desc: 校验设备列表中存在可打开的首个设备卡片
-          wait:
-            timeoutMs: 30000
-            intervalMs: 500
-
-  openTargetDevice:
-    name: Open T8 Target Device
-    elementRefs:
-      - id: t8
-        file: ../../elements/device/ugreen-hitune-t8.yaml
-    actions:
-      - screenshot:
-          id: capture-t8-device-list-first-card-before-open
-          element: t8.deviceListFirstCard
-          resourceId: t8-device-list-first-card-before-open
-          saveAs: t8DeviceListFirstCardBeforeOpenScreenshot
-          desc: 打开设备前保存首个设备卡片截图用于蓝牙连接状态颜色校验
-          wait:
-            timeoutMs: 15000
-            intervalMs: 500
-      - assertImageColorRatio:
-          id: assert-t8-device-list-first-card-before-open-bluetooth-icon-green
-          source: "@{case.t8DeviceListFirstCardBeforeOpenScreenshot}"
-          color: green
-          minRatio: 0.002
-          minPixels: 20
-          desc: 通过设备卡片截图绿色占比确认 T8 处于已连接状态
-      - tap:
-          id: open-t8-device-list-first-card
-          element: t8.deviceListFirstCard
-          desc: 点击设备列表首个设备卡片进入 T8 详情页
-          wait:
-            timeoutMs: 15000
-            intervalMs: 500
-          settleMs: 1000
-      - assertElementExists:
-          id: assert-t8-detail-page-opened
-          element: t8.detailScrollView
-          desc: 校验 T8 详情页滚动容器已出现
-          wait:
-            timeoutMs: 15000
-            intervalMs: 500
-      - tap:
-          id: dismiss-t8-firmware-upgrade-prompt-if-present
-          element: t8.firmwareUpgradeIgnoreButton
-          ignoreMissingElement: true
-          ignoreMissingElementReason: optionalFirmwareUpgradePrompt
-          desc: 固件升级提示弹窗只在有新版本时出现；如出现则点击忽略
-          wait:
-            timeoutMs: 5000
-            intervalMs: 500
-          settleMs: 1000
-
   ensureGameModeOff:
     name: Ensure T8 Game Mode Off
     elementRefs:
@@ -121,4 +51,83 @@ fragments:
           desc: 确认 T8 游戏模式已归一为关闭状态
           wait:
             timeoutMs: 5000
+            intervalMs: 500
+
+  ensureHighQualityCodecOff:
+    name: Ensure T8 High Quality Codec Off
+    elementRefs:
+      - id: t8
+        file: ../../elements/device/ugreen-hitune-t8.yaml
+    actions:
+      - swipe:
+          id: scroll-t8-detail-to-high-quality-codec-for-reset
+          element: t8.detailScrollView
+          startElementXRatio: 0.50
+          startElementYRatio: 0.83
+          endElementXRatio: 0.50
+          endElementYRatio: 0.42
+          durationMs: 500
+          desc: 在详情页滚动露出 T8 高音质解码入口用于状态归一
+      - tap:
+          id: dismiss-t8-firmware-upgrade-prompt-before-high-quality-reset-if-present
+          element: t8.firmwareUpgradeIgnoreButton
+          ignoreMissingElement: true
+          ignoreMissingElementReason: optionalFirmwareUpgradePrompt
+          desc: 状态归一前固件升级提示可能出现；如出现则点击忽略
+          wait:
+            timeoutMs: 5000
+            intervalMs: 500
+          settleMs: 1000
+      - tap:
+          id: open-t8-high-quality-codec-page-for-reset
+          element: t8.highQualityCodecEntry
+          desc: 打开 T8 高音质解码页检查初始状态
+          settleMs: 1000
+          wait:
+            timeoutMs: 5000
+            intervalMs: 500
+      - assertElementExists:
+          id: assert-t8-high-quality-codec-switch-visible-for-reset
+          element: t8.highQualityCodecSwitch
+          desc: 确认高音质解码页已打开并显示开关
+          wait:
+            timeoutMs: 5000
+            intervalMs: 500
+      - if:
+          assertElementAttrEquals: detect-t8-high-quality-codec-on-before-reset
+          element: t8.highQualityCodecSwitch
+          attr: value
+          expected: "1"
+          desc: 检测 T8 高音质解码当前是否已开启
+        then:
+          - tap:
+              id: turn-t8-high-quality-codec-off-before-case
+              element: t8.highQualityCodecSwitch
+              desc: 若高音质解码已开启则先关闭；Android 会断开重连并自动回详情页
+              settleMs: 3000
+              wait:
+                timeoutMs: 5000
+                intervalMs: 500
+          - assertElementExists:
+              id: assert-t8-high-quality-entry-visible-after-reset-off
+              element: t8.highQualityCodecEntry
+              desc: 确认关闭高音质解码后已自动回到详情页并恢复连接
+              wait:
+                timeoutMs: 30000
+                intervalMs: 1000
+        else:
+          - tap:
+              id: back-from-t8-high-quality-codec-page-after-reset-check
+              element: t8.morePageBackButton
+              desc: 高音质解码已关闭时返回详情页继续正式用例
+              settleMs: 1000
+              wait:
+                timeoutMs: 5000
+                intervalMs: 500
+      - assertElementExists:
+          id: assert-t8-high-quality-entry-visible-after-reset
+          element: t8.highQualityCodecEntry
+          desc: 确认高音质解码状态归一后停留在详情页
+          wait:
+            timeoutMs: 10000
             intervalMs: 500

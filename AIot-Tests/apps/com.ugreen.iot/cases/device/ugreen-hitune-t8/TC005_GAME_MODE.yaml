@@ -9,7 +9,7 @@ elementRefs:
     file: ../../../elements/device/ugreen-hitune-t8.yaml
 setupFragments:
   - device.openTargetDevice
-  - device.ensureGameModeOff
+  - t8Device.ensureGameModeOff
 actions:
   - captureAppLogStart:
       id: start-t8-game-mode-app-log

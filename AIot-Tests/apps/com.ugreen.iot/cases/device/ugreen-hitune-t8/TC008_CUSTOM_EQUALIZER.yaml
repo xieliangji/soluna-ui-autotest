@@ -39,10 +39,10 @@ actions:
         intervalMs: 500
   - tapPosition:
       id: open-t8-custom-equalizer-page
-      element: t8.equalizerCustomEntry
+      element: t8.equalizerCustomOpenTarget
       xRatio: 0.50
-      yRatio: 0.82
-      desc: 点击 T8 均衡器页最后一个自定义入口进入自定义均衡器
+      yRatio: 0.50
+      desc: 点击 T8 均衡器页新增自定义入口进入自定义均衡器编辑页
       settleMs: 1000
       wait:
         timeoutMs: 5000
@@ -113,10 +113,10 @@ actions:
         containsAll: "${device.log.iosBleWriteContainsAll}"
   - tapPosition:
       id: reopen-t8-custom-equalizer-page-before-delete
-      element: t8.equalizerCustomEntry
+      element: t8.equalizerCustomNameText
       xRatio: 0.50
-      yRatio: 0.82
-      desc: 保存后从均衡器列表重新进入最后一个自定义均衡器用于清理
+      yRatio: 0.50
+      desc: 保存后从均衡器列表重新点击最后一个自定义名称文本用于清理
       settleMs: 1000
       wait:
         timeoutMs: 5000
@@ -149,8 +149,8 @@ actions:
   - tapVisualTemplate:
       id: tap-t8-custom-equalizer-delete-icon
       template: "${device.visualTemplates.customEqualizerDeleteIcon}"
-      threshold: 0.72
-      scales: [0.8, 0.9, 1.0, 1.1, 1.2]
+      threshold: 0.55
+      scales: [0.35, 0.4, 0.45, 0.5, 0.6, 0.8, 0.9, 1.0, 1.1, 1.2]
       roi: "@{case.t8CustomEqualizerNameRowDeleteRoi}"
       desc: 在自定义均衡器名称行 ROI 内匹配并点击删除图标
       settleMs: 1000

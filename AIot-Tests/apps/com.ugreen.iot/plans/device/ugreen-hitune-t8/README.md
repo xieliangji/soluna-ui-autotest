@@ -20,6 +20,17 @@ Formal run plans for `UGREEN HiTune T8` live here.
   `build/soluna-runs/t8-custom-control-debug-20260626-005/report/index.html`,
   status passed for `TC014` double tap, `TC015` single tap, `TC016` triple tap,
   and `TC017` long press; uploads `uploaded=7, failed=0, abandoned=0`.
+- `android.yaml`: Android real-device regression for the validated T8 cases.
+  It runs Android-only high-quality codec coverage first, then the shared T8
+  cases TC002-TC017, and still skips noise control. High-quality codec must end
+  off before the remaining cases run. Focused verification:
+  `android-t8-high-quality-debug-20260628-003`, report
+  `build/soluna-runs/android-t8-high-quality-debug-20260628-003/report/index.html`,
+  status passed, uploads `uploaded=9, failed=0, abandoned=0`.
+  Latest full-plan verification:
+  `android-t8-full-20260628-003`, report
+  `build/soluna-runs/android-t8-full-20260628-003/report/index.html`, status
+  passed, uploads `uploaded=44, failed=0, abandoned=0`.
 
 Focused or temporary debug plans belong in `../../debug/`. Public app-wide and
 cross-model plans belong in `../../common/`.

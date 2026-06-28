@@ -6,52 +6,128 @@ elements:
     ios:
       strategy: xpath
       value: "(//XCUIElementTypeTable[@visible='true']/XCUIElementTypeCell[@visible='true'])[1]"
+    android:
+      strategy: xpath
+      value: "(//*[@resource-id='com.ugreen.iot:id/rvDevices']/*[@clickable='true' and @long-clickable='true'])[1]"
   detailScrollView:
     ios:
       strategy: xpath
       value: "(//XCUIElementTypeScrollView[@visible='true'])[1]"
+    android:
+      strategy: xpath
+      value: "(//android.widget.ScrollView[@scrollable='true'])[1]"
   firmwareUpgradeIgnoreButton:
     hardcodedTextReason: language_insensitive_text
     ios:
       strategy: xpath
       value: "((//XCUIElementTypeOther[@visible='true' and @accessible='false' and ./XCUIElementTypeStaticText[@visible='true' and (contains(string(@name),'V') or contains(string(@label),'V') or contains(string(@value),'V'))] and ./XCUIElementTypeOther/XCUIElementTypeScrollView[@visible='true'] and count(./XCUIElementTypeOther[@visible='true' and @accessible='true']) = 2])[last()]/XCUIElementTypeOther[@visible='true' and @accessible='true'])[1]"
+    android:
+      strategy: xpath
+      value: "(//android.view.ViewGroup[./android.widget.TextView[contains(@text,'V')] and ./android.widget.ScrollView and count(./android.view.ViewGroup[@clickable='true']) >= 2]/android.view.ViewGroup[@clickable='true'])[1]"
   findEarbudsEntry:
     ios:
       strategy: xpath
       value: "(//XCUIElementTypeScrollView[@visible='true']//XCUIElementTypeOther[@visible='true' and @accessible='true' and not(ancestor::XCUIElementTypeButton)])[last()]"
+    android:
+      strategy: xpath
+      value: "(//android.widget.ScrollView[@scrollable='true']//android.view.ViewGroup[@clickable='true'])[last()]"
   findEarbudsRouteMap:
     ios:
       strategy: class
       value: XCUIElementTypeMap
+    android:
+      strategy: xpath
+      value: "(//android.view.View[@displayed='true' and not(ancestor::android.widget.ScrollView[@scrollable='true'])])[last()]"
   musicModeBassBoost:
     ios:
       strategy: xpath
       value: "((//XCUIElementTypeScrollView[@visible='true']//XCUIElementTypeOther[@visible='true' and @accessible='false' and ./XCUIElementTypeStaticText[@visible='true'] and count(./XCUIElementTypeOther[@visible='true' and @accessible='true']) = 3])[2]/XCUIElementTypeOther[@visible='true' and @accessible='true'])[2]"
+    android:
+      strategy: xpath
+      value: "((//android.widget.ScrollView[@scrollable='true']//android.view.ViewGroup[count(./android.view.ViewGroup[@clickable='true']) = 3])[2]/android.view.ViewGroup[@clickable='true'])[2]"
   musicModeSpatial:
     ios:
       strategy: xpath
       value: "((//XCUIElementTypeScrollView[@visible='true']//XCUIElementTypeOther[@visible='true' and @accessible='false' and ./XCUIElementTypeStaticText[@visible='true'] and count(./XCUIElementTypeOther[@visible='true' and @accessible='true']) = 3])[2]/XCUIElementTypeOther[@visible='true' and @accessible='true'])[3]"
+    android:
+      strategy: xpath
+      value: "((//android.widget.ScrollView[@scrollable='true']//android.view.ViewGroup[count(./android.view.ViewGroup[@clickable='true']) = 3])[2]/android.view.ViewGroup[@clickable='true'])[3]"
   gameModeSwitch:
     ios:
       strategy: xpath
       value: "(//XCUIElementTypeScrollView[@visible='true']//XCUIElementTypeOther[@visible='true' and @accessible='false' and .//XCUIElementTypeSwitch[@visible='true' and @accessible='true'] and count(./XCUIElementTypeOther[@visible='true' and @accessible='true']) >= 2])[last()]//XCUIElementTypeSwitch[@visible='true' and @accessible='true']"
+    android:
+      strategy: xpath
+      value: "(//android.widget.ScrollView[@scrollable='true']//android.widget.Switch[@clickable='true'])[1]"
   equalizerEntry:
     ios:
       strategy: xpath
       value: "((//XCUIElementTypeScrollView[@visible='true']//XCUIElementTypeOther[@visible='true' and @accessible='false' and .//XCUIElementTypeSwitch[@visible='true' and @accessible='true'] and count(./XCUIElementTypeOther[@visible='true' and @accessible='true']) >= 2])[last()]/XCUIElementTypeOther[@visible='true' and @accessible='true'])[1]"
+    android:
+      strategy: xpath
+      value: "(//android.widget.ScrollView[@scrollable='true']//android.view.ViewGroup[@clickable='true'])[9]"
+  highQualityCodecEntry:
+    android:
+      strategy: xpath
+      value: "(//android.widget.ScrollView[@scrollable='true']//android.view.ViewGroup[@clickable='true'])[10]"
+  highQualityCodecSwitch:
+    android:
+      strategy: xpath
+      value: "(//android.widget.Switch[@clickable='true'])[1]"
+  highQualityConflictConfirmButton:
+    hardcodedTextReason: language_insensitive_text
+    android:
+      strategy: xpath
+      value: "//android.widget.TextView[@text='我知道了']"
+  highQualitySpatialConflictMessage:
+    hardcodedTextReason: language_insensitive_text
+    android:
+      strategy: xpath
+      value: "//android.widget.TextView[contains(@text,'开启前') and contains(@text,'高音质解码')]"
+  highQualityGameConflictMessage:
+    hardcodedTextReason: language_insensitive_text
+    android:
+      strategy: xpath
+      value: "//android.widget.TextView[contains(@text,'游戏模式') and contains(@text,'高音质解码')]"
   dualConnectEntry:
     ios:
       strategy: xpath
       value: "((//XCUIElementTypeScrollView[@visible='true']//XCUIElementTypeOther[@visible='true' and @accessible='false' and .//XCUIElementTypeSwitch[@visible='true' and @accessible='true'] and count(./XCUIElementTypeOther[@visible='true' and @accessible='true']) >= 2])[last()]/XCUIElementTypeOther[@visible='true' and @accessible='true'])[2]"
+    android:
+      strategy: xpath
+      value: "(//android.widget.ScrollView[@scrollable='true']//android.view.ViewGroup[@clickable='true'])[11]"
   equalizerElectronicPreset:
     ios:
       strategy: xpath
       value: "(//XCUIElementTypeScrollView[@visible='true']//XCUIElementTypeOther[@visible='true' and @accessible='true'])[4]"
+    android:
+      strategy: xpath
+      value: "(//android.widget.ScrollView[@scrollable='true']//android.view.ViewGroup[@clickable='true'])[4]"
   equalizerBassBoostPreset:
     ios:
       strategy: xpath
       value: "(//XCUIElementTypeScrollView[@visible='true']//XCUIElementTypeOther[@visible='true' and @accessible='true'])[7]"
+    android:
+      strategy: xpath
+      value: "(//android.widget.ScrollView[@scrollable='true']//android.view.ViewGroup[@clickable='true'])[7]"
   equalizerCustomEntry:
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeScrollView[@visible='true']//XCUIElementTypeOther[@visible='true' and @accessible='true'])[last()]"
+    android:
+      strategy: xpath
+      value: "(//android.widget.ScrollView[@scrollable='true']//android.view.ViewGroup[@clickable='true'])[last()]"
+  equalizerCustomOpenTarget:
+    android:
+      strategy: xpath
+      value: "(//android.widget.ScrollView[@scrollable='true']//android.view.ViewGroup[@clickable='true' and .//com.horcrux.svg.SvgView and not(.//android.widget.TextView) and count(preceding-sibling::android.view.ViewGroup[@clickable='true']) >= 8])[last()]"
+    ios:
+      strategy: xpath
+      value: "(//XCUIElementTypeScrollView[@visible='true']//XCUIElementTypeOther[@visible='true' and @accessible='true'])[last()]"
+  equalizerCustomNameText:
+    android:
+      strategy: xpath
+      value: "((//android.widget.ScrollView[@scrollable='true']//android.view.ViewGroup[@clickable='true' and .//android.widget.TextView and .//com.horcrux.svg.SvgView and count(preceding-sibling::android.view.ViewGroup[@clickable='true']) >= 8])[last()]//android.widget.TextView)"
     ios:
       strategy: xpath
       value: "(//XCUIElementTypeScrollView[@visible='true']//XCUIElementTypeOther[@visible='true' and @accessible='true'])[last()]"
@@ -59,171 +135,300 @@ elements:
     ios:
       strategy: xpath
       value: "(//XCUIElementTypeScrollView[@visible='true']//XCUIElementTypeStaticText[@visible='true' and following::XCUIElementTypeOther[@visible='true' and @accessible='true'] and following::XCUIElementTypeButton[@visible='true' and @accessible='true']])[1]"
+    android:
+      strategy: xpath
+      value: "(//android.widget.ScrollView[@scrollable='true']//android.view.ViewGroup[@index='5' and not(@clickable='true')])[last()]"
   customEqualizerNameRow:
     ios:
       strategy: xpath
       value: "(//XCUIElementTypeScrollView[@visible='true']//XCUIElementTypeOther[@visible='true' and @accessible='true'])[1]"
+    android:
+      strategy: xpath
+      value: "(//android.widget.ScrollView[@scrollable='true']//android.view.ViewGroup[@clickable='true'])[1]"
   customEqualizerFirstBandTouchArea:
     ios:
       strategy: xpath
       value: "(//XCUIElementTypeScrollView[@visible='true']//XCUIElementTypeOther[@visible='true' and @accessible='false' and not(*) and preceding-sibling::XCUIElementTypeOther[@visible='true' and @accessible='false' and count(./XCUIElementTypeOther[@visible='true' and @accessible='false']) = 8]])[1]"
+    android:
+      strategy: xpath
+      value: "(//android.widget.ScrollView[@scrollable='true']//android.view.ViewGroup[@index='5' and not(@clickable='true')])[last()]"
   customEqualizerSaveButton:
     ios:
       strategy: xpath
       value: "(//XCUIElementTypeButton[@visible='true' and @accessible='true'])[last()]"
+    android:
+      strategy: xpath
+      value: "(//android.widget.Button[@clickable='true'])[last()]"
   customEqualizerResetButton:
     ios:
       strategy: xpath
       value: "(//XCUIElementTypeButton[@visible='true' and @accessible='true'])[last()-1]"
+    android:
+      strategy: xpath
+      value: "(//android.widget.Button[@clickable='true'])[last()-1]"
   customEqualizerDeleteConfirmButton:
     ios:
       strategy: xpath
       value: "((//XCUIElementTypeOther[@visible='true' and @accessible='false' and ./XCUIElementTypeStaticText[@visible='true'] and count(./XCUIElementTypeOther[@visible='true' and @accessible='true']) >= 2])[last()]/XCUIElementTypeOther[@visible='true' and @accessible='true'])[last()]"
+    android:
+      strategy: xpath
+      value: "(//android.view.ViewGroup[./android.widget.ScrollView and count(./android.view.ViewGroup[@clickable='true']) >= 2]/android.view.ViewGroup[@clickable='true'])[last()]"
   dualConnectSwitch:
     ios:
       strategy: xpath
       value: "(//XCUIElementTypeSwitch[@visible='true' and @accessible='true'])[1]"
+    android:
+      strategy: xpath
+      value: "(//android.widget.Switch[@clickable='true'])[1]"
   moreButton:
     ios:
       strategy: xpath
       value: "(//XCUIElementTypeOther[@visible='true' and @accessible='true' and not(string(@name)) and not(string(@label)) and not(string(@value))])[last()]"
+    android:
+      strategy: xpath
+      value: "(//android.view.ViewGroup[@clickable='true' and not(ancestor::android.widget.ScrollView[@scrollable='true'])])[last()]"
   morePageBackButton:
     ios:
       strategy: xpath
       value: "(//XCUIElementTypeOther[@visible='true' and @accessible='false' and not(ancestor::XCUIElementTypeScrollView)]/XCUIElementTypeOther[@visible='true' and @accessible='true' and not(string(@name)) and not(string(@label)) and not(string(@value))])[1]"
+    android:
+      strategy: xpath
+      value: "(//android.view.ViewGroup[@clickable='true' and not(ancestor::android.widget.ScrollView[@scrollable='true'])])[1]"
   morePageTopBar:
     ios:
       strategy: xpath
       value: "(//XCUIElementTypeOther[@visible='true' and @accessible='false' and not(ancestor::XCUIElementTypeScrollView) and ./XCUIElementTypeOther[@visible='true' and @accessible='true' and not(string(@name)) and not(string(@label)) and not(string(@value))]])[last()]"
+    android:
+      strategy: xpath
+      value: "(//android.view.ViewGroup[./android.view.ViewGroup[@clickable='true'] and not(ancestor::android.widget.ScrollView[@scrollable='true'])])[last()]"
   moreDeviceNameRow:
     ios:
       strategy: xpath
       value: "(//XCUIElementTypeScrollView[@visible='true']//XCUIElementTypeOther[@visible='true' and @accessible='true' and string(@name)!=''])[1]"
+    android:
+      strategy: xpath
+      value: "(//android.widget.ScrollView[@scrollable='true']//android.view.ViewGroup[@clickable='true'])[1]"
   morePrimarySettingsGroup:
     ios:
       strategy: xpath
       value: "(//XCUIElementTypeScrollView[@visible='true']//XCUIElementTypeOther[@visible='true' and @accessible='false' and count(./XCUIElementTypeOther[@visible='true' and @accessible='true']) >= 2])[1]"
+    android:
+      strategy: xpath
+      value: "(//android.widget.ScrollView[@scrollable='true']//android.view.ViewGroup[count(./android.view.ViewGroup[@clickable='true']) >= 2])[1]"
   renameDialogInputContainer:
     ios:
       strategy: xpath
       value: "((//XCUIElementTypeOther[@visible='true' and @accessible='true' and not(string(@name)) and not(string(@label)) and not(string(@value)) and preceding-sibling::XCUIElementTypeStaticText and following-sibling::XCUIElementTypeOther//XCUIElementTypeScrollView[@visible='true']])[1]/following-sibling::XCUIElementTypeOther//XCUIElementTypeScrollView[@visible='true']//XCUIElementTypeOther[@visible='true' and @accessible='true'])[1]"
+    android:
+      strategy: xpath
+      value: "(//android.widget.EditText)[1]"
   renameDialogCloseButton:
     ios:
       strategy: xpath
       value: "(//XCUIElementTypeOther[@visible='true' and @accessible='true' and not(string(@name)) and not(string(@label)) and not(string(@value)) and preceding-sibling::XCUIElementTypeStaticText and following-sibling::XCUIElementTypeOther//XCUIElementTypeScrollView[@visible='true']])[1]"
+    android:
+      strategy: xpath
+      value: "(//android.view.ViewGroup[.//android.widget.EditText]//android.view.ViewGroup[@clickable='true'])[1]"
   renameDialogConfirmButton:
     ios:
       strategy: xpath
       value: "((//XCUIElementTypeOther[@visible='true' and @accessible='true' and not(string(@name)) and not(string(@label)) and not(string(@value)) and preceding-sibling::XCUIElementTypeStaticText and following-sibling::XCUIElementTypeOther//XCUIElementTypeScrollView[@visible='true']])[1]/following-sibling::XCUIElementTypeOther[@visible='true' and @accessible='true' and string(@name)!=''])[last()]"
+    android:
+      strategy: xpath
+      value: "(//android.view.ViewGroup[.//android.widget.EditText]//android.view.ViewGroup[@clickable='true'])[last()]"
   renameDialogCancelButton:
     ios:
       strategy: xpath
       value: "(//XCUIElementTypeOther[@visible='true' and @accessible='true' and not(string(@name)) and not(string(@label)) and not(string(@value)) and preceding-sibling::XCUIElementTypeStaticText and following-sibling::XCUIElementTypeOther//XCUIElementTypeScrollView[@visible='true']])[1]"
+    android:
+      strategy: xpath
+      value: "(//android.view.ViewGroup[.//android.widget.EditText]//android.view.ViewGroup[@clickable='true'])[1]"
   morePromptSoundRow:
     ios:
       strategy: xpath
       value: "(//XCUIElementTypeScrollView[@visible='true']//XCUIElementTypeOther[@visible='true' and @accessible='true' and string(@name)!=''])[2]"
+    android:
+      strategy: xpath
+      value: "(//android.widget.ScrollView[@scrollable='true']//android.view.ViewGroup[@clickable='true'])[2]"
   promptSoundChineseOption:
     ios:
       strategy: xpath
       value: "(//XCUIElementTypeScrollView[@visible='true']//XCUIElementTypeOther[@visible='true' and @accessible='true' and string(@name)!=''])[1]"
+    android:
+      strategy: xpath
+      value: "(//android.widget.ScrollView[@scrollable='true']//android.view.ViewGroup[@clickable='true'])[1]"
   promptSoundRingOption:
     ios:
       strategy: xpath
       value: "(//XCUIElementTypeScrollView[@visible='true']//XCUIElementTypeOther[@visible='true' and @accessible='true' and string(@name)!=''])[2]"
+    android:
+      strategy: xpath
+      value: "(//android.widget.ScrollView[@scrollable='true']//android.view.ViewGroup[@clickable='true'])[2]"
   promptSoundVolumeSlider:
     ios:
       strategy: xpath
       value: "(//XCUIElementTypeScrollView[@visible='true']//XCUIElementTypeOther[@visible='true' and @accessible='false' and not(*)])[1]"
+    android:
+      strategy: xpath
+      value: "(//android.widget.ScrollView[@scrollable='true']//android.view.ViewGroup[not(@clickable='true') and count(.//android.widget.TextView)=0 and count(.//android.view.ViewGroup) >= 3])[last()]"
   moreUserManualRow:
     ios:
       strategy: xpath
       value: "(//XCUIElementTypeScrollView[@visible='true']//XCUIElementTypeOther[@visible='true' and @accessible='true' and string(@name)!=''])[3]"
+    android:
+      strategy: xpath
+      value: "(//android.widget.ScrollView[@scrollable='true']//android.view.ViewGroup[@clickable='true'])[3]"
   userManualBackButton:
     ios:
       strategy: xpath
       value: "(//XCUIElementTypeOther[@visible='true' and @accessible='true' and not(string(@name)) and not(string(@label)) and not(string(@value))])[1]"
+    android:
+      strategy: xpath
+      value: "(//android.view.ViewGroup[@clickable='true' and not(ancestor::android.widget.ScrollView[@scrollable='true'])])[1]"
   moreCustomControlRow:
     ios:
       strategy: xpath
       value: "(//XCUIElementTypeScrollView[@visible='true']//XCUIElementTypeOther[@visible='true' and @accessible='true' and string(@name)!=''])[4]"
+    android:
+      strategy: xpath
+      value: "(//android.widget.ScrollView[@scrollable='true']//android.view.ViewGroup[@clickable='true'])[4]"
   customControlLeftTab:
     ios:
       strategy: xpath
       value: "(//XCUIElementTypeOther[@visible='true' and @accessible='false' and count(./XCUIElementTypeOther[@visible='true' and @accessible='true']) = 2]/XCUIElementTypeOther[@visible='true' and @accessible='true'])[1]"
+    android:
+      strategy: xpath
+      value: "(//android.view.ViewGroup[count(./android.view.ViewGroup[@clickable='true']) = 2]/android.view.ViewGroup[@clickable='true'])[1]"
   customControlRightTab:
     ios:
       strategy: xpath
       value: "(//XCUIElementTypeOther[@visible='true' and @accessible='false' and count(./XCUIElementTypeOther[@visible='true' and @accessible='true']) = 2]/XCUIElementTypeOther[@visible='true' and @accessible='true'])[2]"
+    android:
+      strategy: xpath
+      value: "(//android.view.ViewGroup[count(./android.view.ViewGroup[@clickable='true']) = 2]/android.view.ViewGroup[@clickable='true'])[2]"
   customControlGesturePanel:
     ios:
       strategy: xpath
       value: "(//XCUIElementTypeOther[@visible='true' and @accessible='false' and count(./XCUIElementTypeOther[@visible='true' and @accessible='true']) = 4])[last()]"
+    android:
+      strategy: xpath
+      value: "(//android.view.ViewGroup[count(./android.view.ViewGroup[@clickable='true']) = 4])[last()]"
   customControlSingleTapRow:
     ios:
       strategy: xpath
       value: "(//XCUIElementTypeOther[@visible='true' and @accessible='false' and count(./XCUIElementTypeOther[@visible='true' and @accessible='true']) = 4])[last()]/XCUIElementTypeOther[@visible='true' and @accessible='true'][1]"
+    android:
+      strategy: xpath
+      value: "(//android.view.ViewGroup[count(./android.view.ViewGroup[@clickable='true']) = 4])[last()]/android.view.ViewGroup[@clickable='true'][1]"
   customControlDoubleTapRow:
     ios:
       strategy: xpath
       value: "(//XCUIElementTypeOther[@visible='true' and @accessible='false' and count(./XCUIElementTypeOther[@visible='true' and @accessible='true']) = 4])[last()]/XCUIElementTypeOther[@visible='true' and @accessible='true'][2]"
+    android:
+      strategy: xpath
+      value: "(//android.view.ViewGroup[count(./android.view.ViewGroup[@clickable='true']) = 4])[last()]/android.view.ViewGroup[@clickable='true'][2]"
   customControlTripleTapRow:
     ios:
       strategy: xpath
       value: "(//XCUIElementTypeOther[@visible='true' and @accessible='false' and count(./XCUIElementTypeOther[@visible='true' and @accessible='true']) = 4])[last()]/XCUIElementTypeOther[@visible='true' and @accessible='true'][3]"
+    android:
+      strategy: xpath
+      value: "(//android.view.ViewGroup[count(./android.view.ViewGroup[@clickable='true']) = 4])[last()]/android.view.ViewGroup[@clickable='true'][3]"
   customControlLongPressRow:
     ios:
       strategy: xpath
       value: "(//XCUIElementTypeOther[@visible='true' and @accessible='false' and count(./XCUIElementTypeOther[@visible='true' and @accessible='true']) = 4])[last()]/XCUIElementTypeOther[@visible='true' and @accessible='true'][4]"
+    android:
+      strategy: xpath
+      value: "(//android.view.ViewGroup[count(./android.view.ViewGroup[@clickable='true']) = 4])[last()]/android.view.ViewGroup[@clickable='true'][4]"
   customControlOptionCloseButton:
     ios:
       strategy: xpath
       value: "(//XCUIElementTypeOther[@visible='true' and @accessible='false' and ./XCUIElementTypeStaticText[@visible='true'] and ./XCUIElementTypeOther[@visible='true' and @accessible='true' and not(string(@name)) and not(string(@label)) and not(string(@value))] and count(./XCUIElementTypeOther[@visible='true' and @accessible='true' and string(@name)!='']) >= 2])[last()]/XCUIElementTypeOther[@visible='true' and @accessible='true' and not(string(@name)) and not(string(@label)) and not(string(@value))][1]"
+    android:
+      strategy: xpath
+      value: "(//android.view.ViewGroup[./android.widget.TextView and count(./android.view.ViewGroup[@clickable='true']) >= 2])[last()]/android.view.ViewGroup[@clickable='true'][1]"
   customControlOptionSheet:
     ios:
       strategy: xpath
       value: "(//XCUIElementTypeOther[@visible='true' and @accessible='false' and ./XCUIElementTypeStaticText[@visible='true'] and ./XCUIElementTypeOther[@visible='true' and @accessible='true' and not(string(@name)) and not(string(@label)) and not(string(@value))] and count(./XCUIElementTypeOther[@visible='true' and @accessible='true' and string(@name)!='']) >= 2])[last()]"
+    android:
+      strategy: xpath
+      value: "(//android.view.ViewGroup[./android.widget.TextView and count(./android.view.ViewGroup[@clickable='true']) >= 2])[last()]"
   customControlOptionFirst:
     ios:
       strategy: xpath
       value: "(//XCUIElementTypeOther[@visible='true' and @accessible='false' and ./XCUIElementTypeStaticText[@visible='true'] and ./XCUIElementTypeOther[@visible='true' and @accessible='true' and not(string(@name)) and not(string(@label)) and not(string(@value))] and count(./XCUIElementTypeOther[@visible='true' and @accessible='true' and string(@name)!='']) >= 2])[last()]/XCUIElementTypeOther[@visible='true' and @accessible='true' and string(@name)!=''][1]"
+    android:
+      strategy: xpath
+      value: "(//android.view.ViewGroup[./android.widget.TextView and count(./android.view.ViewGroup[@clickable='true']) >= 2])[last()]/android.view.ViewGroup[@clickable='true'][1]"
   customControlOptionSecond:
     ios:
       strategy: xpath
       value: "(//XCUIElementTypeOther[@visible='true' and @accessible='false' and ./XCUIElementTypeStaticText[@visible='true'] and ./XCUIElementTypeOther[@visible='true' and @accessible='true' and not(string(@name)) and not(string(@label)) and not(string(@value))] and count(./XCUIElementTypeOther[@visible='true' and @accessible='true' and string(@name)!='']) >= 2])[last()]/XCUIElementTypeOther[@visible='true' and @accessible='true' and string(@name)!=''][2]"
+    android:
+      strategy: xpath
+      value: "(//android.view.ViewGroup[./android.widget.TextView and count(./android.view.ViewGroup[@clickable='true']) >= 2])[last()]/android.view.ViewGroup[@clickable='true'][2]"
   customControlOptionThird:
     ios:
       strategy: xpath
       value: "(//XCUIElementTypeOther[@visible='true' and @accessible='false' and ./XCUIElementTypeStaticText[@visible='true'] and ./XCUIElementTypeOther[@visible='true' and @accessible='true' and not(string(@name)) and not(string(@label)) and not(string(@value))] and count(./XCUIElementTypeOther[@visible='true' and @accessible='true' and string(@name)!='']) >= 3])[last()]/XCUIElementTypeOther[@visible='true' and @accessible='true' and string(@name)!=''][3]"
+    android:
+      strategy: xpath
+      value: "(//android.view.ViewGroup[./android.widget.TextView and count(./android.view.ViewGroup[@clickable='true']) >= 3])[last()]/android.view.ViewGroup[@clickable='true'][3]"
   customControlOptionFourth:
     ios:
       strategy: xpath
       value: "(//XCUIElementTypeOther[@visible='true' and @accessible='false' and ./XCUIElementTypeStaticText[@visible='true'] and ./XCUIElementTypeOther[@visible='true' and @accessible='true' and not(string(@name)) and not(string(@label)) and not(string(@value))] and count(./XCUIElementTypeOther[@visible='true' and @accessible='true' and string(@name)!='']) >= 4])[last()]/XCUIElementTypeOther[@visible='true' and @accessible='true' and string(@name)!=''][4]"
+    android:
+      strategy: xpath
+      value: "(//android.view.ViewGroup[./android.widget.TextView and count(./android.view.ViewGroup[@clickable='true']) >= 4])[last()]/android.view.ViewGroup[@clickable='true'][4]"
   customControlOptionFifth:
     ios:
       strategy: xpath
       value: "(//XCUIElementTypeOther[@visible='true' and @accessible='false' and ./XCUIElementTypeStaticText[@visible='true'] and ./XCUIElementTypeOther[@visible='true' and @accessible='true' and not(string(@name)) and not(string(@label)) and not(string(@value))] and count(./XCUIElementTypeOther[@visible='true' and @accessible='true' and string(@name)!='']) >= 5])[last()]/XCUIElementTypeOther[@visible='true' and @accessible='true' and string(@name)!=''][5]"
+    android:
+      strategy: xpath
+      value: "(//android.view.ViewGroup[./android.widget.TextView and count(./android.view.ViewGroup[@clickable='true']) >= 5])[last()]/android.view.ViewGroup[@clickable='true'][5]"
   moreDeleteDeviceRow:
     ios:
       strategy: xpath
       value: "(//XCUIElementTypeScrollView[@visible='true']//XCUIElementTypeOther[@visible='true' and @accessible='true' and string(@name)!='' and not(ancestor::XCUIElementTypeButton)])[last()]"
+    android:
+      strategy: xpath
+      value: "(//android.widget.ScrollView[@scrollable='true']//android.view.ViewGroup[@clickable='true'])[7]"
   moreDisconnectButton:
     ios:
       strategy: xpath
       value: "(//XCUIElementTypeButton[@visible='true' and @accessible='true'])[last()]"
+    android:
+      strategy: xpath
+      value: "(//android.widget.Button[@clickable='true'])[last()]"
   moreDialogCancelButton:
     ios:
       strategy: xpath
       value: "((//XCUIElementTypeOther[@visible='true' and @accessible='false' and ./XCUIElementTypeStaticText[@visible='true'] and ./XCUIElementTypeOther/XCUIElementTypeScrollView[@visible='true'] and count(./XCUIElementTypeOther[@visible='true' and @accessible='true']) >= 2])[last()]/XCUIElementTypeOther[@visible='true' and @accessible='true'])[1]"
+    android:
+      strategy: xpath
+      value: "(//android.view.ViewGroup[./android.widget.ScrollView and count(./android.view.ViewGroup[@clickable='true']) >= 2]/android.view.ViewGroup[@clickable='true'])[1]"
   moreDialogConfirmButton:
     ios:
       strategy: xpath
       value: "((//XCUIElementTypeOther[@visible='true' and @accessible='false' and ./XCUIElementTypeStaticText[@visible='true'] and ./XCUIElementTypeOther/XCUIElementTypeScrollView[@visible='true'] and count(./XCUIElementTypeOther[@visible='true' and @accessible='true']) >= 2])[last()]/XCUIElementTypeOther[@visible='true' and @accessible='true'])[2]"
+    android:
+      strategy: xpath
+      value: "(//android.view.ViewGroup[./android.widget.ScrollView and count(./android.view.ViewGroup[@clickable='true']) >= 2]/android.view.ViewGroup[@clickable='true'])[2]"
   detailDisconnectedText:
     ios:
       strategy: xpath
       value: "(//XCUIElementTypeButton[@visible='true' and @accessible='true'])[last()]"
+    android:
+      strategy: xpath
+      value: "(//android.widget.Button[@clickable='true'])[last()]"
   detailConnectButton:
     ios:
       strategy: xpath
       value: "(//XCUIElementTypeButton[@visible='true' and @accessible='true'])[last()]"
+    android:
+      strategy: xpath
+      value: "(//android.widget.Button[@clickable='true'])[last()]"

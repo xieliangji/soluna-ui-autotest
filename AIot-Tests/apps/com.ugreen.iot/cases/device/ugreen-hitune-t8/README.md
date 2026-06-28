@@ -1,198 +1,119 @@
-# UGREEN HiTune T8 Device Cases
+# UGREEN HiTune T8 设备用例
 
-This directory is for device cases that are specific to `UGREEN HiTune T8`.
+本目录存放 `UGREEN HiTune T8` 型号专属用例。跨型号设备列表、改名、删除取消、断连等公共能力优先放在 `../common/`；只有依赖 T8 型号页面、能力、日志、数据或平台差异的场景才放在这里。
 
-Keep cross-model device-list cases in `../common/`. Add cases here only when
-the scenario depends on this model's capabilities, pages, data, logs, or
-behavior.
+## 相关目录
 
-Feature coverage should be modeled as cross-platform by default: if a T8
-feature is available on iOS, assume the Android app should expose the same
-feature. Formal T8 feature case IDs and file names should not carry `_IOS` or
-other platform suffixes. Keep platform differences in plans, locators, data, or
-log assertion arguments. Probe-only `TC000_*_PROBE_IOS` cases may keep the suffix
-because they document temporary iOS exploration, not formal feature coverage.
+- 用例：`AIot-Tests/apps/com.ugreen.iot/cases/device/ugreen-hitune-t8/`
+- 正式计划：`AIot-Tests/apps/com.ugreen.iot/plans/device/ugreen-hitune-t8/ios.yaml`、`android.yaml`
+- 调试计划：`AIot-Tests/apps/com.ugreen.iot/plans/debug/android-t8-*.yaml`
+- 型号元素：`AIot-Tests/apps/com.ugreen.iot/elements/device/ugreen-hitune-t8.yaml`
+- 通用设备打开 fragment：`AIot-Tests/apps/com.ugreen.iot/fragments/device.yaml`
+- T8 状态归一 fragment：`AIot-Tests/apps/com.ugreen.iot/fragments/device/ugreen-hitune-t8.yaml`
+- 共享数据：`AIot-Tests/apps/com.ugreen.iot/data/device/ugreen-hitune-t8.yaml`
+- Android 覆盖数据：`AIot-Tests/apps/com.ugreen.iot/data/device/ugreen-hitune-t8.android.yaml`
 
-T8 iOS detail entry can show a firmware-upgrade prompt. Model-specific cases
-that open the detail page should use the model-specific optional ignore-button
-tap with `ignoreMissingElementReason: optionalFirmwareUpgradePrompt` instead of
-adding coordinate or title-area dismissal steps.
+## 计划入口
 
-The formal iOS plan at `plans/device/ugreen-hitune-t8/ios.yaml` currently runs
-TC002-TC017 through the T8-specific logged-in device-page fragment. TC001 remains
-outside that formal plan until the remaining noise-control interactions are
-converted from viewport-position taps to stable element-relative targets.
-T8 cases should use `data/device/ugreen-hitune-t8.yaml` for model data and must
-not reference common mine language data; those fixtures are for common app/device
-cases and are split by UI language, for example `data/common/mine.zh-CN.yaml`.
+- iOS 正式计划跑 `TC002` 到 `TC017`。当前不包含 `TC001_NOISE_CONTROL.yaml`，噪声控制还需要把剩余位置点击收敛成稳定元素/区域点击后再纳入。
+- Android 正式计划先跑 Android 独有 `TC001_HIGH_QUALITY_CODEC_ANDROID.yaml`，再跑 `TC002` 到 `TC017`，同样跳过 `TC001_NOISE_CONTROL.yaml`。
+- 正式 T8 计划的 stage setup 使用 `appState.loggedInDevicePage`，每条用例前使用 `appState.restartApp`。
+- 需要进入设备详情的用例统一使用 common `device.openTargetDevice`。该 fragment 按 `${device.targetMacSuffix}` 优先定位目标设备，未匹配时按 `${device.targetName}` 兜底，并通过设备卡片绿色占比确认连接态。
+- T8 专属 fragment 只保留状态归一能力，例如 `t8Device.ensureGameModeOff` 和 `t8Device.ensureHighQualityCodecOff`，不要再新增重复的登录态或打开设备 fragment。
 
-Bluetooth-interaction cases under this directory may include log capture and
-assertions around actions such as noise-control or music-mode changes. Do not
-wrap generic navigation, firmware prompt dismissal, or unrelated UI operations
-with app-log assertions.
-For iOS BLE captures, assert only that the interaction triggered a
-CoreBluetooth characteristic write. Do not model this as a headset ACK/report
-assertion unless a lower-level capture or App protocol log exposes that data.
-Android/SPP interaction assertions should be explored separately and may assert
-full downstream/upstream logs once that path is formalized.
+## 用例清单
 
-The T8 find-route map page renders an earbuds icon after the earbud location is
-resolved. The route-map case first asserts the native map element, then saves an
-explicit screenshot and uses `assertImageColorRatio` with `color: green` in a
-focused ROI around the earbuds icon to confirm the earbud location marker is
-visible. Revisit OCR road-label checks only after the map zoom/viewport
-reliably renders road-name text.
+| 用例 | 场景 | 计划状态 |
+| --- | --- | --- |
+| `TC001_NOISE_CONTROL.yaml` | 噪声控制蓝牙交互 | 暂不纳入正式计划 |
+| `TC001_HIGH_QUALITY_CODEC_ANDROID.yaml` | 高音质解码开关与互斥限制 | Android 独有，Android 计划第一条 |
+| `TC002_FIND_ROUTE.yaml` | 查找耳机路线 | iOS / Android |
+| `TC003_MUSIC_MODE.yaml` | 音乐模式低音增强 | iOS / Android |
+| `TC004_SPATIAL_AUDIO.yaml` | 空间音效 | iOS / Android |
+| `TC005_GAME_MODE.yaml` | 游戏模式 | iOS / Android |
+| `TC006_EQUALIZER_PRESET.yaml` | 均衡器预设 | iOS / Android |
+| `TC007_DUAL_CONNECT.yaml` | 设备双连 | iOS / Android |
+| `TC008_CUSTOM_EQUALIZER.yaml` | 自定义均衡器 | iOS / Android |
+| `TC009_MORE_RENAME.yaml` | 更多页设备名称 | iOS / Android |
+| `TC010_MORE_PROMPT_SOUND.yaml` | 提示音语言与音量 | iOS / Android |
+| `TC011_MORE_USER_MANUAL.yaml` | 使用说明书 OCR | iOS / Android |
+| `TC012_MORE_DELETE_CANCEL.yaml` | 删除设备取消 | iOS / Android |
+| `TC013_MORE_DISCONNECT_RECONNECT.yaml` | 更多页断开并恢复连接 | iOS |
+| `TC013_MORE_DISCONNECT_RECONNECT_ANDROID.yaml` | 更多页断开并恢复连接 | Android |
+| `TC014_MORE_CUSTOM_CONTROL.yaml` | 自定义控制双击 | iOS / Android |
+| `TC015_MORE_CUSTOM_CONTROL_SINGLE_TAP.yaml` | 自定义控制单击 | iOS / Android |
+| `TC016_MORE_CUSTOM_CONTROL_TRIPLE_TAP.yaml` | 自定义控制三击 | iOS / Android |
+| `TC017_MORE_CUSTOM_CONTROL_LONG_PRESS.yaml` | 自定义控制长按 | iOS / Android |
 
-When a T8 detail control can be resolved as an element, prefer element
-screenshots for visual state assertions so color checks read the precise control
-image. Use bounded viewport coordinates only as a focused debug fallback when no
-stable element or accessibility target is available.
+## 数据和平台差异
 
-For switch controls such as game mode and device dual connect, use the switch
-element screenshot and `assertImageColorRatio` on the green indicator instead of
-asserting the iOS `value` attribute. The native attribute can be less stable in
-continuous runs even when the visual switch state has already changed.
+- T8 共享数据放在 `data/device/ugreen-hitune-t8.yaml`，包括型号名、iOS 设备 MAC 后缀、更多页名称数据、说明书校验数据、视觉模板路径、iOS BLE 写入日志关键字和高音质页面文本。
+- Android 真机覆盖数据放在 `data/device/ugreen-hitune-t8.android.yaml`。当前 Android 设备 MAC 后四位是 `91:D6`，不能写回共享 T8 数据，避免影响 iOS。
+- iOS BLE 断言只确认 App 触发 CoreBluetooth characteristic write。Android BLE/SPP 断言可以检查 App 日志里的下发、上报 payload，以及高音质相关 A2DP codec 行。
+- 语言相关 UI 文案不要写死在 locator 中。可变文案放参数数据；语言无关结构、型号、版本号、MAC 后缀等按现有 locator policy 标注原因。
 
-For custom equalizer cleanup, reopen the saved custom entry after BLE-log
-assertion, save an element screenshot of the equalizer-name row, save that row
-rect as an ROI, then click the delete affordance with `tapVisualTemplate` inside
-the ROI. Keep this as template-based visual interaction because the delete icon
-is not exposed as a stable named element.
+## 关键维护规则
 
-For the current validated detail page, the find-earbuds card is opened by
-tapping the bottom card center after scrolling the detail page. This avoids
-relying on the localized card title as the interaction locator while keeping the
-route-map assertions on native map presence and named-color screenshot analysis.
+- 打开设备详情统一使用 `device.openTargetDevice`；不要在 T8 fragment 中再维护“首卡打开设备”的重复逻辑。
+- 进入详情后可能出现固件升级提示。默认打开设备 fragment 会处理一次；断连恢复、高音质恢复等路径如果可能再次弹出，需要在该路径内单独加 5 秒可选忽略按钮。
+- 视觉状态优先用元素截图断言。例如开关状态用 switch 元素截图检查绿色、灰色或黑色占比，避免直接依赖不稳定属性。
+- 日志断言只包围真正触发蓝牙交互的动作，不要把通用导航、弹窗处理、页面准备放进日志采集窗口。
+- 调试用例时遵循 debug shell 规则，优先用 `source`、`screenshot`、`tap`、`tap-element`、`longPress`、`longPress-element`、`swipe` 等命令确认页面结构和点击目标。
 
-The T8 more page is opened from the detail page by tapping the top-right
-settings icon. On iOS the icon is exposed as a visible accessible
-`XCUIElementTypeOther` at the right side of the title bar, without a stable text
-label. The more page rows are exposed as accessible row nodes with combined
-labels such as `设备名称, UGREEN HiTune T8`, `提示音, 中文`, `使用说明书`,
-`自定义控制`, `固件升级, v1.4.6`, `恢复出厂设置`, and `删除设备`; the
-disconnect action is exposed as a button named `断开连接`.
+## 高音质解码
 
-For the T8 more-page disconnect/reconnect path, confirming disconnect does not
-automatically navigate back to the device detail page. Tap back first, then use
-the detail page `连接` button to restore the connection. A firmware-upgrade
-prompt can appear before reconnecting; add a separate 5-second optional tap on
-the language-insensitive firmware prompt structure in this reconnect path
-instead of relying on the initial `device.openTargetDevice` fragment dismissal.
+`TC001_HIGH_QUALITY_CODEC_ANDROID.yaml` 是 Android 独有用例，iOS 当前没有该功能。它必须放在 Android T8 计划第一条，并且用例结束后必须保证高音质解码为关闭状态。
 
-For T8 more-page rename debugging, the first tap on `设备名称` can open the edit
-panel with the iOS system keyboard covering the lower part of the panel. Prime
-the flow by opening the edit panel once, then tap the top title area twice to
-dismiss the keyboard and close the panel before reopening the edit panel for the
-real rename operation. The edit input is not exposed as a native
-`XCUIElementTypeTextField`; locate it relative to the stable left-top close
-icon in the dialog instead of absolute screen coordinates. The input action does
-not clear this React Native input reliably by itself; clear through the input
-field's right-side clear affordance first, then type the target name with
-`clearFirst: false`. The clear affordance can be clicked as an element-relative
-right-side tap inside the input container.
+Android 切换高音质解码时会断开设备、自动回到详情页，再恢复连接。用例中不要在切换后点击返回按钮，应等待详情页恢复后再重新进入高音质页。
 
-For T8 custom control under the more page, the entry row is `自定义控制`. The
-custom control page title is also `自定义控制`; it exposes `左耳` and `右耳` tabs
-and accessible action rows such as `单击, 播放/暂停`, `双击, 上一曲`, `三击, 语音助手`,
-and `长按, 降噪关/环境音/降噪开`. Tapping a gesture row opens a bottom option
-sheet. Verified option coverage includes single tap (`无`, `播放/暂停`,
-`调大音量`, `调小音量`), triple tap (`无`, `语音助手`, `游戏模式`, `空间音效`,
-`AI录音`), and long press (`无`, `语音助手`, `降噪关/环境音/降噪开`, `AI录音`).
-The option sheet has a stable left-top close icon; option locators should anchor
-to that sheet structure and then select options by element order inside the
-sheet. Selecting an option closes the sheet and updates the row text. Formal
-automation is split by gesture (`TC014` double tap, `TC015` single tap, `TC016`
-triple tap, and `TC017` long press), covers both ears, normalizes each ear to
-the baseline option before switching to the target option, then restores the
-baseline option. Assertions are limited to UI row state and BLE write logs;
-physical earbud tap behavior is outside normal UI automation unless hardware
-actions or lower-level logs are added.
+校验点包括：
 
-Debug evidence:
+- 初始关闭态、开启态、最终关闭态的 switch 属性和颜色。
+- 关闭态页面显示 `AAC`，开启态页面显示 `LDAC`。
+- 开启日志包含 BLE 下发、上报 payload、`highQuality: 1`、`gameMode: 0` 和 LDAC codec 证据。
+- 关闭日志包含 BLE 下发、上报 payload、`highQuality: 0` 和 AAC codec 证据。
+- 开启高音质后游戏模式必须为关闭。
+- 高音质开启时尝试开启空间音效、游戏模式都必须弹出互斥对话框阻止。
+- 不要把 Android 日志断言绑定到单一 `codeType1` 数值；实际运行中数字可能变化，但系统 A2DP codec 仍能证明 LDAC/AAC。
 
-- `t8-find-route-debug-20260622-color-006` passed on iOS real device for
-  `TC002_FIND_ROUTE`; report:
-  `build/soluna-runs/t8-find-route-debug-20260622-color-006/report/index.html`;
-  upload completed with `uploaded=4, failed=0, abandoned=0`.
-- `t8-find-route-debug-20260623-earbud-icon-002` passed after narrowing the
-  color assertion to the earbuds-icon ROI; the assertion observed green ratio
-  `0.30117481803090285` with `9434/31324` pixels; report:
-  `build/soluna-runs/t8-find-route-debug-20260623-earbud-icon-002/report/index.html`;
-  upload completed with `uploaded=4, failed=0, abandoned=0`.
-- `t8-music-mode-step4-element-screenshot-20260626-001` passed after changing
-  the low-bass music-mode selected-state check to save the `低音增强` element
-  screenshot; the element image was `312x258`, and the green assertion observed
-  ratio `0.03152951699463327` with `2538/80496` pixels; report:
-  `build/soluna-runs/t8-music-mode-step4-element-screenshot-20260626-001/report/index.html`;
-  upload completed with `uploaded=4, failed=0, abandoned=0`.
-- `t8-game-mode-debug-20260626-005` passed after changing game-mode state
-  evidence from switch `value` to switch element screenshot green coverage;
-  report:
-  `build/soluna-runs/t8-game-mode-debug-20260626-005/report/index.html`;
-  upload completed with `uploaded=5, failed=0, abandoned=0`.
-- `t8-dual-connect-debug-20260626-003` passed after applying the same switch
-  element screenshot state evidence to device dual connect; report:
-  `build/soluna-runs/t8-dual-connect-debug-20260626-003/report/index.html`;
-  upload completed with `uploaded=5, failed=0, abandoned=0`.
-- `t8-custom-equalizer-debug-20260626-008` passed after resetting the custom
-  equalizer before log capture, asserting iOS BLE characteristic write after the
-  save action, and deleting the custom entry through equalizer-name-row
-  screenshot ROI plus delete-icon template matching; report:
-  `build/soluna-runs/t8-custom-equalizer-debug-20260626-008/report/index.html`;
-  upload completed with `uploaded=5, failed=0, abandoned=0`.
-- `t8-ios-full-20260626-002` passed the formal T8 iOS plan with 7 cases:
-  noise control, find route, music mode, spatial audio, game mode, equalizer
-  preset, and dual connect; report:
-  `build/soluna-runs/t8-ios-full-20260626-002/report/index.html`; upload
-  completed with `uploaded=15, failed=0, abandoned=0`.
-- `t8-more` step-by-step debug on 2026-06-26 verified the more-page structure
-  and the 2-character rename path. Evidence under `build/soluna-debug/`:
-  `t8-more-step02-more-page.*` captured the more page; `step03` reproduced the
-  first-open keyboard overlap; `step08` confirmed clean input of `T8`; `step09`
-  confirmed the more-page name changed to `T8`; `step10` confirmed the detail
-  title changed to `T8`; `step13` confirmed restore to `UGREEN HiTune T8`.
-  The formal YAML case now includes the 2-character, 30-character, cancel, and
-  restore paths.
-- `t8-custom-control` step-by-step debug on 2026-06-26 verified the more-page
-  custom control path. Evidence under `build/soluna-debug/`:
-  `t8-custom-control-step01-page.*` captured the custom control page; `step02`
-  captured the left-ear double-tap option sheet; `step03` confirmed left-ear
-  `双击` changed from `上一曲` to `下一曲`; `step05` confirmed the same switch on
-  right ear; `step07` and `step08` confirmed left and right ears were restored
-  to `双击, 上一曲`.
-- `t8-custom-control-debug-20260626-005` passed the focused automation plan with
-  `TC014` double tap, `TC015` single tap, `TC016` triple tap, and `TC017` long
-  press. The cases normalize current left/right ear settings before switching
-  options, which allowed rerun after a previous interrupted triple-tap run left
-  the left ear at `三击, 游戏模式`; report:
-  `build/soluna-runs/t8-custom-control-debug-20260626-005/report/index.html`;
-  upload completed with `uploaded=7, failed=0, abandoned=0`.
-- `t8-custom-control-debug-20260626-002` passed the initial focused double-tap
-  automation case after the common firmware-upgrade prompt locator was aligned
-  with the iOS firmware prompt structure and optional tap also skipped explicit
-  wait timeouts;
-  report:
-  `build/soluna-runs/t8-custom-control-debug-20260626-002/report/index.html`;
-  upload completed with `uploaded=4, failed=0, abandoned=0`.
-- `t8-ios-tc009-redo-20260627-003` passed the focused rename case after
-  removing invalid coordinate/text locator patterns and using element-relative
-  taps for the React Native input clear affordance; report:
-  `build/soluna-runs/t8-ios-tc009-redo-20260627-003/report/index.html`; upload
-  completed successfully.
-- `t8-ios-tc010-tc017-redo-20260627-002` passed the focused more-page batch with
-  `TC010` through `TC017`: prompt sound UI plus BLE write logging, manual
-  screenshot OCR keyword validation, delete cancel only, disconnect/back/detail
-  reconnect, and all custom-control gesture cases. Report:
-  `build/soluna-runs/t8-ios-tc010-tc017-redo-20260627-002/report/index.html`;
-  upload completed with `uploaded=9, failed=0, abandoned=0`.
+## 自定义均衡器
 
-Deferred coverage:
+`TC008_CUSTOM_EQUALIZER.yaml` 每次执行都必须新建一个自定义均衡器，并在用例结束前删除本次新增项。不要假定开始前已经存在自定义均衡器。
 
-- Anti-wind-noise is not added yet because the current source and screenshots do
-  not provide a stable visible entry/locator for formal automation on T8.
-- Audio sharing is not added because the current T8 model build does not expose
-  that function.
+Android 上点击已有自定义均衡器的整行只会选中该均衡器，只有点击名称文本才会进入编辑页。因此：
 
-Model-specific locators should be added under `../../../elements/device/` when
-T8 detail-page controls expose stable, model-only elements. Keep public app and
-device-list locators in `../../../elements/common.yaml`.
+- 首次进入编辑页使用 `t8.equalizerCustomOpenTarget`，只匹配“新增自定义”卡片。
+- 保存后清理时使用 `t8.equalizerCustomNameText`，点击本次新增的自定义名称文本重新进入编辑页。
+- 删除图标没有稳定原生元素，保留名称行截图 ROI + `tapVisualTemplate` 的方式点击删除图标。
+- 删除模板阈值和 scale 已按 Android 小图标调低，不要为了单个平台再分裂一套删除流程。
+
+## 更多页和自定义控制
+
+- T8 更多页从详情页右上角设置入口进入。
+- 断连恢复在 iOS 和 Android 上路径不同：iOS 确认断开后停留在更多页，需要返回详情页再点击 `连接`；Android 确认断开后会自动回详情页，不能再点返回。
+- 改名弹窗的输入框不是稳定原生 `TextField`。当前用例通过弹窗结构和输入区域相对位置处理清空、输入、确认和取消。
+- 自定义控制拆成四条用例：双击、单击、三击、长按。每条用例覆盖左右耳，先归一到基线选项，再切到目标选项，最后恢复基线。
+- 自定义控制只断言 UI 行状态和 BLE 写入日志，不覆盖真实耳机物理手势效果。
+
+## 查找耳机路线
+
+`TC002_FIND_ROUTE.yaml` 进入地图页后先断言原生地图元素，再保存截图，用绿色 ROI 占比确认耳机位置图标出现。道路名 OCR 暂不作为正式断言，等地图缩放和视口稳定后再考虑恢复。
+
+## 已验证结果
+
+- iOS 更多页批量：`t8-ios-tc010-tc017-redo-20260627-002` passed，覆盖 `TC010` 到 `TC017`，uploads `9/0/0`。
+- Android 分批调试：
+  - `android-t8-interaction-debug-20260628-002` passed，覆盖 `TC003`、`TC004`、`TC005`、`TC010`。
+  - `android-t8-pages-debug-20260628-001` passed，覆盖 `TC002`、`TC006`、`TC007`。
+  - `android-t8-disconnect-debug-20260628-002` passed，覆盖 Android 断连恢复。
+  - `android-t8-custom-debug-20260628-010` passed，覆盖 `TC008`、`TC014` 到 `TC017`。
+- Android 高音质 focused：`android-t8-high-quality-debug-20260628-003` passed，uploads `9/0/0`。
+- common 打开设备替换后高音质 focused：`android-t8-high-quality-debug-common-open-20260628-001` passed，确认 common `device.openTargetDevice` 可按 Android MAC `91:D6` 打开 T8。
+- Android 自定义均衡器 focused：`android-t8-custom-equalizer-debug-20260628-001` passed，确认“新增自定义 -> 保存 -> 点击名称文本重开 -> 删除新增项”路径。
+- Android T8 全量：`android-t8-full-20260628-003` passed，覆盖 Android 高音质 + `TC002` 到 `TC017`，`TC001_NOISE_CONTROL` 跳过，uploads `44/0/0`。
+
+## 当前暂缓
+
+- `TC001_NOISE_CONTROL.yaml` 暂不纳入 Android 或 iOS 正式 T8 计划。
+- 防风噪当前没有稳定可见入口/locator，暂未新增正式覆盖。
+- 音频共享当前 T8 型号构建未暴露该功能，暂未新增正式覆盖。

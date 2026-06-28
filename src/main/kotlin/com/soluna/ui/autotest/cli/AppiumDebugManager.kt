@@ -71,7 +71,7 @@ class AppiumDebugManager(
             stdout.appendLine("server: ${active.server.url}")
             active.wda?.url?.let { stdout.appendLine("wda: $it") }
             stdout.appendLine("session: ${active.session.sessionId}")
-            stdout.appendLine("commands: restart-app [--app-id id], source [--out file], screenshot --out file, tap --x-ratio n --y-ratio n, tap-element --strategy s --locator v, swipe --start-x-ratio n --start-y-ratio n --end-x-ratio n --end-y-ratio n, swipe-element --strategy s --locator v --start-x-ratio n --start-y-ratio n --end-x-ratio n --end-y-ratio n, input --strategy s --locator v --text text, tap-template --template file [--roi x,y,w,h], help, exit")
+            stdout.appendLine("commands: restart-app [--app-id id], source [--out file], screenshot --out file, tap --x-ratio n --y-ratio n, tap-element --strategy s --locator v, longPress --x-ratio n --y-ratio n, longPress-element --strategy s --locator v, swipe --start-x-ratio n --start-y-ratio n --end-x-ratio n --end-y-ratio n, swipe-element --strategy s --locator v --start-x-ratio n --start-y-ratio n --end-x-ratio n --end-y-ratio n, input --strategy s --locator v --text text, tap-template --template file [--roi x,y,w,h], help, exit")
             stdout.flushIfPossible()
 
             var executed = 0
@@ -92,6 +92,8 @@ class AppiumDebugManager(
                         stdout.appendLine("  screenshot --out file")
                         stdout.appendLine("  tap --x-ratio <0..1> --y-ratio <0..1>")
                         stdout.appendLine("  tap-element --strategy <strategy> --locator <value> [--element-x-ratio <0..1>] [--element-y-ratio <0..1>]")
+                        stdout.appendLine("  longPress --x-ratio <0..1> --y-ratio <0..1> [--duration-ms n]")
+                        stdout.appendLine("  longPress-element --strategy <strategy> --locator <value> [--element-x-ratio <0..1>] [--element-y-ratio <0..1>] [--duration-ms n]")
                         stdout.appendLine("  swipe --start-x-ratio <0..1> --start-y-ratio <0..1> --end-x-ratio <0..1> --end-y-ratio <0..1> [--duration-ms n]")
                         stdout.appendLine("  swipe-element --strategy <strategy> --locator <value> --start-x-ratio <0..1> --start-y-ratio <0..1> --end-x-ratio <0..1> --end-y-ratio <0..1> [--duration-ms n]")
                         stdout.appendLine("  input --strategy <strategy> --locator <value> --text <text> [--clear-first true|false]")
@@ -217,6 +219,29 @@ class AppiumDebugManager(
                 )
                 "tap-element: ${action.locator.strategy}=${action.locator.value}, xRatio=${action.xRatio}, yRatio=${action.yRatio}"
             }
+            is AppiumDebugAction.LongPress -> {
+                webDriverAdapter.longPressViewport(
+                    sessionId = sessionId,
+                    durationMs = action.durationMs,
+                    xRatio = action.xRatio,
+                    yRatio = action.yRatio,
+                )
+                "longPress: xRatio=${action.xRatio}, yRatio=${action.yRatio}, durationMs=${action.durationMs}"
+            }
+            is AppiumDebugAction.LongPressElement -> {
+                val element = webDriverAdapter.findElement(
+                    sessionId = sessionId,
+                    locator = action.locator,
+                )
+                webDriverAdapter.longPress(
+                    sessionId = sessionId,
+                    element = element,
+                    durationMs = action.durationMs,
+                    xRatio = action.xRatio,
+                    yRatio = action.yRatio,
+                )
+                "longPress-element: ${action.locator.strategy}=${action.locator.value}, xRatio=${action.xRatio}, yRatio=${action.yRatio}, durationMs=${action.durationMs}"
+            }
             is AppiumDebugAction.Swipe -> {
                 webDriverAdapter.swipeViewport(
                     sessionId = sessionId,
@@ -300,7 +325,7 @@ class AppiumDebugManager(
         var startYRatio: Double? = null
         var endXRatio: Double? = null
         var endYRatio: Double? = null
-        var durationMs: Long = 500
+        var durationMs: Long? = null
         var strategy: String? = null
         var locatorValue: String? = null
         var text: String? = null
@@ -446,7 +471,12 @@ class AppiumDebugManager(
                 startYRatio = startYRatio ?: error("swipe requires --start-y-ratio"),
                 endXRatio = endXRatio ?: error("swipe requires --end-x-ratio"),
                 endYRatio = endYRatio ?: error("swipe requires --end-y-ratio"),
-                durationMs = durationMs,
+                durationMs = durationMs ?: 500,
+            )
+            "longPress", "long-press", "longTap", "pressAndHold" -> AppiumDebugAction.LongPress(
+                xRatio = xRatio ?: error("longPress requires --x-ratio"),
+                yRatio = yRatio ?: error("longPress requires --y-ratio"),
+                durationMs = durationMs ?: 1000,
             )
             "tap-element", "tapElement" -> AppiumDebugAction.TapElement(
                 locator = LocatorDefinition(
@@ -455,6 +485,15 @@ class AppiumDebugManager(
                 ),
                 xRatio = elementXRatio,
                 yRatio = elementYRatio,
+            )
+            "longPress-element", "longPressElement", "long-press-element", "longTap-element", "longTapElement" -> AppiumDebugAction.LongPressElement(
+                locator = LocatorDefinition(
+                    strategy = strategy ?: error("longPress-element requires --strategy"),
+                    value = locatorValue ?: error("longPress-element requires --locator"),
+                ),
+                xRatio = elementXRatio,
+                yRatio = elementYRatio,
+                durationMs = durationMs ?: 1000,
             )
             "swipe-element", "swipeElement" -> AppiumDebugAction.SwipeElement(
                 locator = LocatorDefinition(
@@ -465,7 +504,7 @@ class AppiumDebugManager(
                 startYRatio = startYRatio ?: error("swipe-element requires --start-y-ratio"),
                 endXRatio = endXRatio ?: error("swipe-element requires --end-x-ratio"),
                 endYRatio = endYRatio ?: error("swipe-element requires --end-y-ratio"),
-                durationMs = durationMs,
+                durationMs = durationMs ?: 500,
             )
             "input" -> AppiumDebugAction.Input(
                 locator = LocatorDefinition(
@@ -698,6 +737,19 @@ sealed class AppiumDebugAction(val name: String) {
         val xRatio: Double = 0.5,
         val yRatio: Double = 0.5,
     ) : AppiumDebugAction("tap-element")
+
+    data class LongPress(
+        val xRatio: Double,
+        val yRatio: Double,
+        val durationMs: Long = 1000,
+    ) : AppiumDebugAction("longPress")
+
+    data class LongPressElement(
+        val locator: LocatorDefinition,
+        val xRatio: Double = 0.5,
+        val yRatio: Double = 0.5,
+        val durationMs: Long = 1000,
+    ) : AppiumDebugAction("longPress-element")
 
     data class Swipe(
         val startXRatio: Double,

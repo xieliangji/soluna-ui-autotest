@@ -1,17 +1,17 @@
 schemaVersion: "1.0"
-id: ugreen-hitune-t8-ios
-name: UGREEN HiTune T8 iOS
+id: ugreen-hitune-t8-android
+name: UGREEN HiTune T8 Android
 productModel: UGREEN HiTune T8
 version: "0.1.0"
 metadata:
   owner: qa
   suite: device-ugreen-hitune-t8
-  intent: UGREEN HiTune T8 iOS 稳定功能与蓝牙交互回归
+  intent: UGREEN HiTune T8 Android 稳定功能与蓝牙交互回归
 parameters:
   - id: appState
     file: ../../../data/app-state.yaml
   - id: appStateLocal
-    file: ../../../data/app-state.ios.local.yaml
+    file: ../../../data/app-state.android.local.yaml
     required: false
 fragmentRefs:
   - id: appState
@@ -20,12 +20,12 @@ fragmentRefs:
     file: ../../../fragments/device.yaml
   - id: t8Device
     file: ../../../fragments/device/ugreen-hitune-t8.yaml
-deviceConfig: ../../../../../devices/ios/00008140-001805D80C93801C.yaml
+deviceConfig: ../../../../../devices/android/ZT4225X3C2.yaml
 artifactStore: ../../../../../artifacts/minio.local.yaml
 app:
   id: com.ugreen.iot
   name: 绿联声学
-  platform: ios
+  platform: android
   reset: false
 defaults:
   implicitWaitMs: 8000
@@ -48,6 +48,7 @@ stages:
     caseSetupActions:
       - appState.restartApp
     caseRefs:
+      - file: ../../../cases/device/ugreen-hitune-t8/TC001_HIGH_QUALITY_CODEC_ANDROID.yaml
       - file: ../../../cases/device/ugreen-hitune-t8/TC002_FIND_ROUTE.yaml
       - file: ../../../cases/device/ugreen-hitune-t8/TC003_MUSIC_MODE.yaml
       - file: ../../../cases/device/ugreen-hitune-t8/TC004_SPATIAL_AUDIO.yaml
@@ -59,7 +60,7 @@ stages:
       - file: ../../../cases/device/ugreen-hitune-t8/TC010_MORE_PROMPT_SOUND.yaml
       - file: ../../../cases/device/ugreen-hitune-t8/TC011_MORE_USER_MANUAL.yaml
       - file: ../../../cases/device/ugreen-hitune-t8/TC012_MORE_DELETE_CANCEL.yaml
-      - file: ../../../cases/device/ugreen-hitune-t8/TC013_MORE_DISCONNECT_RECONNECT.yaml
+      - file: ../../../cases/device/ugreen-hitune-t8/TC013_MORE_DISCONNECT_RECONNECT_ANDROID.yaml
       - file: ../../../cases/device/ugreen-hitune-t8/TC014_MORE_CUSTOM_CONTROL.yaml
       - file: ../../../cases/device/ugreen-hitune-t8/TC015_MORE_CUSTOM_CONTROL_SINGLE_TAP.yaml
       - file: ../../../cases/device/ugreen-hitune-t8/TC016_MORE_CUSTOM_CONTROL_TRIPLE_TAP.yaml

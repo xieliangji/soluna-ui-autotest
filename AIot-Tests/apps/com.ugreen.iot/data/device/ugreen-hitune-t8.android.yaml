@@ -1,0 +1,29 @@
+schemaVersion: "1.0"
+id: ugreen-hitune-t8-android
+description: Android real-device overrides for the UGREEN HiTune T8 fixture.
+values:
+  device:
+    targetMacSuffix: "91:D6"
+    log:
+      androidHighQualityCaptureRawRegex: "(ReactNativeJS|UGRNLogController|UGRNBluetoothBridge|bluetooth-a2dp|AS\\.AudioDeviceInventory|a2dp_vendor_ldac_decoder)"
+      androidHighQualityOnContainsAll:
+        - "[蓝牙下发]"
+        - "发送 ble 数据 data:"
+        - "[蓝牙上报]"
+        - "Payload 已解密"
+        - "\"highQuality\": 1"
+        - "\"gameMode\": 0"
+      androidHighQualityOnContainsAny:
+        - "codec: LDAC"
+        - "codec=AUDIO_FORMAT_LDAC"
+        - "91:D6"
+      androidHighQualityOffContainsAll:
+        - "[蓝牙下发]"
+        - "发送 ble 数据 data:"
+        - "[蓝牙上报]"
+        - "Payload 已解密"
+        - "\"highQuality\": 0"
+      androidHighQualityOffContainsAny:
+        - "codec: AAC"
+        - "codec=AUDIO_FORMAT_AAC"
+        - "91:D6"
