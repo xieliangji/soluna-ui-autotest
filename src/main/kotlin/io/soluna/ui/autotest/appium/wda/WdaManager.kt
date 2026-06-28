@@ -499,7 +499,7 @@ object ProcessHandleWdaTunnelDetector : WdaTunnelDetector {
         val info = info()
         val command = info.command().orElse("")
         val args = info.arguments().orElse(emptyArray()).toList()
-        val executable = command.substringAfterLast('/')
+        val executable = command!!.substringAfterLast('/')
         if (executable !in setOf("ios", "go-ios")) {
             return null
         }
