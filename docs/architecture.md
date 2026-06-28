@@ -8,6 +8,8 @@
 
 `soluna-ui-autotest` 是一个 Kotlin/JVM UI 自动化执行框架，面向 iOS 和 Android 真机，通过 Appium / WebDriver 协议驱动设备。
 
+Gradle group、框架 Kotlin package、CLI mainClass、ServiceLoader SPI 名称和内置扩展包名均使用 `io.soluna` 命名空间。框架脚手架生成的扩展项目必须使用 `io.soluna` 或其子命名空间作为 package/group。
+
 核心方向：
 
 - 测试表达使用 YAML DSL，执行模型固定为 `Plan -> Stage -> Case -> Action`。
@@ -409,6 +411,7 @@ MinIO 上传：
 
 规则：
 
+- schema `$id` 使用 `https://schemas.io.soluna.local/v1/` 命名空间。
 - schema 文件版本化，破坏性合同变化应新建版本目录，不静默改变 v1 语义。
 - Kotlin runtime model 不替代外部 schema。
 - parser/validator 变更必须保持 schema-first 校验顺序。

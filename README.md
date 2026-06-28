@@ -15,6 +15,7 @@
 
 ## 核心模型
 
+- Gradle group、框架 Kotlin package、CLI mainClass 和框架对外 SPI 均使用 `io.soluna` 命名空间；脚手架生成的扩展项目 `--package` / `--group` 也必须使用 `io.soluna` 或其子命名空间。
 - 执行模型：`Plan -> Stage -> Case -> Action`
 - 测试表达：YAML DSL
 - 执行入口：`soluna run <plan.yaml>`
@@ -35,6 +36,7 @@ JUnit 只用于框架开发测试和 opt-in smoke test，不参与运行时 DSL 
 已实现能力包括：
 
 - schema-first YAML DSL：plan、case、fragment、element catalog、parameter data、device config、artifact store、notification、report、resource manifest、asset project、runner request/result 均有 v1 schema。
+- schema `$id` 使用 `https://schemas.io.soluna.local/v1/` 命名空间。
 - case DSL 保持线性；fragment 支持 `if` / `then` / `else`，用于可复用状态收敛。
 - 关键字即字段动作语法，推荐新资产使用嵌套形式：
 
@@ -179,9 +181,11 @@ soluna run <plan.yaml> \
 ```bash
 soluna scaffold app-log-plugin ./ugreen-audio-log-plugin \
   --plugin-id ugreen-audio \
-  --package com.ugreen.soluna.applog \
+  --package io.soluna.ugreen.applog \
   --assertion ble-command-ack
 ```
+
+`--package` 和可选 `--group` 必须使用 `io.soluna` 或其子命名空间。
 
 `customAssertAppLog` 的业务日志解析应放在独立 JVM plugin JAR 中，不写进 case/data/element/fragment。运行时会查找 classpath、distribution `plugins/app-log/*.jar`、当前工作目录 `plugins/app-log/*.jar`、推断出的 asset root `plugins/app-log/*.jar`，以及 `-Dsoluna.appLogPluginDirs=<paths>` 或 `SOLUNA_APP_LOG_PLUGIN_DIRS=<paths>` 指定目录。
 
@@ -356,21 +360,21 @@ npm run lint
 SOLUNA_ANDROID_UDID=<device-udid> \
 SOLUNA_APPIUM_SERVER_URL=http://127.0.0.1:4725 \
 ./gradlew test \
-  --tests com.soluna.ui.autotest.appium.ext.RealAndroidSolunaExtSmokeTest \
-  --tests com.soluna.ui.autotest.appium.driver.RealAndroidAppiumSmokeTest
+  --tests io.soluna.ui.autotest.appium.ext.RealAndroidSolunaExtSmokeTest \
+  --tests io.soluna.ui.autotest.appium.driver.RealAndroidAppiumSmokeTest
 ```
 
 ```bash
 SOLUNA_APPIUM_RECOVERY_SMOKE=true \
 SOLUNA_ANDROID_UDID=<device-udid> \
 SOLUNA_APPIUM_EXECUTABLE=/opt/homebrew/bin/appium \
-./gradlew test --tests com.soluna.ui.autotest.appium.driver.RealAndroidAppiumRecoverySmokeTest
+./gradlew test --tests io.soluna.ui.autotest.appium.driver.RealAndroidAppiumRecoverySmokeTest
 ```
 
 ```bash
 SOLUNA_MANAGED_APPIUM_SMOKE=true \
 SOLUNA_APPIUM_EXECUTABLE=/opt/homebrew/bin/appium \
-./gradlew test --tests com.soluna.ui.autotest.appium.server.ManagedAppiumServerSmokeTest
+./gradlew test --tests io.soluna.ui.autotest.appium.server.ManagedAppiumServerSmokeTest
 ```
 
 ```bash
@@ -379,7 +383,7 @@ SOLUNA_IOS_UDID=<ios-device-udid> \
 SOLUNA_APPIUM_EXECUTABLE=/opt/homebrew/bin/appium \
 SOLUNA_GO_IOS_EXECUTABLE=/opt/homebrew/bin/ios \
 SOLUNA_IOS_WDA_STARTUP_DELAY_MS=10000 \
-./gradlew test --tests com.soluna.ui.autotest.appium.wda.RealIosWdaSmokeTest
+./gradlew test --tests io.soluna.ui.autotest.appium.wda.RealIosWdaSmokeTest
 ```
 
 按需真实 asset plan smoke：
@@ -388,14 +392,14 @@ SOLUNA_IOS_WDA_STARTUP_DELAY_MS=10000 \
 SOLUNA_UGREEN_PROFILE_SMOKE=true \
 SOLUNA_UGREEN_PROFILE_PLAN_PATH=AIot-Tests/apps/com.ugreen.iot/plans/common/android.yaml \
 SOLUNA_RUN_ID=ugreen-android-local \
-./gradlew test --tests com.soluna.ui.autotest.runner.RealAndroidUgreenProfilePlanTest
+./gradlew test --tests io.soluna.ui.autotest.runner.RealAndroidUgreenProfilePlanTest
 ```
 
 ```bash
 SOLUNA_IOS_UGREEN_PROFILE_SMOKE=true \
 SOLUNA_IOS_UGREEN_PROFILE_PLAN_PATH=AIot-Tests/apps/com.ugreen.iot/plans/common/ios.yaml \
 SOLUNA_RUN_ID=ugreen-ios-local \
-./gradlew test --tests com.soluna.ui.autotest.runner.RealIosUgreenProfilePlanTest
+./gradlew test --tests io.soluna.ui.autotest.runner.RealIosUgreenProfilePlanTest
 ```
 
 这些 smoke test 依赖本地真机、Appium、go-ios、账号状态和对应 asset plan 前置条件。未设置对应环境变量时，部分 smoke test 会主动跳过。

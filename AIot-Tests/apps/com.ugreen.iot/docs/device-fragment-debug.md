@@ -73,6 +73,6 @@ Validated on iOS with step-by-step `soluna debug ... shell` operations:
 Focused schema/parser verification after the asset change:
 
 ```bash
-./gradlew test --tests com.soluna.ui.autotest.schema.JsonSchemaDslValidatorTest --tests com.soluna.ui.autotest.dsl.YamlPlanParserTest --tests com.soluna.ui.autotest.runner.PlanReferenceResolverTest
+./gradlew test --tests io.soluna.ui.autotest.schema.JsonSchemaDslValidatorTest --tests io.soluna.ui.autotest.dsl.YamlPlanParserTest --tests io.soluna.ui.autotest.runner.PlanReferenceResolverTest
 git diff --check
 ```

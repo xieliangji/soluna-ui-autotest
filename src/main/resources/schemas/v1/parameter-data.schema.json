@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://schemas.soluna-ui-autotest.local/v1/parameter-data.schema.json",
+  "$id": "https://schemas.io.soluna.local/v1/parameter-data.schema.json",
   "title": "Soluna UI Autotest Parameter Data",
   "type": "object",
   "additionalProperties": false,

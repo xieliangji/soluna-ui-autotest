@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://schemas.soluna-ui-autotest.local/v1/element-catalog.schema.json",
+  "$id": "https://schemas.io.soluna.local/v1/element-catalog.schema.json",
   "title": "Soluna UI Autotest Element Catalog",
   "type": "object",
   "additionalProperties": false,

@@ -61,7 +61,7 @@
 - Android 全量回归命令：
 
 ```bash
-SOLUNA_VISUAL_OCR_MULTIMODAL_BASE_URL='http://47.128.186.61:8317/v1' SOLUNA_VISUAL_OCR_MULTIMODAL_API_KEY="$SOLUNA_VISUAL_OCR_MULTIMODAL_API_KEY" SOLUNA_VISUAL_OCR_MULTIMODAL_MODEL='gpt-5.5' SOLUNA_VISUAL_OCR_MULTIMODAL_REASONING_EFFORT='high' SOLUNA_OPTS='-Dorg.slf4j.simpleLogger.log.com.soluna.ui.autotest.appium.server=info -Dorg.slf4j.simpleLogger.log.com.soluna.ui.autotest.appium.wda=info' build/install/soluna/bin/soluna run AIot-Tests/apps/com.ugreen.iot/plans/device/ugreen-hitune-t8/android.yaml --run-id android-t8-full-$(date +%Y%m%d-%H%M%S)
+SOLUNA_VISUAL_OCR_MULTIMODAL_BASE_URL='http://47.128.186.61:8317/v1' SOLUNA_VISUAL_OCR_MULTIMODAL_API_KEY="$SOLUNA_VISUAL_OCR_MULTIMODAL_API_KEY" SOLUNA_VISUAL_OCR_MULTIMODAL_MODEL='gpt-5.5' SOLUNA_VISUAL_OCR_MULTIMODAL_REASONING_EFFORT='high' SOLUNA_OPTS='-Dorg.slf4j.simpleLogger.log.io.soluna.ui.autotest.appium.server=info -Dorg.slf4j.simpleLogger.log.io.soluna.ui.autotest.appium.wda=info' build/install/soluna/bin/soluna run AIot-Tests/apps/com.ugreen.iot/plans/device/ugreen-hitune-t8/android.yaml --run-id android-t8-full-$(date +%Y%m%d-%H%M%S)
 ```
 
 ### iOS T8

@@ -2,7 +2,7 @@ plugins {
     kotlin("jvm") version "2.3.21"
 }
 
-group = "com.ugreen.soluna.applog"
+group = "io.soluna.ugreen.applog"
 version = "0.1.0"
 
 val solunaHome = providers.gradleProperty("solunaHome")

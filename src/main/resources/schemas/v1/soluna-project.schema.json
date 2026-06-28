@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://schemas.soluna-ui-autotest.local/v1/soluna-project.schema.json",
+  "$id": "https://schemas.io.soluna.local/v1/soluna-project.schema.json",
   "title": "Soluna Asset Project",
   "type": "object",
   "additionalProperties": false,

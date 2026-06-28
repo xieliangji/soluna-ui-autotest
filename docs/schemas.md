@@ -8,6 +8,8 @@ src/main/resources/schemas/v1/
 
 当前 v1 schema 均使用 `schemaVersion: "1.0"`。Kotlin data class 是运行时模型，不等同于外部合同；外部资产、平台请求、报告数据和资源清单应以本目录下的 schema 为准。
 
+schema `$id` 使用 `https://schemas.io.soluna.local/v1/` 命名空间；文件名仍按合同角色命名，例如 `plan.schema.json`、`case.schema.json`。
+
 DSL 输入的处理顺序是：
 
 1. YAML 解析为 JSON-compatible tree。
@@ -312,16 +314,16 @@ manifest 不记录失败前 trace；trace 仍走普通 diagnostic artifact。
 schema 或 DSL 行为变更时，至少运行：
 
 ```bash
-./gradlew test --tests com.soluna.ui.autotest.schema.JsonSchemaDslValidatorTest
+./gradlew test --tests io.soluna.ui.autotest.schema.JsonSchemaDslValidatorTest
 ```
 
 触达解析、引用装配、参数、执行策略或报告输出时，补充对应 focused tests：
 
 ```bash
-./gradlew test --tests com.soluna.ui.autotest.dsl.YamlPlanParserTest
-./gradlew test --tests com.soluna.ui.autotest.runner.PlanReferenceResolverTest
-./gradlew test --tests com.soluna.ui.autotest.runner.PlanParameterResolverTest
-./gradlew test --tests com.soluna.ui.autotest.report.LocalReportWriterTest
+./gradlew test --tests io.soluna.ui.autotest.dsl.YamlPlanParserTest
+./gradlew test --tests io.soluna.ui.autotest.runner.PlanReferenceResolverTest
+./gradlew test --tests io.soluna.ui.autotest.runner.PlanParameterResolverTest
+./gradlew test --tests io.soluna.ui.autotest.report.LocalReportWriterTest
 ```
 
 只修改文档时，至少运行：

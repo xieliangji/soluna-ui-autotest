@@ -116,9 +116,11 @@ runner 写出 `application/x-ndjson` 资源，把描述符写入 `@{case.lastApp
 ```bash
 soluna scaffold app-log-plugin ./ugreen-audio-log-plugin \
   --plugin-id ugreen-audio \
-  --package com.ugreen.soluna.applog \
+  --package io.soluna.ugreen.applog \
   --assertion ble-command-ack
 ```
+
+`--package` 和显式 `--group` 必须使用 `io.soluna` 或其子命名空间。
 
 构建：
 

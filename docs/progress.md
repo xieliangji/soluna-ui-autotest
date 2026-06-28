@@ -51,6 +51,31 @@
 
 ## 近期框架迭代
 
+### 2026-06-28 io.soluna 命名基线
+
+- Gradle group、框架 Kotlin package、CLI mainClass、simplelogger 包级配置、ServiceLoader SPI 文件名、App log plugin 示例包名和 scaffold package/group 约束均使用 `io.soluna` 命名空间。
+- schema `$id` 使用 `https://schemas.io.soluna.local/v1/` 命名空间；README、架构文档、schema 文档和 bundled Codex skill 均按当前命名规则描述。
+- `soluna scaffold app-log-plugin` 会校验 `--package` 和显式 `--group`：只接受 `io.soluna` 或其子命名空间；生成的 README 使用中文说明 package/group 和 ServiceLoader 约束。
+
+验证：
+
+- `./gradlew test`
+- `python3 /Users/xieliangji/.codex/skills/.system/skill-creator/scripts/quick_validate.py codex/skills/soluna-ui-autotest-creator`
+- `git diff --check -- codex/skills/soluna-ui-autotest-creator README.md docs src/main src/test AIot-Tests/apps/com.ugreen.iot/log-plugins/ugreen-audio build.gradle.kts`
+- `./gradlew installDist`
+- 确认 `build/install/soluna/codex/skills/soluna-ui-autotest-creator/SKILL.md` 存在且包含中文入口和 `io.soluna` 约束。
+- `build/install/soluna/bin/soluna scaffold app-log-plugin /private/tmp/soluna-io-soluna-scaffold-check-20260628-b --plugin-id sample-log --package io.soluna.sample.applog --assertion contains-text --force`
+- `./gradlew -p /private/tmp/soluna-io-soluna-scaffold-check-20260628-b test -PsolunaHome=/Users/xieliangji/IdeaProjects/soluna-ui-autotest/build/install/soluna`
+- `./gradlew -p AIot-Tests/apps/com.ugreen.iot/log-plugins/ugreen-audio test -PsolunaHome=/Users/xieliangji/IdeaProjects/soluna-ui-autotest/build/install/soluna`
+
+未运行：
+
+- 未运行 `lib/soluna-appium-ext` 的 npm 测试；Appium plugin 源码未触达。
+
+下一步：
+
+- 后续新增 JVM 扩展、ServiceLoader SPI、脚手架模板或 schema 版本目录时，继续保持 `io.soluna` 命名空间约束。
+
 ### 2026-06-28 README 中文优化
 
 - 将 `README.md` 从英文说明整理为中文项目入口文档，聚焦项目定位、核心模型、当前能力、asset project 合同、bundled Codex skill、CLI/debug CLI、报告上传、runtime tools/OCR、Appium plugin 和开发验证入口。
@@ -168,9 +193,9 @@
 
 验证：
 
-- `./gradlew test --tests com.soluna.ui.autotest.report.LocalReportWriterTest`
-- `./gradlew test --tests com.soluna.ui.autotest.cli.SolunaCliApplicationTest --tests com.soluna.ui.autotest.appium.action.WebDriverActionExecutorsTest`
-- `./gradlew test --tests com.soluna.ui.autotest.report.LocalReportWriterTest installDist`
+- `./gradlew test --tests io.soluna.ui.autotest.report.LocalReportWriterTest`
+- `./gradlew test --tests io.soluna.ui.autotest.cli.SolunaCliApplicationTest --tests io.soluna.ui.autotest.appium.action.WebDriverActionExecutorsTest`
+- `./gradlew test --tests io.soluna.ui.autotest.report.LocalReportWriterTest installDist`
 - `npm run build` in `lib/soluna-appium-ext`
 - `npm test` in `lib/soluna-appium-ext`
 - `./gradlew -p AIot-Tests/apps/com.ugreen.iot/log-plugins/ugreen-audio test -PsolunaHome=/Users/xieliangji/IdeaProjects/soluna-ui-autotest/build/install/soluna`
@@ -190,7 +215,7 @@
 
 验证：
 
-- `./gradlew test --tests com.soluna.ui.autotest.cli.SolunaCliApplicationTest --tests com.soluna.ui.autotest.appium.action.WebDriverActionExecutorsTest`
+- `./gradlew test --tests io.soluna.ui.autotest.cli.SolunaCliApplicationTest --tests io.soluna.ui.autotest.appium.action.WebDriverActionExecutorsTest`
 - `python3 /Users/xieliangji/.codex/skills/.system/skill-creator/scripts/quick_validate.py codex/skills/soluna-ui-autotest-creator`
 - `git diff --check`
 - `./gradlew installDist`
@@ -209,8 +234,8 @@
 
 - `npx mocha --require tsx/cjs test/unit/parsers.spec.ts test/unit/device-route.spec.ts` in `lib/soluna-appium-ext`
 - `npm run build` / `npm run lint` in `lib/soluna-appium-ext`
-- `./gradlew test --tests com.soluna.ui.autotest.config.DeviceConfigResolverTest --tests com.soluna.ui.autotest.report.LocalReportWriterTest`
-- `./gradlew test --tests com.soluna.ui.autotest.appium.wda.LocalGoIosWdaManagerTest`
+- `./gradlew test --tests io.soluna.ui.autotest.config.DeviceConfigResolverTest --tests io.soluna.ui.autotest.report.LocalReportWriterTest`
+- `./gradlew test --tests io.soluna.ui.autotest.appium.wda.LocalGoIosWdaManagerTest`
 - `./gradlew installDist`
 - 本地 iOS 设备元信息返回真实设备名、model 和 OS version。
 
@@ -229,8 +254,8 @@
 
 验证：
 
-- `./gradlew test --tests com.soluna.ui.autotest.dsl.YamlPlanParserTest --tests com.soluna.ui.autotest.schema.JsonSchemaDslValidatorTest --tests com.soluna.ui.autotest.runner.PlanReferenceResolverTest`
-- `./gradlew test --tests com.soluna.ui.autotest.appium.action.WebDriverActionExecutorsTest`
+- `./gradlew test --tests io.soluna.ui.autotest.dsl.YamlPlanParserTest --tests io.soluna.ui.autotest.schema.JsonSchemaDslValidatorTest --tests io.soluna.ui.autotest.runner.PlanReferenceResolverTest`
+- `./gradlew test --tests io.soluna.ui.autotest.appium.action.WebDriverActionExecutorsTest`
 - `./gradlew installDist`
 - `git diff --check`
 - skill quick validation 在部分环境因缺少 PyYAML 未能运行；已记录环境原因。
@@ -249,7 +274,7 @@
 
 验证：
 
-- `./gradlew test --tests com.soluna.ui.autotest.appium.action.WebDriverActionExecutorsTest --tests com.soluna.ui.autotest.schema.JsonSchemaDslValidatorTest --tests com.soluna.ui.autotest.dsl.YamlPlanParserTest --tests com.soluna.ui.autotest.runner.PlanReferenceResolverTest`
+- `./gradlew test --tests io.soluna.ui.autotest.appium.action.WebDriverActionExecutorsTest --tests io.soluna.ui.autotest.schema.JsonSchemaDslValidatorTest --tests io.soluna.ui.autotest.dsl.YamlPlanParserTest --tests io.soluna.ui.autotest.runner.PlanReferenceResolverTest`
 - `./gradlew test`
 - `./gradlew installDist`
 - `git diff --check`

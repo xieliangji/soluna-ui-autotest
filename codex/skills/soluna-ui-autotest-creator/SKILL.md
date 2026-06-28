@@ -53,9 +53,11 @@ scaffold 只提供最小可运行骨架。业务 locator、状态 fragment、型
 ```bash
 soluna scaffold app-log-plugin ./ugreen-audio-log-plugin \
   --plugin-id ugreen-audio \
-  --package com.ugreen.soluna.applog \
+  --package io.soluna.ugreen.applog \
   --assertion ble-command-ack
 ```
+
+`--package` 和显式 `--group` 必须使用 `io.soluna` 或其子命名空间。
 
 ## 硬性规则
 

@@ -3,7 +3,7 @@ plugins {
     application
 }
 
-group = "com.soluna"
+group = "io.soluna"
 version = "1.0.0"
 
 repositories {
@@ -51,7 +51,7 @@ tasks.test {
 
 application {
     applicationName = "soluna"
-    mainClass.set("com.soluna.ui.autotest.cli.SolunaCli")
+    mainClass.set("io.soluna.ui.autotest.cli.SolunaCli")
 }
 
 distributions {

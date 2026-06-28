@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://schemas.soluna-ui-autotest.local/v1/fragment-catalog.schema.json",
+  "$id": "https://schemas.io.soluna.local/v1/fragment-catalog.schema.json",
   "title": "Soluna UI Autotest Fragment Catalog",
   "type": "object",
   "additionalProperties": false,

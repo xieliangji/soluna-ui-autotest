@@ -1,0 +1,86 @@
+package io.soluna.ui.autotest.core.execution
+
+import io.soluna.ui.autotest.core.model.ActionDefinition
+import io.soluna.ui.autotest.core.model.CaseDefinition
+import io.soluna.ui.autotest.core.model.StageDefinition
+
+interface FailureStrategy {
+    fun continueCaseAfterActionFailure(
+        context: ExecutionContext,
+        stage: StageDefinition,
+        case: CaseDefinition,
+        action: ActionDefinition,
+        result: ActionExecutionResult,
+    ): Boolean
+
+    fun continueStageAfterCaseFailure(
+        context: ExecutionContext,
+        stage: StageDefinition,
+        case: CaseDefinition,
+        result: CaseExecutionResult,
+    ): Boolean
+
+    fun continuePlanAfterStageFailure(
+        context: ExecutionContext,
+        stage: StageDefinition,
+        result: StageExecutionResult,
+    ): Boolean
+}
+
+object FailFastFailureStrategy : FailureStrategy {
+    override fun continueCaseAfterActionFailure(
+        context: ExecutionContext,
+        stage: StageDefinition,
+        case: CaseDefinition,
+        action: ActionDefinition,
+        result: ActionExecutionResult,
+    ): Boolean {
+        return false
+    }
+
+    override fun continueStageAfterCaseFailure(
+        context: ExecutionContext,
+        stage: StageDefinition,
+        case: CaseDefinition,
+        result: CaseExecutionResult,
+    ): Boolean {
+        return false
+    }
+
+    override fun continuePlanAfterStageFailure(
+        context: ExecutionContext,
+        stage: StageDefinition,
+        result: StageExecutionResult,
+    ): Boolean {
+        return false
+    }
+}
+
+object ContinueCaseFailureStrategy : FailureStrategy {
+    override fun continueCaseAfterActionFailure(
+        context: ExecutionContext,
+        stage: StageDefinition,
+        case: CaseDefinition,
+        action: ActionDefinition,
+        result: ActionExecutionResult,
+    ): Boolean {
+        return false
+    }
+
+    override fun continueStageAfterCaseFailure(
+        context: ExecutionContext,
+        stage: StageDefinition,
+        case: CaseDefinition,
+        result: CaseExecutionResult,
+    ): Boolean {
+        return true
+    }
+
+    override fun continuePlanAfterStageFailure(
+        context: ExecutionContext,
+        stage: StageDefinition,
+        result: StageExecutionResult,
+    ): Boolean {
+        return true
+    }
+}
