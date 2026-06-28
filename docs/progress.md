@@ -1,597 +1,375 @@
-# Progress
+# 项目进度
 
-This file is the compact progress record for the Soluna framework project.
-It records framework capabilities, contracts, runtime boundaries, and verification
-status. Business case authoring and case debugging progress must be recorded in
-the relevant Soluna asset project docs instead.
+本文档是 Soluna 框架项目的精简进度记录，记录框架能力、合同边界、运行时状态、验证基线和下一步工作。业务用例编写、逐条调试、账号/设备前置条件和具体操作路径应记录在对应 asset project 的 `docs/` 目录中。
 
-## Maintenance Rules
+## 维护规则
 
-- Keep this file concise. Record framework milestones, current status, verification, and next framework work.
-- Do not paste long command output, stack traces, or every failed attempt here.
-- Do not record business case writing progress, case-by-case debug status, test data state, or detailed business operation paths in this framework document.
-- When a business case exposes a reusable framework need, record only the generalized framework change here after it is implemented.
-- Record business case notes under the asset project, for example `AIot-Tests/apps/<app-id>/docs/`.
-- If behavior, boundaries, schemas, lifecycle assumptions, commands, or dependencies change, update the relevant design or usage document in the same iteration.
+- 保持精简，只记录框架里程碑、当前状态、验证结果和下一步框架工作。
+- 不粘贴长命令输出、完整堆栈、每一次失败尝试或业务用例逐条进展。
+- 业务用例暴露出的可复用框架需求，在抽象成框架能力或合同变化后再记录到这里。
+- 行为、边界、schema、生命周期假设、命令或依赖变化时，同步更新相关设计文档、schema 文档、README 或 bundled Codex skill。
+- 每轮实现结束前更新本文件；如果只改文档，也要写明验证和未运行测试的原因。
 
-## Current State
+## 当前状态
 
-Runnable framework foundation is in place. Current work is focused on v1 hardening, contract clarity, and asset-project driven capability gaps.
+框架已经具备可运行基础。当前工作重点是 v1 收口、合同清晰度、真实 asset project 驱动的能力补齐和分发一致性。
 
-Implemented capabilities:
+已实现能力：
 
-- YAML DSL with `Plan -> Stage -> Case -> Action`.
-- Plan-rooted execution: runner accepts only a plan path; other assets are referenced directly or indirectly by the plan.
-- Schema-first validation for plan, case, element catalog, fragment catalog, parameter data, device config, artifact store, notification sender, report data, resource manifest, asset project, runner request, and runner result contracts.
-- Keyword-as-field action syntax with nested action payloads preferred, for example `tap: { id, element, desc }`; legacy `tap: open-mine-tab` remains compatible.
-- Case/data/element/fragment decomposition with linear case DSL and separate reusable setup/teardown fragments.
-- Fragment DSL supports business-neutral `if` / `then` / `else` control flow with existing action/assertion keywords as predicates.
-- Android and iOS real-device execution through Appium Java Client.
-- Managed Appium server with runtime port allocation, extension bootstrap, required driver bootstrap, and `/status` probing.
-- Managed iOS WDA through go-ios, including iOS 17+ userspace tunnel handling.
-- Recovering WebDriver adapter with logical session and physical session rebuild.
-- `soluna-ext` client for device metadata, installed app metadata, WDA bundle lookup, commands, and log sessions.
-- Default actions: `tap`, `tapPosition`, `longPress`, `swipe`, `input`, `wait`, `restartApp`, `clearAppData`, `getText`, `saveElementRect`, `screenshot`, `tapVisualTemplate`, `assertImageColorRatio`, `assertImageTextRegexMatch`, `startScreenRecording`, `stopScreenRecording`, `captureAppLogStart`, `captureAppLogEnd`, `assertElementAttrEquals`, `assertElementAttrRegexMatch`, `assertSourceRegexMatch`, `assertScreenRecordingTextRegexMatch`, and `customAssertAppLog`.
-- `tap` resolves the current viewport-visible element and clicks the element-visible-area center by default; `tapPosition` is the explicit ratio-position click keyword and uses viewport ratios by default or element-visible-area ratios when `element` is supplied. Both settle for 800ms by default. Optional missing element skipping remains limited to `tap` with predefined conditional UI reasons such as optional firmware-upgrade prompts.
-- `clearAppData` supports Android app data reset through `adb shell pm clear`, then reactivates the app and waits for foreground state.
-- `saveElementRect` stores an element's visible viewport rectangle as a pixel rect or normalized ROI for later runtime-variable reuse.
-- `tapVisualTemplate` supports static ROI objects, runtime-variable ROI objects, and action-level wait retry with fresh screenshots.
-- `screenshot` can save the captured local image path to a runtime variable; `assertImageColorRatio` checks a saved image file for kt-visual named-color coverage inside an optional normalized ROI; `assertImageTextRegexMatch` runs OCR against a stable screenshot or image file.
-- Assertion actions poll by resolved `wait`; explicit assertion waits isolate each probe from the session implicit wait.
-- Runtime variables via `@{plan.name}` and `@{case.name}`; parameter references via `${...}`.
-- Local JSON/HTML report writer with execution summary, failure summary, action metadata, trace links, report-resource links, and per-case action detail dialogs.
-- App and device display names in reports and lifecycle notifications prefer real `soluna-ext` metadata when available.
-- Explicit resource manifest for screenshots, screen recordings, retained analysis frames, and App log JSONL files.
-- Failure trace screenshots and page source diagnostics.
-- Async MinIO uploads with compression, retry, bounded drain, and local cleanup after successful upload.
-- DingTalk lifecycle notifications with execution statistics and failure summaries, plus aggregated upload-failure alerts.
-- CLI runner: `soluna run <plan.yaml>`.
-- Debug CLI: `soluna debug <plan.yaml> source|screenshot|tap|tap-element|swipe|swipe-element|input|tap-template|shell`.
+- YAML DSL 执行模型：`Plan -> Stage -> Case -> Action`。
+- plan-rooted runner：执行入口只接收 plan 路径，其它资产由 plan 直接或间接引用。
+- schema-first 校验：plan、case、element catalog、fragment catalog、parameter data、device config、artifact store、notification sender、report data、resource manifest、asset project、runner request/result 均有 v1 schema。
+- 关键字即字段的动作语法：推荐 `tap: { id, element, desc }`，兼容旧的 `tap: open-mine-tab` 形式。
+- case/data/element/fragment 拆分；case DSL 保持线性；fragment 支持业务无关 `if` / `then` / `else`。
+- Android 和 iOS 真机执行，底层使用 Appium Java Client。
+- managed Appium server：运行时端口、扩展安装校验、driver 安装校验、`/status` 探测和 FFmpeg PATH 注入。
+- managed iOS WDA：go-ios 管理、iOS 17+ tunnel 路径、host-global tunnel 复用、不停止外部 tunnel。
+- recovering WebDriver adapter：逻辑 session 稳定，物理 session / Appium server / WDA 可恢复重建。
+- `soluna-ext` 客户端：设备元信息、已安装 app 元信息、WDA bundle 查询、受控命令和日志会话。
+- 默认动作：`tap`、`tapPosition`、`longPress`、`swipe`、`input`、`wait`、`restartApp`、`clearAppData`、`getText`、`saveElementRect`、`screenshot`、`tapVisualTemplate`、`assertImageColorRatio`、`assertImageTextRegexMatch`、`startScreenRecording`、`stopScreenRecording`、`assertScreenRecordingTextRegexMatch`、`captureAppLogStart`、`captureAppLogEnd`、`assertElementExists`、`assertElementAttrEquals`、`assertElementAttrRegexMatch`、`assertSourceRegexMatch`、`customAssertAppLog`。
+- viewport-visible 元素交互：tap/longPress/swipe 每次重新定位当前可见元素，按可见区域计算坐标。
+- 运行时变量：`@{plan.name}` 和 `@{case.name}`；参数引用：`${...}`。
+- 显式资源 manifest：截图、录屏、OCR 命中帧、App log JSONL 等业务显式资源进入 `plan-resource-manifest.json`。
+- 失败诊断：失败前 trace 截图和 page source 进入 diagnostic artifact。
+- 本地 JSON/HTML 报告：执行摘要、失败摘要、动作元数据、trace 链接、报告资源入口和 per-case 动作明细弹窗。
+- App/device 展示名优先使用 `soluna-ext` 真实元数据。
+- MinIO 异步上传：压缩、重试、bounded drain、上传成功后本地清理。
+- DingTalk 生命周期通知和上传失败聚合告警。
+- CLI：`soluna run <plan.yaml>`。
+- Debug CLI：`soluna debug <plan.yaml> source|screenshot|tap|tap-element|longPress|longPress-element|swipe|swipe-element|input|tap-template|shell`。
+- 分发包包含 `lib/soluna-appium-ext`、`tools/ffmpeg`、`plugins/app-log` 和中文化、按任务路由的 bundled Codex skill。
 
-## Recent Iterations
+当前已知差距：
 
-### 2026-06-27 iOS Report Device Name Fix
+- `Plan.defaults.retryStrategy` 字段尚未映射到运行时命名 retry 策略。
+- `app.reset` 当前只作为 `app.*` 参数 seed，不触发自动 reset；reset 仍需用 lifecycle fragment/action 显式表达。
+- `clearAppData` 和 Android screen recording 仍在 Kotlin WebDriver adapter 内直接调用 `adb`，后续应迁移到 `soluna-ext` 能力和客户端抽象。
+- `plan-resource-manifest.schema.json` 当前枚举只覆盖 image/video 显式资源，但 `captureAppLogEnd` 已可通过通用资源 sink 写出 `type=log` / `purpose=app_log_capture`；后续需要补齐 manifest schema/test 或调整 App log 资源边界。
+- 报告、manifest 和生命周期通知仍主要由 `PlanRunner` 编排，尚未完全转为 hook consumer。
+- `soluna-project.yaml` 已有 schema，但当前 CLI 不强制 project discovery。
+- 生命周期通知配置仍挂在 artifact store config 下，后续应从 artifact 配置中解耦。
 
-- Updated `soluna-ext` iOS device metadata resolution so report/device display names come from `ios --udid=<udid> devicename` instead of `ios list --details` `ProductName`.
-- Added parsing for go-ios JSON-line `devicename` output, including warning JSON lines before the real payload.
-- Kept `ProductType` as the model source and retained `ProductName` only as a fallback when the real device name command is unavailable.
-- Documented the iOS device-name boundary in architecture and schema docs.
+## 近期框架迭代
 
-Verification:
+### 2026-06-28 README 中文优化
+
+- 将 `README.md` 从英文说明整理为中文项目入口文档，聚焦项目定位、核心模型、当前能力、asset project 合同、bundled Codex skill、CLI/debug CLI、报告上传、runtime tools/OCR、Appium plugin 和开发验证入口。
+- 同步当前实现事实：CLI 只有 `run`、`debug` 和 `scaffold app-log-plugin`，没有独立 `validate`；`soluna-project.yaml` 当前是项目元数据合同，不驱动 CLI project discovery；`app.reset` 不自动 reset；manifest 对 App log JSONL 仍存在 schema 枚举缺口。
+- 保留并整合最近 README 已补充的 debug `longPress` / `longPress-element`、报告 failure message 展示和 App log plugin 发现路径等描述。
+
+验证：
+
+- `git diff --check -- README.md docs/progress.md`
+- `rg -n "soluna validate|Current Status|Design Summary|distributed|The framework|This smoke|Next steps" README.md`
+
+未运行：
+
+- 未运行 Gradle / npm 测试；本轮只修改 README 和进度文档，未改运行时代码、schema 或分发内容。
+
+下一步：
+
+- 后续 README 只保留项目入口和常用命令；字段级和生命周期细节继续以 `docs/architecture.md`、`docs/schemas.md` 和 bundled skill references 为准。
+
+### 2026-06-28 Bundled Codex Skill 逐文件精修
+
+- 按文件盘点并精修 `codex/skills/soluna-ui-autotest-creator`：保持 `SKILL.md` 作为中文入口和路由，保留 `agents/openai.yaml` 的中文短描述和包含 `$soluna-ui-autotest-creator` 的默认提示。
+- 补强 reference 的加载时机和实现事实：长 reference 增加简短目录；明确 `soluna run` 承担校验和执行、当前 CLI 不读取 `soluna-project.yaml`、plan-relative 引用规则、case 线性 / fragment 控制流、setup / caseSetup 分工、App log manifest schema 缺口和能力缺口 gate。
+- 精修 scaffold 脚本和模板：`create_asset_project.py` 输出中文提示，不再建议不存在的 `soluna validate`；修正 `plans/common/` 下 plan 模板的 data/fragment/device/case 相对路径；生成的 plan/case/fragment/data/element/docs 文案改为中文；`soluna-project.yaml` 的 `defaultPlan` 改为 `plans/common/<platform>-smoke.yaml`。
+- 精修 `send_dingtalk_gap_notice.py` 的中文参数说明、默认标题和 dry-run 输出，保留内置 Soluna debug DingTalk robot fallback 行为。
+
+验证：
+
+- `python3 codex/skills/soluna-ui-autotest-creator/scripts/create_asset_project.py --output /private/tmp/soluna-skill-scaffold-check-codex-20260628-a --project-id skill-check --app-id com.example.skillcheck --app-name 示例App --product-model 示例型号 --platform android --udid ANDROID_UDID`
+- 检查生成文件路径、`apps/com.example.skillcheck/plans/common/android-smoke.yaml` 的关键引用路径、`soluna-project.yaml` 的 `defaultPlan` 和中文 `docs/case-authoring-notes.md`。
+- `python3 codex/skills/soluna-ui-autotest-creator/scripts/send_dingtalk_gap_notice.py --message '能力缺口 dry-run 验证' --dry-run --no-default-robot`
+- `python3 /Users/xieliangji/.codex/skills/.system/skill-creator/scripts/quick_validate.py codex/skills/soluna-ui-autotest-creator`
+- `git diff --check -- codex/skills/soluna-ui-autotest-creator docs/progress.md`
+- `./gradlew installDist`；首次 sandbox 运行因 Gradle wrapper 需要访问 `~/.gradle` lock 被拒，使用外部权限重跑后通过。
+- 确认 `build/install/soluna/codex/skills/soluna-ui-autotest-creator/SKILL.md` 存在且包含中文入口。
+
+未运行：
+
+- 未运行完整 `./gradlew test`、`./gradlew build` 或 `lib/soluna-appium-ext` 的 npm 测试；本轮只修改 skill 文档、脚本和模板，未改 Kotlin runtime 或 Appium plugin 源码。
+
+下一步：
+
+- 后续若新增 CLI 子命令、DSL 字段、关键字、manifest 资源类型、App log plugin 发现规则或 asset project 目录合同，应同轮更新对应 reference、脚手架模板和分发验证。
+
+### 2026-06-28 Bundled Codex Skill 中文整理
+
+- 将 `codex/skills/soluna-ui-autotest-creator/SKILL.md` 改为中文精简入口，只保留基本合同、任务路由、默认循环、新建资产项目和硬性规则。
+- 按 Codex progressive disclosure 方式重组 references：新增 `case-lifecycle-workflow.md`、`keyword-core-actions.md`、`keyword-visual-ocr.md`、`keyword-app-log.md`，让 Codex 在调试用例、管理用例、执行用例和处理能力缺口时只加载对应规范。
+- 将原有 asset project、debug/evidence、distribution、capability-gap 和 keyword usage 文档全部改为中文，并修正当前 CLI 没有独立 `validate` 命令的边界。
+- 更新 `agents/openai.yaml`，让默认提示和短描述与中文 skill 行为一致。
+
+验证：
+
+- `python3 /Users/xieliangji/.codex/skills/.system/skill-creator/scripts/quick_validate.py codex/skills/soluna-ui-autotest-creator`
+- `./gradlew installDist`
+- 确认 `build/install/soluna/codex/skills/soluna-ui-autotest-creator/SKILL.md` 已存在并包含中文入口。
+- `git diff --check -- codex/skills/soluna-ui-autotest-creator docs/progress.md`
+
+下一步：
+
+- 后续 CLI、DSL、报告/产物合同、Appium/WebDriver authoring 行为变化时，继续同步更新对应 reference，并保持 `SKILL.md` 只做入口和路由。
+
+### 2026-06-28 Schema 文档中文整理
+
+- 将 `docs/schemas.md` 从英文实现说明整理为中文 schema 合同文档。
+- 按当前 schema 文件和 Kotlin 消费路径重新描述 plan/case/fragment/element/parameter/device/artifact/notification/report/manifest/run request/run result/asset project 合同。
+- 补充动作关键字 canonical/alias 清单、DSL 解析顺序、policy 校验边界、参数合并顺序和输出数据语义。
+- 明确当前合同差距：`retryStrategy` 字段未映射运行时命名策略、`app.reset` 不自动 reset、App log 显式资源写出能力与 manifest schema 枚举尚未完全一致。
+
+验证：
+
+- `git diff --check -- docs/schemas.md docs/progress.md docs/architecture.md`
+- 文档整理变更，未运行 Gradle / npm 测试。
+
+下一步：
+
+- 后续若补齐 manifest App log 资源枚举，应同步更新 schema、schema 测试、`docs/schemas.md` 和 bundled Codex skill。
+
+### 2026-06-28 进度文档中文整理
+
+- 将 `docs/progress.md` 从英文长流水整理为中文框架进度记录。
+- 调整结构为维护规则、当前状态、已知差距、近期框架迭代、历史里程碑、验证基线和下一步。
+- 移除业务用例逐条调试记录，只保留由业务联调抽象出的框架能力变化。
+
+验证：
+
+- `git diff --check -- docs/progress.md`
+- 文档整理变更，未运行 Gradle / npm 测试。
+
+下一步：
+
+- 后续框架行为变化继续用中文记录，并保持业务用例进度在 asset project 文档中维护。
+
+### 2026-06-28 架构文档重整
+
+- 按当前 Kotlin/Appium 实现重构 `docs/architecture.md`，替换旧的路线图式混合描述。
+- 明确 `PlanRunner` 流程、plan-rooted 资产解析、lifecycle 合并顺序、参数合并顺序、运行时变量作用域、hook 使用、失败/重试策略、Appium/WDA/session recovery、动作证据语义、产物/报告/通知流和 schema/service 合同。
+- 显式记录当前实现差距：`retryStrategy` 未接入命名策略、`app.reset` 不触发自动 reset、部分 Android 宿主机命令仍在 adapter 内、报告/manifest/通知仍由 `PlanRunner` 编排、CLI 尚未强制读取 `soluna-project.yaml`。
+
+验证：
+
+- `git diff --check -- docs/architecture.md docs/progress.md`
+- 文档-only 变更，未运行 Gradle / npm 测试。
+
+下一步：
+
+- 实现上述差距时，同步更新 `docs/architecture.md`、`docs/schemas.md` 和 bundled Codex skill。
+
+### 2026-06-28 App 日志与报告错误展示
+
+- `soluna-ext` Android App log session 从当前 logcat tail 开始采集，避免历史日志误命中新交互断言。
+- 报告执行概览和失败摘要中的错误/消息列改为固定宽度省略展示，完整文本保留在 tooltip 和动作明细弹窗中。
+- 元素属性断言支持 slash-separated fallback，例如 Android switch 可从 `value` fallback 到 `checked` 并映射为现有 `1` / `0` 合同。
+- App 级蓝牙日志语义继续放在独立 app-log assertion plugin 中，默认 DSL 不引入业务协议关键字。
+
+验证：
+
+- `./gradlew test --tests com.soluna.ui.autotest.report.LocalReportWriterTest`
+- `./gradlew test --tests com.soluna.ui.autotest.cli.SolunaCliApplicationTest --tests com.soluna.ui.autotest.appium.action.WebDriverActionExecutorsTest`
+- `./gradlew test --tests com.soluna.ui.autotest.report.LocalReportWriterTest installDist`
+- `npm run build` in `lib/soluna-appium-ext`
+- `npm test` in `lib/soluna-appium-ext`
+- `./gradlew -p AIot-Tests/apps/com.ugreen.iot/log-plugins/ugreen-audio test -PsolunaHome=/Users/xieliangji/IdeaProjects/soluna-ui-autotest/build/install/soluna`
+- Android 真机 asset plan 抽样验证通过。
+
+下一步：
+
+- 保持平台/业务协议语义在 app-log assertion plugin 和资产数据中，不进入通用 DSL 关键字。
+- 当前大批 asset 调试收口后运行完整 Gradle sweep。
+
+### 2026-06-28 Debug CLI 长按支持
+
+- `soluna debug` 一次性命令和交互 shell 增加 `longPress` / `longPress-element`。
+- 复用现有 WebDriver longPress adapter 路径，支持 viewport 比例、元素相对比例和 `durationMs`。
+- 同轮补强属性断言 fallback，平台不支持的属性候选不会直接中断整个断言。
+- 更新 README、架构说明和 bundled skill debug evidence reference。
+
+验证：
+
+- `./gradlew test --tests com.soluna.ui.autotest.cli.SolunaCliApplicationTest --tests com.soluna.ui.autotest.appium.action.WebDriverActionExecutorsTest`
+- `python3 /Users/xieliangji/.codex/skills/.system/skill-creator/scripts/quick_validate.py codex/skills/soluna-ui-autotest-creator`
+- `git diff --check`
+- `./gradlew installDist`
+- `build/install/soluna/bin/soluna --help`
+- debug shell `help` 确认列出 `longPress` 和 `longPress-element`。
+
+### 2026-06-27 iOS 设备名与 WDA tunnel 生命周期
+
+- `soluna-ext` iOS device metadata 改为通过 `ios --udid=<udid> devicename` 获取真实设备名，不再把 `ios list --details` 的 `ProductName` 当作展示设备名。
+- 增加 go-ios JSON-line `devicename` 输出解析，保留 `ProductType` 作为 model 来源。
+- managed iOS WDA 启动时检测并复用已有 `ios` / `go-ios tunnel start` 进程。
+- iOS tunnel 明确为 host-global singleton；plan 结束、WDA restart、WDA 启动失败清理都只停止框架拥有的 `runwda` 和 `forward`，不停止 tunnel。
+- 默认 Appium/WDA 包级日志从 DEBUG 降到 INFO，避免正常 plan 运行刷屏。
+
+验证：
 
 - `npx mocha --require tsx/cjs test/unit/parsers.spec.ts test/unit/device-route.spec.ts` in `lib/soluna-appium-ext`
-- `npm run build` in `lib/soluna-appium-ext`
-- `npm run lint` in `lib/soluna-appium-ext`
+- `npm run build` / `npm run lint` in `lib/soluna-appium-ext`
 - `./gradlew test --tests com.soluna.ui.autotest.config.DeviceConfigResolverTest --tests com.soluna.ui.autotest.report.LocalReportWriterTest`
-- `./gradlew installDist`
-- Built `soluna-ext` iOS metadata service returned `{"name":"iPhone","model":"iPhone17,3","osVersion":"18.6"}` for local device `00008140-001805D80C93801C`, confirming `deviceName` now comes from `ios devicename` instead of `ProductName`.
-
-Next recommended work:
-
-- Run a short iOS plan after `./gradlew installDist` to confirm the generated report displays the expected physical device name.
-
-### 2026-06-27 iOS Tunnel Lifecycle Hardening
-
-- Changed managed iOS WDA startup to detect and reuse an already running `ios` / `go-ios tunnel start` process before launching a new userspace tunnel.
-- Treated iOS tunnel as a host-global singleton: WDA stop, WDA restart, and WDA startup-failure cleanup now only stop framework-owned `runwda` and `forward` processes, never tunnel processes.
-- Kept runwda/forward restart behavior intact so session recovery can rebuild WDA and Appium sessions without disrupting other tasks that depend on the same tunnel.
-- Lowered default Appium server and WDA manager package logging from DEBUG to INFO so normal plan runs do not flood stdout; targeted DEBUG can still be enabled through JVM simplelogger overrides.
-- Updated architecture and schema docs for the revised tunnel ownership boundary.
-
-Verification:
-
 - `./gradlew test --tests com.soluna.ui.autotest.appium.wda.LocalGoIosWdaManagerTest`
 - `./gradlew installDist`
+- 本地 iOS 设备元信息返回真实设备名、model 和 OS version。
 
-Next recommended work:
+下一步：
 
-- Run `./gradlew installDist` before the next real-device run so the packaged `soluna` command uses the new tunnel lifecycle behavior.
-- Continue the T8 iOS case regression after reinstalling the distribution.
+- 分发包更新后继续跑短 iOS plan，确认报告展示真实物理设备名。
 
-### 2026-06-27 Locator Text Reason Policy Hardening
+### 2026-06-27 Locator 文案 reason 与 `tapPosition`
 
-- Replaced the old `textLocatorPurpose` escape hatch with explicit locator text reasons: `parameterizedTextReason` for `${...}` text parameters and `hardcodedTextReason` for fixed text values that are language-insensitive.
-- Kept locator text reasons framework-owned rather than project-configurable; `language_insensitive_text` is the only allowed value for both parameterized and hardcoded text locators.
-- Extended element locator policy validation to reject coordinate/size attributes in locator expressions and to recognize iOS/XPath text functions such as `contains(@name, ...)`, `contains(string(@name), ...)`, and `starts-with(@name, ...)`.
-- Updated the AIoT common element catalog so brand names, version markers, identifiers, and resource-style accessibility names use `language_insensitive_text`.
-- Split common mine UI-copy data to a language-versioned `mine.zh-CN.yaml` fixture and clarified that locator text parameters are only for language-insensitive values such as MAC suffixes or device model names; language-specific copy belongs to assertion/input data.
-- Updated architecture/schema docs and the bundled Codex skill keyword reference with the new locator authoring rules.
+- 用 `parameterizedTextReason` / `hardcodedTextReason` 替代旧 `textLocatorPurpose`。
+- `language_insensitive_text` 是唯一允许 reason，且由框架拥有，不做项目级扩展。
+- locator policy 增加坐标/尺寸属性拦截，并识别 XPath、iOS predicate、Android UiAutomator 等常见文本函数。
+- 新增 author-facing `tapPosition` 关键字及中英文别名，显式表达 viewport 或元素可见区域比例点击。
+- `tapPosition` 归一化为内部 `tap` action；element 场景把 `xRatio` / `yRatio` 映射到 `elementXRatio` / `elementYRatio`。
+- 更新 schema、policy、架构/schema docs 和 bundled skill keyword reference。
 
-Verification:
+验证：
 
 - `./gradlew test --tests com.soluna.ui.autotest.dsl.YamlPlanParserTest --tests com.soluna.ui.autotest.schema.JsonSchemaDslValidatorTest --tests com.soluna.ui.autotest.runner.PlanReferenceResolverTest`
-- `./gradlew installDist`
-- Confirmed packaged skill exists under `build/install/soluna/codex/skills/soluna-ui-autotest-creator`.
-- `python3 /Users/ugreen/.codex/skills/.system/skill-creator/scripts/quick_validate.py codex/skills/soluna-ui-autotest-creator` was attempted but could not run because both available Python runtimes lack `yaml` / PyYAML; the AGENTS-documented `/Users/xieliangji/...` script path is absent on this machine.
-- Reran targeted parser/schema/resolver/parameter-resolver tests and `./gradlew installDist` after narrowing allowed locator text reasons to the single built-in `language_insensitive_text`, splitting common mine data by UI language, and keeping locator parameters limited to language-insensitive values; skill quick validation still could not run because the local Python environment lacks PyYAML.
-
-Next recommended work:
-
-- Run full `./gradlew test` / `./gradlew build` after the current real-device debugging batch settles, because the working tree also contains unrelated in-progress framework and asset changes.
-- Continue replacing any remaining viewport-only `tapPosition` assets with element-relative targets when stable element anchors are confirmed.
-
-### 2026-06-27 TapPosition Keyword And T8 Position Click Cleanup
-
-- Added the author-facing `tapPosition` keyword and aliases for explicit ratio-position clicks. `xRatio` and `yRatio` are required; ratios apply to the viewport by default and to the current visible area of `element` when one is supplied.
-- Kept the executor path compact by normalizing `tapPosition` into the existing internal `tap` action. Element-region `tapPosition` maps `xRatio` / `yRatio` to executor `elementXRatio` / `elementYRatio`; viewport `tapPosition` keeps viewport ratios.
-- Added schema and policy guardrails across case, plan, and fragment DSL. Nested `tapPosition` bodies have a dedicated schema requiring `id`, `xRatio`, and `yRatio`; `tapPosition` does not support `ignoreMissingElement`.
-- Converted T8 position-click assets from ordinary `tap` with ratio fields to `tapPosition`, including prompt-volume slider, rename dialog title/input-area clicks, custom-control gesture rows and option sheets, custom equalizer entry clicks, and the remaining viewport position taps.
-- Removed several T8 text-parameterized element locators from click paths and changed name/title state checks to source-regex assertions where the UI text is the assertion target.
-- Updated architecture/schema docs and the bundled Codex skill keyword reference for the new keyword semantics.
-
-Verification:
-
-- `./gradlew test --tests com.soluna.ui.autotest.dsl.YamlPlanParserTest --tests com.soluna.ui.autotest.schema.JsonSchemaDslValidatorTest --tests com.soluna.ui.autotest.appium.action.WebDriverActionExecutorsTest`
+- `./gradlew test --tests com.soluna.ui.autotest.appium.action.WebDriverActionExecutorsTest`
 - `./gradlew installDist`
 - `git diff --check`
-- Skill quick validation was attempted with `/Users/ugreen/.codex/skills/.system/skill-creator/scripts/quick_validate.py`, but both system Python and bundled Python lacked `yaml` / PyYAML; the AGENTS-documented `/Users/xieliangji/...` script path is absent on this machine.
+- skill quick validation 在部分环境因缺少 PyYAML 未能运行；已记录环境原因。
 
-Next recommended work:
+下一步：
 
-- Continue real-device step debugging for T8 TC010-TC017 with the new `tapPosition` syntax, and replace remaining viewport-region `tapPosition` usages with element-region targets when stable page blocks are confirmed from source.
+- 继续把可稳定锚定的 viewport-only `tapPosition` 资产替换成 element-relative 目标。
 
-### 2026-06-27 T8 Custom Control Asset Coverage
+### 2026-06-26 条件点击、元素截图和静态 OCR
 
-- Split T8 more-page custom control automation into four focused iOS cases: `TC014` double tap, `TC015` single tap, `TC016` triple tap, and `TC017` long press.
-- Each case covers left and right ears, normalizes the current gesture row to a baseline option before switching to the target option, asserts the UI row update, checks the BLE write log through the UGREEN audio app-log plugin, and restores the baseline state.
-- Added model-specific generic gesture-row locators for single tap, double tap, triple tap, and long press so cases can recover from dirty device state left by interrupted debug runs.
-- Updated the T8 formal iOS plan and focused custom-control debug plan to include all four cases.
+- `tap` 支持可选缺失元素跳过，但必须使用预定义 `ignoreMissingElementReason`，当前为 `optionalFirmwareUpgradePrompt`。
+- `screenshot` 支持带 `element` 的元素截图；无 element 时仍截全屏。
+- `screenshot.saveAs` 可把本地图片路径写入运行时变量。
+- 新增 `assertImageTextRegexMatch`，用于稳定截图或图片文件 OCR，避免静态页面必须走录屏 OCR。
+- 更新 v1 schemas、Kotlin keyword registry、执行文档和 bundled skill keyword reference。
 
-Verification:
-
-- `./gradlew test --tests com.soluna.ui.autotest.schema.JsonSchemaDslValidatorTest --tests com.soluna.ui.autotest.dsl.YamlPlanParserTest --tests com.soluna.ui.autotest.runner.PlanReferenceResolverTest`
-- `build/install/soluna/bin/soluna run AIot-Tests/apps/com.ugreen.iot/plans/debug/ios-hitune-t8-custom-control-debug.yaml --run-id t8-custom-control-debug-20260626-005`
-- Focused real-device run `t8-custom-control-debug-20260626-005` passed with uploads `uploaded=7, failed=0, abandoned=0`.
-
-Next recommended work:
-
-- Run the full T8 iOS plan after the remaining more-page cases are finalized.
-- Keep physical earbud gesture effects out of UI regression assertions unless hardware actions or lower-level logs are added.
-
-### 2026-06-26 Conditional Tap And Screenshot OCR
-
-- Added element-tap support for optional missing elements with schema/policy guardrails: `ignoreMissingElement: true` must be paired with predefined `ignoreMissingElementReason`, currently `optionalFirmwareUpgradePrompt`.
-- Added `tapPosition` as the author-facing keyword for ratio-position clicks. It requires `xRatio` and `yRatio`, defaults those ratios to the viewport, and treats them as element-visible-area ratios when `element` is supplied; the normalizer maps it to the existing tap executor path.
-- Added `assertImageTextRegexMatch` for static screenshot/image OCR with optional ROI and recognizer selection, so stable pages such as product manuals do not need screen recording OCR.
-- Updated v1 case/plan/fragment schemas, Kotlin keyword registration, execution docs, and the bundled Codex skill keyword reference.
-- Updated the UGREEN device fragment to dismiss conditional firmware-upgrade prompts through a language-insensitive prompt structure with a 5s wait instead of a coordinate tap.
-
-Verification:
+验证：
 
 - `./gradlew test --tests com.soluna.ui.autotest.appium.action.WebDriverActionExecutorsTest --tests com.soluna.ui.autotest.schema.JsonSchemaDslValidatorTest --tests com.soluna.ui.autotest.dsl.YamlPlanParserTest --tests com.soluna.ui.autotest.runner.PlanReferenceResolverTest`
 - `./gradlew test`
 - `./gradlew installDist`
-- Confirmed packaged skill exists under `build/install/soluna/codex/skills/soluna-ui-autotest-creator`.
 - `git diff --check`
-- Skill quick validation could not run in this environment because both the system Python and bundled Python lacked `yaml` / PyYAML; the configured AGENTS path `/Users/xieliangji/.../quick_validate.py` was also absent on this machine, so the local `/Users/ugreen/...` script was attempted instead.
 
-### 2026-06-26 Element Screenshot Evidence
+## 历史里程碑
 
-- Extended the WebDriver adapter boundary with `takeElementScreenshot` and wired the `screenshot` action to capture an element image when the action has `element`; full-screen screenshot behavior remains unchanged when no element is supplied.
-- Documented the authoring rule that visual color assertions should prefer element screenshots when the ROI can be resolved precisely.
+### 2026-06-22 图像颜色断言和 iOS 日志解析
 
-Verification:
+- 新增 `assertImageColorRatio`，基于 kt-visual named color 检测图片颜色覆盖率。
+- 图片颜色断言支持 `source`、`color`、`minRatio`、`minPixels`、ROI 和 action wait。
+- `soluna-ext` 归一化 JSON-wrapped iOS syslog `msg` 字段后再解析 process、level、message，同时保留原始 `raw`。
+- App log 过滤可正确作用于 JSON wrapper 形态的 iOS syslog。
 
-- `./gradlew test --tests com.soluna.ui.autotest.appium.action.WebDriverActionExecutorsTest`
-- `./gradlew test --tests com.soluna.ui.autotest.schema.JsonSchemaDslValidatorTest --tests com.soluna.ui.autotest.dsl.YamlPlanParserTest`
-- `./gradlew installDist`
+验证：
 
-Next recommended work:
+- 相关 WebDriver action、DSL parser、schema validator、runner resolver、App log plugin loader、`lib/soluna-appium-ext` npm test/build/lint、`./gradlew installDist` 均在对应迭代通过。
 
-- Continue validating visual evidence helpers through focused framework tests and
-  keep business-case-specific screenshots in the asset project docs.
+### 2026-06-21 Swipe、App log 扩展和 asset creator 维护
 
-### 2026-06-22 Image Color Ratio Assertion
+- 新增通用 `swipe` action，支持 viewport 和 element-relative 起止比例。
+- 新增 App log capture/assertion 关键字：`captureAppLogStart`、`captureAppLogEnd`、`customAssertAppLog`。
+- 新增 JVM ServiceLoader app-log assertion plugin 发现机制，支持 classpath、分发包/current working directory/plan asset root 下 `plugins/app-log/*.jar`，以及显式目录配置。
+- 新增 `soluna scaffold app-log-plugin` 脚手架。
+- `soluna-ext` 增加 capture-time App log filtering，支持 common filter 和 `android` / `ios` 平台分支。
+- bundled Codex asset creator skill 增加设备用例目录、debug/focused plan、能力缺口上报和分发验证规则。
+- `lib/soluna-appium-ext` 确认为本仓库集成组件，随框架一起开发、验证、提交和分发。
 
-- Added `assertImageColorRatio` with aliases for named-color image coverage assertions backed by kt-visual `NamedColor` detection.
-- Added `screenshot.saveAs` so cases can capture a screenshot, store its local path in a runtime variable, and reuse that file in later visual assertions.
-- Updated v1 plan/case/fragment schemas, DSL parser/policy validation, schema docs, and the bundled Codex skill keyword reference for the new action fields.
+验证：
 
-Verification:
+- 相关 Gradle parser/schema/action/CLI/plugin loader 测试通过。
+- `npm test`、`npm run build`、`npm run lint` in `lib/soluna-appium-ext` 通过。
+- bundled skill quick validation、脚手架生成、`./gradlew installDist` 和分发包内容检查通过。
 
-- `./gradlew test --tests com.soluna.ui.autotest.appium.driver.RecoveringWebDriverAdapterTest --tests com.soluna.ui.autotest.appium.action.WebDriverActionExecutorsTest --tests com.soluna.ui.autotest.dsl.YamlPlanParserTest --tests com.soluna.ui.autotest.schema.JsonSchemaDslValidatorTest`
-- `./gradlew installDist`
-- Confirmed the packaged skill exists under `build/install/soluna/codex/skills/soluna-ui-autotest-creator`.
-- `/private/tmp/soluna-skill-validate-venv/bin/python /Users/ugreen/.codex/skills/.system/skill-creator/scripts/quick_validate.py codex/skills/soluna-ui-autotest-creator`
+### 2026-06-21 报告和 DingTalk 通知收口
 
-Next recommended framework work:
+- plan contract 增加 `productModel`，用于报告和 DingTalk 展示。
+- `LocalReportWriter` 重构为 overview-first HTML：资源入口、统计、用例概览、失败摘要、trace 资源和 per-case 动作明细弹窗。
+- `execution-result.json` 增加产品/app/device 展示字段、stage/case 展示名、执行摘要、失败摘要和 action metadata。
+- DingTalk 生命周期通知改为中文 Markdown 卡片，使用固定标题 `App UI自动化测试` 和 `<productModel> UI 自动化测试` 副标题。
+- `DeviceConfigResolver` 和 `AppMetadataResolver` 使报告/通知优先展示 `soluna-ext` 返回的真实设备名和 app name。
 
-- Add reusable threshold guidance if more device/map screenshots show that the same named-color assertion needs model-specific ROI tuning.
-
-### 2026-06-22 iOS App Log Parser Normalization
-
-- Appium plugin changes: `soluna-ext` now unwraps JSON-wrapped iOS syslog lines from the `msg` field before parsing `process`, `level`, and `message`, while preserving the original payload in `raw`.
-- This lets capture-time App log filters such as `filter.ios.processRegex` work against real `ios syslog` output that arrives as JSONL-like wrapper lines.
-- Added focused unit coverage for parser normalization and log-session filtering of JSON-wrapped iOS syslog lines.
-
-Verification:
-
-- `./gradlew installDist`
-- `./gradlew test --tests com.soluna.ui.autotest.schema.JsonSchemaDslValidatorTest --tests com.soluna.ui.autotest.dsl.YamlPlanParserTest --tests com.soluna.ui.autotest.runner.PlanReferenceResolverTest --tests com.soluna.ui.autotest.extension.applog.AppLogAssertionPluginLoaderTest`
-- `npm test` in `lib/soluna-appium-ext`
-- `npm run build` in `lib/soluna-appium-ext`
-- `npm run lint` in `lib/soluna-appium-ext`
-
-Next recommended framework work:
-
-- Keep App/device-specific log semantics in independent app-log assertion plugins and tighten plugin matchers once the Bluetooth command/report format is confirmed.
-- Consider adding buffer pressure diagnostics to App log sessions so filtered-entry counts and dropped-entry counts are visible in reports.
-
-### 2026-06-21 Swipe Action And Log-Assisted Extension Follow-up
-
-- Added a generalized `swipe` WebDriver action with English and Chinese aliases for Appium-backed iOS/Android real-device automation.
-- Added schema, keyword registry, policy validation, adapter forwarding, debug CLI/shell support, and focused parser/schema/executor/CLI coverage for viewport and element-relative swipes.
-- Added generic App log actions: `captureAppLogStart` creates a `soluna-ext` log session, `captureAppLogEnd` writes a JSONL explicit resource and case variable descriptor, and `customAssertAppLog` dispatches to JVM app-log assertion plugins by `plugin` + `assertion`.
-- Added automatic app-log assertion plugin JAR discovery from classpath, `plugins/app-log/*.jar` under the distribution/current working directory/inferred plan asset root, and directories configured through `soluna.appLogPluginDirs` or `SOLUNA_APP_LOG_PLUGIN_DIRS`.
-- Added `soluna scaffold app-log-plugin` to create an independent Kotlin/JVM ServiceLoader plugin project for `customAssertAppLog`.
-- Added capture-time App log filtering in `soluna-ext`, including common filters and platform-specific `android` / `ios` branches whose rules are matched together for the current platform.
-- Updated framework usage docs and the bundled asset-project creator skill so generated/maintained asset projects can use `swipe` and App log capture/assertion keywords without page-object abstractions or business-specific default keywords.
-
-Verification:
-
-- `./gradlew test --tests com.soluna.ui.autotest.appium.action.WebDriverActionExecutorsTest --tests com.soluna.ui.autotest.cli.SolunaCliApplicationTest --tests com.soluna.ui.autotest.schema.JsonSchemaDslValidatorTest --tests com.soluna.ui.autotest.dsl.YamlPlanParserTest`
-- `./gradlew test --tests com.soluna.ui.autotest.extension.applog.AppLogAssertionPluginLoaderTest --tests com.soluna.ui.autotest.appium.action.WebDriverActionExecutorsTest`
-- `./gradlew test --tests com.soluna.ui.autotest.cli.SolunaCliApplicationTest --tests com.soluna.ui.autotest.extension.applog.AppLogAssertionPluginLoaderTest`
-- `./gradlew test --tests com.soluna.ui.autotest.cli.SolunaCliApplicationTest`
-- `npm test` in `lib/soluna-appium-ext`
-- `npm run build` in `lib/soluna-appium-ext`
-- `npm run lint` in `lib/soluna-appium-ext`
-- `python3 /Users/xieliangji/.codex/skills/.system/skill-creator/scripts/quick_validate.py codex/skills/soluna-ui-autotest-creator`
-- `./gradlew installDist`; confirmed the packaged skill contains the updated `swipe` and App log keyword guidance, and the distribution includes `plugins/app-log`.
-- `./gradlew installDist --rerun-tasks`; refreshed the packaged CLI after the `soluna scaffold app-log-plugin` template fix.
-- Scaffolded a temporary app-log plugin project under `/private/tmp` and verified it with the generated test and JAR task against the packaged Soluna distribution.
-- `./gradlew -p /private/tmp/soluna-app-log-plugin-scaffold-check test jar -PsolunaHome=/Users/xieliangji/IdeaProjects/soluna-ui-autotest/build/install/soluna`
-
-Next recommended framework work:
-
-- Add the first independent app-log assertion plugin JAR when concrete
-  app-specific Bluetooth command/report semantics are finalized.
-- Keep raw Android/iOS App log collection behind `soluna-ext`; keep
-  app-specific Bluetooth command/report semantics outside the default keyword
-  set.
-
-### 2026-06-21 Asset Creator Device Case Layout Guidance
-
-- Updated the bundled asset-creator skill contract so device-related asset cases are separated from app-wide common cases: cross-model device cases belong in `cases/device/common/`, model-specific cases belong in `cases/device/<model-slug>/`, and numbering restarts inside each case module/directory.
-- Added target-device setup guidance to the asset-project contract: compose the device-list state fragment and `device.openTargetDevice` at stage setup, keep target device name/MAC in `data/device/<model-slug>.yaml`, and wait for the target device item to be connected before tapping it.
-- Updated the scaffold docs template and `create_asset_project.py` so generated projects include device case/data directories, an `elements/device/` location for one YAML catalog per model, and document the device case/locator layout rules.
-- Added plan directory guidance to the bundled skill: formal app-wide/cross-model plans live in `plans/common/`, formal model-specific plans live in `plans/device/<model-slug>/`, and temporary/focused debug plans live in `plans/debug/`.
-- Kept keyword-specific guidance out of `references/keyword-usage.md`; the device layout and orchestration rules live in `references/asset-project-contract.md`.
-
-Verification:
-
-- `python3 /Users/xieliangji/.codex/skills/.system/skill-creator/scripts/quick_validate.py codex/skills/soluna-ui-autotest-creator`
-- `python3 -m py_compile codex/skills/soluna-ui-autotest-creator/scripts/create_asset_project.py codex/skills/soluna-ui-autotest-creator/scripts/send_dingtalk_gap_notice.py`
-- `python3 codex/skills/soluna-ui-autotest-creator/scripts/create_asset_project.py --output /private/tmp/soluna-skill-device-layout-check --project-id device-layout-check --app-id com.example.device --app-name DeviceApp --product-model DeviceApp --platform ios --udid TEST_UDID --force`
-- Confirmed the scaffold writes the starter smoke plan under `plans/common/` and creates `plans/debug`, `plans/device`, `cases/device/common`, `data/device`, and `elements/device`.
-- `./gradlew installDist`; confirmed the packaged skill exists under `build/install/soluna/codex/skills/soluna-ui-autotest-creator`.
-- `git diff --check -- codex/skills/soluna-ui-autotest-creator docs/progress.md`
-
-### 2026-06-21 Long Press Action
-
-- Added a generalized `longPress` WebDriver action with English and Chinese aliases for Appium-backed iOS/Android real-device automation.
-- Added schema, keyword registry, policy validation, adapter forwarding, and focused executor coverage for the new action.
-- Updated framework usage docs and the bundled asset-project creator skill so generated/maintained asset projects can use `longPress` without page-object abstractions.
-
-Verification:
-
-- `./gradlew test --tests com.soluna.ui.autotest.appium.action.WebDriverActionExecutorsTest --tests com.soluna.ui.autotest.schema.JsonSchemaDslValidatorTest --tests com.soluna.ui.autotest.dsl.YamlPlanParserTest` passed.
-- `./gradlew --rerun-tasks processResources installDist` passed.
-- `python3 -m py_compile codex/skills/soluna-ui-autotest-creator/scripts/create_asset_project.py codex/skills/soluna-ui-autotest-creator/scripts/send_dingtalk_gap_notice.py` passed.
-- `ios.yaml` parsed through `YamlPlanParser -> PlanReferenceResolver -> PlanDefaultsResolver -> PlanParameterResolver` without starting Appium.
-- iOS real-device focused runs passed for device rename, delete-cancel, disconnect, and guest rename/delete debug plans.
-
-### 2026-06-21 Report And DingTalk Final Polish
-
-- Updated `DeviceConfigResolver` so successful `soluna-ext` metadata lookup overrides configured placeholder display names for report, Appium session, and DingTalk display; complete configured device fields still remain as fallback when lookup is unavailable.
-- Added `AppMetadataResolver` so plan `app.name` is also resolved from the installed app metadata returned by `soluna-ext` when `app.id` is available; configured app name remains the fallback.
-- Appium plugin changes: added `/soluna/app?udid=...&appId=...`, Android installed-app lookup through `adb shell pm path` plus `aapt dump badging`, and iOS installed-app lookup through the existing app list helpers.
-- Finalized `LocalReportWriter` HTML: removed the secondary plan subtitle from the hero, removed generated-time display, kept the device label as `设备名称`, placed report resources above execution summary, kept report resource items in left/right label-link layout, made execution overview collapsible, vertically centered action/duration cells, and opened action details from case rows or the `操作` column `动作明细` link instead of showing homepage action details.
-- Refined report action detail modals so stage/case context stays in the modal title area, the detail table no longer repeats stage/case columns, the close control is an icon button, modal detail cells are vertically centered, status badges do not wrap, the retry column displays retry count instead of attempt count, only the modal body scrolls, and opening a modal locks the underlying report page from scrolling.
-- Finalized lifecycle DingTalk Markdown: fixed title remains `App UI自动化测试`, body title/subtitle use styled color/size markup with dividers before and after the blockquote subtitle, field lists start with `设备名称` and `设备标识`, finished/report-published cards use execution start/end time, and report generation time is omitted.
-- Updated architecture, schema docs, and README wording for real app/device metadata, report layout, and DingTalk card behavior; kept the bundled asset-creator skill update limited to `productModel`, report evidence usage, and extension-resolved display metadata that affect asset-project authoring/debugging.
-- Updated the bundled asset-creator skill with a focused-plan setup guardrail: preserve once-per-stage convergence in `setupFragments`, keep per-case reset in `caseSetupFragments`, and explicitly check this split before running temporary plans.
-
-Verification:
+验证：
 
 - `./gradlew test`
-- `npm test`, `npm run build`, and `npm run lint` under `lib/soluna-appium-ext`
-- `python3 /Users/xieliangji/.codex/skills/.system/skill-creator/scripts/quick_validate.py codex/skills/soluna-ui-autotest-creator`
-- `./gradlew installDist`; confirmed packaged skill and plugin are present under `build/install/soluna`
-- `./gradlew test --tests com.soluna.ui.autotest.report.LocalReportWriterTest`
+- `npm test`、`npm run build`、`npm run lint` in `lib/soluna-appium-ext`
+- bundled skill quick validation
 - `./gradlew installDist`
-- `git diff --check`
-- Android real-device run on `ZT4225X3C2`: `build/install/soluna/bin/soluna run /private/tmp/soluna-android-about-language.yaml --run-id android-about-language-report-notify-20260621-002`; cases `TC001_MINE_ABOUT` and `TC002_MINE_LANGUAGE_SETTINGS` both passed, report upload completed with 3 uploaded and 0 failed/abandoned.
-- Confirmed generated report uses real app name `UgreenAudio`, real device name `moto g - 2025`, includes start/end time, omits old subtitle/generated-time display, places report resources before execution overview, renders the execution overview as collapsible, and exposes `操作` / `动作明细` links with centered action/duration cells.
-- Android real-device rerun on `ZT4225X3C2`: `build/install/soluna/bin/soluna run /private/tmp/soluna-android-about-language-stage-setup-only.yaml --run-id android-about-language-modal-20260621-002`; cases `TC001_MINE_ABOUT` and `TC002_MINE_LANGUAGE_SETTINGS` both passed, report upload completed with 3 uploaded and 0 failed/abandoned. The temporary plan kept `appState.loggedInDevicePage` at stage `setupFragments` and used `appState.restartApp` as `caseSetupFragments`.
-- Confirmed generated modal report has icon-only close buttons, fixed modal header/body scroll separation, page scroll locking, and action detail tables without repeated stage/case columns.
-- Android real-device rerun on `ZT4225X3C2`: `build/install/soluna/bin/soluna run /private/tmp/soluna-android-about-language-stage-setup-only.yaml --run-id android-about-language-modal-cell-20260621-001`; cases `TC001_MINE_ABOUT` and `TC002_MINE_LANGUAGE_SETTINGS` both passed, report upload completed with 3 uploaded and 0 failed/abandoned.
-- Confirmed the generated modal report uses vertically centered detail cells, non-wrapping status cells, and `0` retry count for first-attempt actions.
-
-### 2026-06-21 Report Homepage And DingTalk Card Refinement
-
-- Added required plan-level `productModel` to the v1 plan contract for report and DingTalk display; AIot example plans now declare it.
-- Updated the asset-project scaffold to write `productModel`, defaulting to the app name unless `--product-model` is supplied.
-- Reworked `LocalReportWriter` HTML into an overview-first report with product/app/run/device/start/end metadata, summary metrics, dedicated report-resource panel, case overview, failure summary, trace resources, and per-case action detail dialogs instead of a homepage action timeline.
-- Extended `execution-result.json` with product/app display fields, resolved device display name, plan start/end timestamps, plus stage and case display names.
-- Reworked lifecycle DingTalk notifications into compact Chinese Markdown cards with fixed title `App UI自动化测试`, a blockquote summary headed by `<productModel> UI 自动化测试`, and Chinese semantic item labels.
-- Updated schema/design/usage docs and the bundled Codex asset-creator skill guidance for the new plan/report/notification contract.
+- Android 真机报告/通知抽样验证通过。
 
-Verification:
+### 2026-06-19 运行时稳定性和视觉能力
 
-- `./gradlew test --tests com.soluna.ui.autotest.report.LocalReportWriterTest --tests com.soluna.ui.autotest.runner.PlanRunnerTest --tests com.soluna.ui.autotest.dsl.YamlPlanParserTest --tests com.soluna.ui.autotest.schema.JsonSchemaDslValidatorTest`
-- `./gradlew test --tests com.soluna.ui.autotest.report.LocalReportWriterTest --tests com.soluna.ui.autotest.runner.PlanRunnerTest --tests com.soluna.ui.autotest.schema.JsonSchemaDslValidatorTest`
-- `./gradlew test`
-- `python3 /Users/xieliangji/.codex/skills/.system/skill-creator/scripts/quick_validate.py codex/skills/soluna-ui-autotest-creator`
-- `python3 codex/skills/soluna-ui-autotest-creator/scripts/create_asset_project.py --output /private/tmp/soluna-product-model-scaffold-check --project-id product-check --app-id com.example.product --app-name ExampleApp --product-model 'Example Model' --platform android --udid TEST_UDID --force`
-- `git diff --check`
-- `./gradlew installDist`
+- 新增 `ContinueCaseFailureStrategy`，允许失败 case 停止自身但继续后续 case/stage。
+- managed Appium startup 会确保项目自带 `soluna-ext` 和默认 drivers 已安装。
+- 新增 Android `clearAppData`，执行 `pm clear` 后重新激活 app；autoGrantPermissions 场景会尝试重新授予 runtime permissions。
+- 新增 `saveElementRect`，保存元素 pixel rect 或 normalized ROI。
+- `tapVisualTemplate` 支持 runtime ROI 和 action-level wait 重试。
+- 新增 multimodal OCR recognizer，Paddle OCR 保持默认；OpenAI-compatible multimodal OCR 配置只来自系统属性或环境变量。
+- managed WDA 诊断日志写入 run scoped `diagnostics/wda`。
 
-### 2026-06-21 Reporter And DingTalk Summary Enrichment
+验证：
 
-- Added action result metadata for action id, keyword, name, attempt, start/end timestamps, and duration.
-- Added shared execution summary/failure-summary views used by both local reports and lifecycle DingTalk messages.
-- Enhanced `LocalReportWriter` JSON and HTML output with stage/case/action totals, failure summaries, action timeline metadata, status styling, and trace artifact links.
-- Enriched plan lifecycle DingTalk messages with planned scope, execution totals, first failure summaries, trace artifact count, upload state, and report/manifest links.
-- Extended `report-data.schema.json` and schema docs for optional summary, failure, and action metadata fields.
-- Updated the bundled Codex asset-creator skill distribution workflow reference so Codex agents inspect report summary, failures, action metadata, trace artifacts, and resource manifests in the intended order.
+- 相关 execution strategy、runner、Appium manager、device config parser、schema、action executor、WDA/Appium manager 测试在对应迭代通过。
+- `./gradlew installDist` 在相关分发变更后通过。
 
-Verification:
+### 2026-06-18 等待、恢复和诊断
 
-- Focused reporter, runner notification, and schema Gradle tests passed during implementation.
-- Bundled skill quick validation passed.
+- 显式 wait 与 session implicit wait 隔离，断言轮询 probe 不被隐式等待放大。
+- managed iOS WDA health 接入 `RecoveringWebDriverAdapter` 恢复链路。
+- session recovery 在 WDA 不健康时先重启 WDA，再重建 Appium server/session。
+- 增加共享 FFmpeg resolver；managed Appium 启动时可 prepend FFmpeg 目录到 PATH。
+- 默认 lifecycle logging 覆盖 plan/stage/case/action。
+- debug CLI 增加 restart-app 和 shell；失败 trace 同时保留 page source。
 
-### 2026-06-21 Appium Plugin Ownership Boundary
+验证：
 
-- Updated the project boundary for `lib/soluna-appium-ext`: it is now maintained as an integrated component of this repository and distributed with the Soluna package.
-- Removed documentation and agent guidance that required plugin changes to be prepared for submission back to the original standalone GitHub project.
-- Kept the framework rule that host/device-adjacent capabilities should be implemented in the Appium plugin and consumed through client abstractions.
+- FFmpeg resolver、Appium/WDA manager、CLI、runner、recovering adapter 和 action executor 相关测试通过。
 
-Verification:
+### 2026-06-17 视觉点击和录屏 OCR
 
-- Documentation-only update; Gradle tests were not run.
+- 新增 `tapVisualTemplate` 及 `tapImage` / `tapTemplate` aliases。
+- 新增 Appium screen recording start/stop 和 `assertScreenRecordingTextRegexMatch`。
+- 显式截图、视频和分析帧统一进入 plan resource sink / manifest / upload path。
+- 录屏抽帧默认使用 FFmpeg；候选帧选择支持 visual-diff、uniform、visual-diff-uniform 和 all。
+- 支持 normalized ROI 裁剪后 OCR。
 
-### 2026-06-21 Documentation Refresh And Examples Directory Cleanup
+验证：
 
-- Removed the remaining empty root examples directory after the tracked legacy example assets had moved to `AIot-Tests`.
-- Refreshed README wording around current status, AIot asset-project layout, current runner capabilities, artifact config, and opt-in real-device asset-plan smoke checks.
-- Updated architecture and schema notes to remove stale v0/current-implementation labels, old package paths, and old profile-case data-path examples.
-- Kept framework docs focused on runner/contracts/current capabilities; business case progress remains in asset-project docs.
+- schema validation、parser、reference/parameter resolver、action executor、report/resource manifest 和 runner 测试通过。
 
-Verification:
+### 2026-06-16 Fragment 控制流和生命周期作用域
 
-- Documentation and directory cleanup only; Gradle tests were not rerun.
-- `rg` scans for stale root example paths, old package paths, old profile/nickname asset paths, and `.soluna` upload-plan references passed for README and core docs.
+- fragment catalog 支持 `if` / `then` / `else`。
+- case DSL 保持线性，schema 和 policy validation 继续拒绝逻辑控制。
+- plan/stage/case 增加 scoped `caseSetup*` 和 `caseTeardown*`。
+- stage/case inline `parameters` 参与后续 lifecycle、case action 和 element locator 解析。
+- `restartApp` 返回前等待目标 app 进入前台，action-level `wait` 可覆盖默认前台等待。
 
-### 2026-06-21 Bundled Codex Asset Creator Skill
+验证：
 
-- Added the project-versioned Codex skill `codex/skills/soluna-ui-autotest-creator` for external asset project creation, validation/debug/run workflow guidance, and strict capability-gap reporting.
-- Added a deterministic `create_asset_project.py` scaffold with minimal starter templates for `soluna-project.yaml`, app plans/cases/data/elements/fragments/docs, device config, and artifact templates.
-- Added a `send_dingtalk_gap_notice.py` helper so Codex can dry-run and send approved capability-gap requests to the built-in Soluna debug DingTalk robot, with optional environment or CLI overrides for other robots.
-- Added `references/keyword-usage.md` so the skill explains field-level keyword usage, runtime variables, ROI, visual templates, screen recording OCR, assertions, and fragment control flow before asking for framework expansion.
-- Added `AGENTS.md` maintenance rules requiring the bundled skill to be updated with related CLI, DSL, schema, debug, artifact/report, scaffold, and capability-gap behavior changes.
-- Kept maintenance responsibility out of distributed skill instructions; skill references now focus on asset-project use through the packaged distribution instead of source-checkout paths.
-- Removed the legacy root examples asset tree; `AIot-Tests` is now the in-repository example Soluna asset project for docs and tests.
-- Updated Gradle distribution packaging so `installDist` copies bundled skills under `build/install/soluna/codex/skills`.
-- Updated README and architecture notes to make the skill part of the framework distribution contract and require skill updates when schema, CLI, keyword, debug, report, or extension-flow behavior changes.
+- parser、schema、parameter/default、execution、runner 和 action executor 相关测试通过。
+- 该迭代 `./gradlew build` 通过。
 
-Verification:
+### 2026-06-12 至 2026-06-15 基础骨架
 
-- `python3 /Users/xieliangji/.codex/skills/.system/skill-creator/scripts/quick_validate.py codex/skills/soluna-ui-autotest-creator`
-- Manual cross-check against `DefaultKeywordRegistry`, v1 case/fragment schemas, and current action executor field semantics.
-- `git diff --check -- AGENTS.md codex/skills/soluna-ui-autotest-creator docs/progress.md`
-- Stale root example-path reference scan returned no matches outside generated output and git metadata.
-- Focused parser, linear execution, artifact config, notification config, and schema validation Gradle tests passed against the staged snapshot.
-- `python3 codex/skills/soluna-ui-autotest-creator/scripts/create_asset_project.py --output /private/tmp/soluna-skill-scaffold-check --project-id smoke-check --app-id com.example.smoke --app-name SmokeApp --platform android --udid TEST_UDID --force`
-- `python3 codex/skills/soluna-ui-autotest-creator/scripts/send_dingtalk_gap_notice.py --message 'Capability gap dry run' --dry-run`
-- `python3 codex/skills/soluna-ui-autotest-creator/scripts/send_dingtalk_gap_notice.py --message 'Capability gap dry run' --webhook 'https://oapi.dingtalk.com/robot/send?access_token=override12345678' --dry-run`
-- `python3 codex/skills/soluna-ui-autotest-creator/scripts/send_dingtalk_gap_notice.py --message 'Capability gap dry run' --no-default-robot --dry-run`
-- `./gradlew installDist`
-- Confirmed `build/install/soluna/codex/skills/soluna-ui-autotest-creator/references/keyword-usage.md` exists after `installDist`.
-- `python3 build/install/soluna/codex/skills/soluna-ui-autotest-creator/scripts/create_asset_project.py --output /private/tmp/soluna-skill-scaffold-check-dist --project-id smoke-check-dist --app-id com.example.dist --app-name DistApp --platform ios --udid IOS_TEST_UDID --force`
-- `python3 build/install/soluna/codex/skills/soluna-ui-autotest-creator/scripts/send_dingtalk_gap_notice.py --message 'Capability gap dry run from dist' --dry-run`
-- DingTalk helper verification used `--dry-run` only; no live DingTalk notification was sent.
+- 初始化 Kotlin/JVM + Gradle 项目、core models、hook bus、execution skeleton、failure/retry interfaces 和 Appium abstraction。
+- 引入 `lib/soluna-appium-ext` 作为集成开发组件。
+- 添加 Appium Java Client adapter、基础 WebDriver action executor、Android keyboard defaults 和 opt-in 真机 smoke。
+- 构建 `PlanRunner`：单 plan 路径入口、device config、managed Appium server、session 创建、case refs、element catalogs、parameter data、fragment catalogs、setup/teardown lifecycle、runtime variables 和 default action wait。
+- 添加 `RecoveringWebDriverAdapter`、失败 trace、JSON/HTML 报告、显式截图 manifest、MinIO artifact store、async upload queue、gzip 上传、DingTalk robot sender、upload failure notifier、本地 cleanup 和 CLI runner。
+- 添加 iOS WDA 管理、iOS 17+ userspace tunnel、WDA runner bundle discovery 和 forward restart。
+- 外部 action DSL 迁移为 keyword-as-field；动作关键字/别名进入 schema 枚举；断言动作改为显式属性/source 断言。
+- 增加 `soluna-project.schema.json`、`run-request.schema.json` 和 `run-result.schema.json`，明确 framework / asset project / platform 边界。
 
-### 2026-06-21 Platform-Aware Catalog Resolution
+验证：
 
-- Element catalog loading now skips entries that do not provide a locator for the current platform instead of failing the whole plan during reference assembly.
-- Fragment catalogs are now resolved lazily by actual fragment references, so platform-specific helper fragments in a shared catalog do not block plans that never use them.
-- This allows a shared catalog to contain Android-only and iOS-only elements while still failing at action resolution if a case actually references an element unavailable on the current platform.
+- 初始 `./gradlew test`、`./gradlew build`、schema JSON 检查和 `git diff --check` 在对应迭代通过。
 
-Verification:
+## 当前验证基线
 
-- `./gradlew test --tests com.soluna.ui.autotest.runner.PlanReferenceResolverTest --tests com.soluna.ui.autotest.schema.JsonSchemaDslValidatorTest`
-
-### 2026-06-19 Android App Data Reset Permission Recovery
-
-- Added Android `clearAppData` DSL execution support for clearing target app data and relaunching the app within the current Appium session.
-- When an Android session requested `autoGrantPermissions`, `clearAppData` now re-grants runtime permissions discovered from `dumpsys package` after `pm clear`, so later first-launch flows are not blocked by system permission prompts.
-- Updated schemas and schema/design docs for the `clearAppData` action and Android permission recovery behavior.
-
-Verification:
-
-- Android real-device plan execution passed with a final clear-data first-use stage.
-
-### 2026-06-19 Element ROI And Template Retry
-
-- Added `saveElementRect` as a generic action for saving element viewport rectangles or normalized ROI objects into runtime variables.
-- `tapVisualTemplate` now accepts `roi` as either an inline normalized ROI object or an exact runtime-variable reference, and action-level `wait` retries matching with fresh screenshots.
-- Updated v1 plan/case/fragment schemas and schema/design docs for saved element ROI and runtime ROI references.
-
-Verification:
-
-- `./gradlew test --tests com.soluna.ui.autotest.appium.action.WebDriverActionExecutorsTest --tests com.soluna.ui.autotest.dsl.YamlPlanParserTest --tests com.soluna.ui.autotest.schema.JsonSchemaDslValidatorTest`
-
-### 2026-06-19 Framework / Asset Documentation Boundary
-
-- Cleaned this framework progress record so it no longer tracks concrete business case authoring progress, per-case debug status, run IDs, or detailed operation paths.
-- Established the asset-project rule that case authoring notes and debug-passed operation paths belong under the app asset project docs.
-- Added an app asset case-authoring note document for reusable case-writing constraints, debug workflow, and operation-path records.
-- Clarified the architecture maintenance boundary: `docs/progress.md` is for generalized framework changes only; case-specific progress is not a framework project record.
-
-Verification:
-
-- Documentation-only update; Gradle tests were not run.
-
-### 2026-06-19 Failure Strategy And Managed Runtime Hardening
-
-- Added `ContinueCaseFailureStrategy` so a failed case can stop only the current case while allowing later cases and stages to continue; final plan status still reflects any failure.
-- Added managed Appium startup checks for required Appium plugins and drivers before launching the server.
-- Managed startup installs the project-owned `soluna-ext` plugin from the bundled source when missing or when the installed copy is not the project copy.
-- Managed startup ensures configured Appium drivers are installed, defaulting to `uiautomator2` and `xcuitest`.
-- Added `ensureDrivers` to the device config contract and packaged the bundled `lib/soluna-appium-ext` source in the Gradle distribution.
-
-Verification:
-
-- Focused execution strategy, runner, Appium manager, device config parser, parser, and schema tests passed during implementation.
-- No plugin implementation source under `lib/soluna-appium-ext` was changed.
-
-### 2026-06-19 Multimodal OCR Support
-
-- Added `recognizer` to `assertScreenRecordingTextRegexMatch` across normalization, policy validation, and v1 case/plan/fragment schemas.
-- Kept Paddle OCR as the default recognizer and added a kt-visual OpenAI-compatible multimodal OCR recognizer.
-- Added idle-aware OpenAI-compatible streaming OCR. Stream idle timeout is based on absence of reasoning/content chunks instead of a fixed request timeout.
-- Multimodal screen-recording candidate frames are recognized concurrently; Paddle OCR remains sequential.
-- Multimodal runtime configuration is supplied only by system properties or environment variables and is not encoded in case assets.
-- Added the narrow `com.openai:openai-java-client-okhttp:4.39.1` runtime dependency required by the kt-visual multimodal client.
-- Normalized multimodal OCR image input to RGB PNG and improved OCR failure cause reporting.
-
-Verification:
-
-- Focused WebDriver action, parser, schema, and distribution build checks passed during implementation.
-- Direct multimodal OCR checks were used to verify stream behavior.
-
-### 2026-06-19 iOS WDA Startup Diagnostics
-
-- Plan execution now passes a run-scoped `diagnostics/wda` log directory into managed WDA/go-ios startup and session recovery.
-- WDA startup diagnostics retain `go-ios-tunnel.log`, `go-ios-runwda.log`, and `go-ios-forward.log` under the local run directory.
-- Managed WDA command construction no longer passes unsupported go-ios tunnel-info arguments.
-- Managed Appium and WDA runtime port allocation now probes by binding explicitly to `127.0.0.1:0`, avoiding false availability from unspecified-address binding.
-
-Verification:
-
-- Focused runner and WDA/Appium manager tests passed during implementation.
-
-### 2026-06-18 Runtime Tooling And Diagnostics
-
-- Added a shared FFmpeg resolver with explicit path, environment override, bundled tool, installed-distribution, working-tree, and PATH fallback candidates.
-- Managed Appium startup prepends the resolved FFmpeg directory to PATH for iOS recording compatibility.
-- Screen-recording frame extraction uses the same FFmpeg resolver.
-- Added SLF4J runtime logging and wired default plan/stage/case/action lifecycle logging.
-- Added debug logging to managed Appium and WDA startup, health, port allocation, command construction, and cleanup paths.
-- Added `restart-app` and shell support to the debug CLI for step-by-step device inspection.
-- Extended failure trace diagnostics to retain page source XML beside before-action screenshots.
-
-Verification:
-
-- Focused FFmpeg resolver, Appium/WDA manager, CLI, runner, and action executor tests passed during implementation.
-- `git diff --check` passed during the relevant iterations.
-
-### 2026-06-18 Wait And Recovery Semantics
-
-- Assertion element lookup now keeps explicit `wait` isolated from the session implicit wait for every polling probe.
-- Managed iOS WDA health is integrated into `RecoveringWebDriverAdapter` runtime recovery.
-- When the current WDA handle is unhealthy, recovery restarts WDA before rebuilding the Appium server/session and refreshes the recovered session request.
-- `PlanRunner` stops the latest recovered WDA handle during plan cleanup.
-
-Verification:
-
-- Focused recovering adapter, runner, and action executor tests passed during implementation.
-
-### 2026-06-17 Visual And Recording Actions
-
-- Added `tapVisualTemplate` with `tapImage` / `tapTemplate` aliases for non-text visual affordance clicks using current screenshots, kt-visual template matching, normalized ROI, match thresholds, scale options, and target-region click ratios.
-- Added two-stage template asset resolution: literal template paths are checked during reference assembly, while parameterized template values resolve after data merge and are interpreted relative to the owning data file directory.
-- Added Appium screen recording start/stop actions and screen-recording text regex assertions.
-- Generalized explicit screenshot resource handling into a plan resource sink so screenshots, videos, and analysis frames share the same MinIO manifest/upload path.
-- Implemented recording frame extraction through a replaceable `VideoFrameExtractor`; the default uses FFmpeg and kt-visual OCR.
-- Added visual-diff frame candidate strategies and ROI cropping for screen-recording analysis.
-- Updated schema files, schema docs, architecture notes, and focused tests for the visual and recording action surface.
-
-Verification:
-
-- JSON schema validation, parser, reference/parameter resolver, action executor, report/resource manifest, and runner tests passed during implementation.
-
-### 2026-06-16 Fragment Control Flow And Lifecycle Scopes
-
-- Added schema/model/parser/resolver/execution support for fragment `if` / `then` / `else`.
-- Kept case DSL linear; case schemas and policy validation still reject logic control.
-- Added scoped `caseSetupFragments` / `caseSetupActions` and `caseTeardownFragments` / `caseTeardownActions` at plan, stage, and case levels.
-- Fixed stage/case inline `parameters` so they merge into the parameter context used by later lifecycle actions, case actions, and element locators.
-- Changed `restartApp` to wait for the target app to report foreground state before returning; an action-level `wait` can override the default foreground wait.
-
-Verification:
-
-- Focused parser, schema, parameter/default, execution, runner, and action executor tests passed during implementation.
-- `./gradlew build` passed during the control-flow iteration.
-
-## Milestone Summary
-
-### 2026-06-12 Foundation
-
-- Initialized Kotlin/JVM project, Gradle wrapper, schemas, parser, core models, hook bus, execution skeleton, failure/retry interfaces, and Appium abstraction boundaries.
-- Added `soluna-appium-ext` under `lib/soluna-appium-ext` for integrated development.
-
-Verification:
-
-- `./gradlew test` passed after initial setup fixes.
-
-### 2026-06-12 Appium And Base Actions
-
-- Added Appium Java Client adapter, WebDriver action executors, Android keyboard defaults, and opt-in real-device smoke coverage.
-
-Verification:
-
-- Focused Appium adapter/action tests passed.
-
-### 2026-06-13 Runner And Asset Decomposition
-
-- Built `PlanRunner` around a single plan path.
-- Added device config parsing, managed Appium server startup, session creation, referenced case files, element catalogs, parameter data, fragment catalogs, setup/teardown lifecycles, runtime variables, and default action wait.
-
-Verification:
-
-- Focused parser/resolver/runner tests passed.
-
-### 2026-06-13 Recovery, Artifacts, Reports, CLI, Notifications
-
-- Added `RecoveringWebDriverAdapter`.
-- Added action trace screenshots on failure.
-- Added report JSON/HTML writer, explicit screenshot manifest, MinIO artifact store, async upload queue, gzip upload policy, DingTalk robot sender, upload-failure notifier, local cleanup after successful upload, and CLI runner.
-
-Verification:
-
-- Recovery, artifact, report, notification, and CLI tests passed.
-
-### 2026-06-13 iOS WDA
-
-- Added iOS WDA management through go-ios.
-- Added iOS 17+ userspace tunnel handling, WDA runner bundle discovery through `soluna-ext`, and managed forward restart after runwda restart.
-
-Verification:
-
-- Focused WDA tests passed.
-
-### 2026-06-15 DSL And Contract Closure
-
-- Migrated external action DSL to keyword-as-field syntax.
-- Added schema-enumerated action keywords/aliases.
-- Replaced generic text equality with explicit attribute/source assertion actions.
-- Added WebDriver attribute and page-source access.
-- Added wait-based polling to assertion actions.
-- Added `soluna-project.schema.json`, `run-request.schema.json`, and `run-result.schema.json`.
-- Updated README, schema docs, and architecture boundaries to define framework / asset project / platform separation.
-
-Verification:
-
-- `jq empty src/main/resources/schemas/v1/*.json` passed.
-- `git diff --check` passed.
-- `./gradlew test` passed.
-- `./gradlew build` passed.
-
-## Current Verification Baseline
-
-Last full framework baseline verification:
+完整框架基线建议：
 
 ```bash
 jq empty src/main/resources/schemas/v1/*.json
@@ -600,15 +378,33 @@ git diff --check
 ./gradlew build
 ```
 
-Current work uses focused verification based on touched areas.
+Appium 插件相关变更建议：
 
-## Next Work
+```bash
+cd lib/soluna-appium-ext
+npm test
+npm run build
+npm run lint
+```
 
-- Keep framework docs focused on framework behavior, schemas, runtime boundaries, and generalized capabilities.
-- Keep business case operation paths and authoring notes in each asset project's own `docs` directory.
-- Continue v1 work from generalized needs observed through real business cases:
-  - Soluna asset project discovery and platform Runner service boundary.
-  - Action keyword and alias governance.
-  - Wait/assertion and failure diagnostics.
-  - Report resource preview and failure triage UX.
-  - Plan lifecycle notification configuration decoupled from artifact-store config.
+bundled Codex skill 相关变更建议：
+
+```bash
+python3 /Users/xieliangji/.codex/skills/.system/skill-creator/scripts/quick_validate.py codex/skills/soluna-ui-autotest-creator
+./gradlew installDist
+```
+
+当前大工作区包含较多 asset 和框架并行修改；日常变更按触达范围先做 focused verification，收口前再跑完整 Gradle sweep。
+
+## 下一步
+
+- 保持框架文档聚焦框架行为、schema、运行边界和通用能力；业务操作路径继续进入 asset project 文档。
+- 按 `docs/architecture.md` 中记录的当前差距推进 v1 收口：
+  - 接入 plan `defaults.retryStrategy` 的命名策略映射。
+  - 明确或移除 `app.reset` 的自动行为预期。
+  - 把 Android host/device-adjacent `adb` 路径迁移到 `soluna-ext` 客户端抽象。
+  - 将报告、manifest、通知等副作用逐步 hook consumer 化。
+  - 为 `soluna-project.yaml` 增加 project discovery / platform asset 管理入口。
+  - 将生命周期通知配置从 artifact store config 中解耦。
+- 继续治理动作关键字和别名，避免业务协议语义进入默认 DSL。
+- 完善报告资源预览、失败定位和 MinIO 链接可读性。

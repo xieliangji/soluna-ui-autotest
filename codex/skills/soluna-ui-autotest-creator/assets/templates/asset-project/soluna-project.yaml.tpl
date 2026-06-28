@@ -9,12 +9,10 @@ paths:
   sharedRoot: shared
   devicesRoot: devices
   artifactsRoot: artifacts
-defaults:
-  artifactStore: artifacts/minio.local.yaml
 apps:
   - id: {{APP_ID}}
     name: {{APP_NAME}}
     root: apps/{{APP_ID}}
     platforms:
 {{PLATFORMS_YAML}}
-    defaultPlan: plans/{{PLATFORM}}-smoke.yaml
+    defaultPlan: plans/common/{{PLATFORM}}-smoke.yaml

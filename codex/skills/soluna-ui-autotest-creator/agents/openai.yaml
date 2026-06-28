@@ -1,4 +1,4 @@
 interface:
   display_name: "Soluna UI Autotest Creator"
-  short_description: "Create and debug Soluna UI autotest asset projects."
-  default_prompt: "Create or debug a Soluna UI autotest asset project with validate, run, and debug workflows."
+  short_description: "维护 Soluna UI 自动化资产。"
+  default_prompt: "使用 $soluna-ui-autotest-creator 维护、调试并执行 Soluna UI 自动化 asset project。"

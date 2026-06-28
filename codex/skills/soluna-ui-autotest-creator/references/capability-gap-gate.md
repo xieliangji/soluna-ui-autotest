@@ -1,79 +1,78 @@
-# Capability Gap Gate
+# 能力缺口准入
 
-Read this before asking maintainers to extend Soluna framework keywords, schemas, Appium extension capabilities, reports, or runner behavior.
+请求维护者扩展 Soluna framework keyword、schema、Appium extension capability、report 或 runner 行为前读取本文件。
 
-## Gate
+## 准入条件
 
-Read `keyword-usage.md` before applying this gate. Submit a capability gap only when all conditions are true:
+先读取 `keyword-usage.md` 和相关动作族 reference。只有以下条件全部满足，才提交能力缺口：
 
-1. The scenario is a valid automation closure requirement, not missing test data, account state, device state, permissions, or environment setup.
-2. Existing plan/stage/case setup and teardown orchestration cannot close it.
-3. Fragment `if` / `then` / `else` with existing assertion/action predicates cannot close it.
-4. Existing actions cannot close it after trying the relevant `keyword-usage.md` recipes:
-   - Element/gesture path: `tap`, `swipe`, `input`, `getText`, `assertElementExists`, `assertElementAttrEquals`, `assertElementAttrRegexMatch`
-   - App state path: `restartApp`, `clearAppData`, `wait`
-   - Source path: `assertSourceRegexMatch`
-   - Explicit resource path: `screenshot`
-   - Visual path: `saveElementRect`, `tapVisualTemplate`
-   - Transient text path: `startScreenRecording`, `stopScreenRecording`, `assertScreenRecordingTextRegexMatch`
-   - App log path: `captureAppLogStart`, `captureAppLogEnd`, existing `customAssertAppLog` plugins
-5. Parameter data, runtime variables, element catalogs, visual templates, ROI narrowing, OCR, platform-specific case splits, and teardown cannot close it.
-6. Fresh debug source/screenshot evidence proves the issue is not stale XML, weak locator selection, or incorrect ROI/template assets.
-7. A minimal focused plan/case reproduces the gap.
-8. The proposed support is general framework capability, not a business-app shortcut.
+1. 场景是有效的自动化闭环需求，不是缺测试数据、账号状态、设备状态、权限或环境配置。
+2. 现有 plan/stage/case setup 和 teardown 编排无法闭环。
+3. fragment `if` / `then` / `else` 加现有 assertion/action predicate 无法闭环。
+4. 相关现有 action 方案都已尝试且无法闭环：
+   - `keyword-core-actions.md` 核心路径：`tap`、`tapPosition`、`longPress`、`swipe`、`input`、`getText`、`saveElementRect`、元素断言、源码断言。
+   - `keyword-core-actions.md` App 状态路径：`restartApp`、`clearAppData`、`wait`。
+   - `keyword-visual-ocr.md` 视觉/OCR 路径：`screenshot`、`saveElementRect`、`tapVisualTemplate`、`assertImageColorRatio`、`assertImageTextRegexMatch`、`startScreenRecording`、`stopScreenRecording`、`assertScreenRecordingTextRegexMatch`。
+   - `keyword-app-log.md` App log 路径：`captureAppLogStart`、`captureAppLogEnd`、已有 `customAssertAppLog` plugin。
+5. 参数数据、runtime variable、element catalog、visual template、ROI 收窄、OCR、平台拆分 case、teardown 都不能闭环。
+6. 最新 debug source/screenshot 证明问题不是 stale XML、locator 选择弱、ROI 错误或 template 资源错误。
+7. 已有最小 focused plan/case 稳定复现缺口。
+8. 拟支持内容是通用框架能力，不是业务 app shortcut。
 
-## Request Format
+## 请求格式
 
-Use this format:
+使用以下格式：
 
 ```text
-Capability Gap Request
+能力缺口请求
 
-Scenario:
+场景：
 - ...
 
-Why existing keywords are insufficient:
-- Tried ...
-- Used keyword recipes from keyword-usage.md ...
-- Failed because ...
+为什么现有关键字不够：
+- 尝试过 ...
+- 使用过 keyword-usage.md 和动作族 reference 中的方案 ...
+- 失败原因是 ...
 
-Evidence:
-- Asset root:
+证据：
+- 资产根目录:
 - Plan:
 - Case:
-- Debug source/screenshot:
+- 调试 source/screenshot:
 - Run/report path:
-- Error or observed behavior:
+- Error 或观察到的行为:
 
-Proposed minimal extension:
-- Keyword/API shape:
-- Inputs:
-- Outputs/runtime variables:
-- Failure behavior:
-- Schema impact:
-- Android/iOS scope:
-- Appium extension impact:
+拟议最小扩展：
+- 关键字/API 形状:
+- 输入:
+- 输出/runtime variables:
+- 失败行为:
+- Schema 影响:
+- Android/iOS 范围:
+- Appium extension 影响:
 
-Rejected workarounds:
+已拒绝的 workaround：
 - ...
 ```
 
-If any gate item is missing, continue debugging or ask the user for the missing precondition instead of requesting framework expansion.
+任何 gate 条件缺失时，继续调试或向用户确认缺失前置条件，不要请求框架扩展。
 
-App-specific log semantics, such as Bluetooth command/report parsing, should become an independent app-log assertion plugin behind `customAssertAppLog`. Do not add business-specific default keywords or put parser/matcher logic in the case asset project.
+App-specific log 语义，例如 Bluetooth command/report 解析，应做成 `customAssertAppLog` 背后的独立 app-log assertion plugin。不要增加业务专属默认关键字，也不要把 parser/matcher 写进 case asset project。
 
-## DingTalk Notification
+如果缺口是 schema/output 合同不一致，必须写明具体 schema 文件和 runtime producer。例如 App log JSONL 资源当前可通过 runtime resource sink 写出，但 v1 `plan-resource-manifest.schema.json` 仍只枚举 image/video 显式资源。
 
-When the gate passes and the user wants maintainers notified, send the completed request through the bundled helper. The helper defaults to the built-in Soluna debug DingTalk robot. Override it with environment variables or command-line arguments only when a different robot should receive the notice.
+## DingTalk 通知
 
-Optional override environment variables:
+gate 通过且用户希望通知维护者时，用 bundled helper 发送完整请求。helper 默认使用内置 Soluna debug DingTalk robot。只有要发送到其他机器人时，才通过环境变量或命令参数覆盖。
+
+可选覆盖环境变量：
 
 ```bash
 export SOLUNA_CODEX_DINGTALK_WEBHOOK="https://oapi.dingtalk.com/robot/send?access_token=..."
 export SOLUNA_CODEX_DINGTALK_SECRET="SEC..."
 ```
 
-First dry-run:
+先 dry-run：
 
 ```bash
 python3 codex/skills/soluna-ui-autotest-creator/scripts/send_dingtalk_gap_notice.py \
@@ -81,18 +80,18 @@ python3 codex/skills/soluna-ui-autotest-creator/scripts/send_dingtalk_gap_notice
   --dry-run
 ```
 
-Then send, after user approval when required by the execution environment:
+用户批准或环境允许后再发送：
 
 ```bash
 python3 codex/skills/soluna-ui-autotest-creator/scripts/send_dingtalk_gap_notice.py \
   --file capability-gap.md \
-  --title "Soluna Capability Gap: <short summary>"
+  --title "Soluna 能力缺口: <short summary>"
 ```
 
-The script also works from stdin:
+脚本也支持 stdin：
 
 ```bash
 cat capability-gap.md | python3 codex/skills/soluna-ui-autotest-creator/scripts/send_dingtalk_gap_notice.py --dry-run
 ```
 
-Use `--no-default-robot` when you want the command to fail unless an explicit webhook is supplied.
+需要强制提供显式 webhook 时使用 `--no-default-robot`。

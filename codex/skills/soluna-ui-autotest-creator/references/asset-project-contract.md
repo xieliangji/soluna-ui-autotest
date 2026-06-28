@@ -1,10 +1,16 @@
-# Asset Project Contract
+# 资产项目合同
 
-Use this reference before creating or editing plans, cases, data files, element catalogs, fragments, or docs in an asset project.
+创建或修改 plan、case、data、element catalog、fragment 或 asset docs 前读取本文件。
 
-## Layout
+## 目录
 
-Recommended project layout:
+- 推荐目录
+- YAML 归属
+- Case 规则
+- Locator 规则
+- Plan 规则
+
+## 推荐目录
 
 ```text
 <asset-root>/
@@ -35,72 +41,73 @@ Recommended project layout:
   artifacts/
 ```
 
-The runner starts from a plan path. Device config, artifact config, parameters, cases, elements, and fragments must be reached through the plan reference chain.
+runner 从 plan path 启动。device config、artifact config、parameters、cases、elements 和 fragments 必须通过 plan 直接或间接引用到。
+`soluna-project.yaml` 是项目元数据和未来项目发现入口；当前 CLI 不从它推导默认 plan、device 或 artifact config，执行时仍显式传入 plan path。
 
-## YAML Ownership
+## YAML 归属
 
-- Plans own execution orchestration: app identity, platform, device config, parameters, fragment refs, stages, case refs, diagnostics, artifact config, defaults.
-- Every plan must declare `productModel`. Use the app display name for public app-function plans, and use the concrete product model for model-specific plans. If the app display name is unknown, inspect the connected device through Soluna/Appium extension-backed debug evidence before finalizing the plan.
-- Cases own linear user intent: actions, setup references, teardown references, data refs, element refs.
-- Data files own inputs, expected values, environment values, resource dictionaries, and template paths.
-- Element catalogs own locators.
-- Fragments own reusable setup/teardown and state convergence, including `if` / `then` / `else` control flow.
-- Docs own case authoring notes, operation paths, preconditions, debug caveats, and data limitations.
+- plan 负责编排：app identity、platform、device config、parameters、fragment refs、stages、case refs、diagnostics、artifact config、defaults。
+- plan 内所有 `file` / config path 都按声明它的 YAML 文件位置解析；从 `plans/common/` 引用 app 内 data/fragment/case 时通常需要 `../../...`。
+- 每个 plan 必须声明 `productModel`。公共 app 功能 plan 使用 app 展示名；型号相关 plan 使用具体产品型号。展示名不确定时，先通过真实设备和 Soluna/Appium extension-backed debug 证据确认。
+- case 负责线性用户意图：actions、setup refs、teardown refs、data refs、element refs。
+- data 文件负责输入、期望值、环境值、资源字典和模板路径。
+- element catalog 负责 locator。
+- fragment 负责可复用 setup/teardown 和状态收敛，可以使用 `if` / `then` / `else`。
+- docs 负责用例说明、操作路径、前置条件、调试限制和数据限制。
 
-## Case Rules
+## Case 规则
 
-- Keep case actions linear. Do not put `if`, loops, or branch jumps in a case.
-- Before writing action payloads, read `keyword-usage.md` and follow the field-level recipes there.
-- Prefer nested keyword action form:
+- case `actions` 必须线性，不写 `if`、循环或跳转。
+- 写 action payload 前，先读 `keyword-usage.md` 和对应动作族 reference：`keyword-core-actions.md`、`keyword-visual-ocr.md` 或 `keyword-app-log.md`。
+- 新 action 使用 nested keyword 形式：
 
 ```yaml
 - tap:
     id: open-mine-tab
     element: common.mineTab
-    desc: Open Mine tab
+    desc: 打开我的 tab
 ```
 
-- Use teardown for any action that changes durable state such as nickname, language, region, login state, or app data.
-- Put destructive or data-reset cases in focused plans unless the plan explicitly isolates them as the final stage.
-- Put cases that depend on special account/device data in focused plans until stable preconditions exist.
-- Put app-wide public cases in `cases/common/`.
-- Put device-related cases that apply across models in `cases/device/common/`.
-- Put model-specific device cases in `cases/device/<model-slug>/`, where the slug is stable ASCII such as `ugreen-hitune-s6-pro`.
-- Restart case numbering within a new case module or directory. Do not carry app-common numbers into `cases/device/common/` or a model-specific directory.
+- 修改昵称、语言、地区、登录态、app 数据、设备设置等持久状态时，必须设计 teardown 或隔离 plan。
+- 破坏性或数据 reset 用例优先放 focused plan，除非 formal plan 明确把它隔离在最后阶段。
+- 依赖特殊账号或设备数据的用例，在前置条件稳定前放 focused plan。
+- 公共 app 功能放 `cases/common/`。
+- 跨型号设备相关用例放 `cases/device/common/`。
+- 型号专属用例放 `cases/device/<model-slug>/`，slug 使用稳定 ASCII，例如 `ugreen-hitune-s6-pro`。
+- 新模块或新目录内重新编号 case，不要把 app-common 编号延续到 device-common 或型号目录。
 
-## Locator Rules
+## Locator 规则
 
-- Use `element: alias.name` in actions.
-- Define locators only in element catalogs.
-- Put public app and cross-model device-list locators in shared catalogs such as `elements/common.yaml`.
-- Put model-specific device page or capability locators in `elements/device/<model-slug>.yaml`; cases under `cases/device/<model-slug>/` should reference that catalog when they need model-specific UI.
-- Prefer Android resource ids and stable accessibility identifiers.
-- On iOS and WebView pages, inspect fresh XML before changing XPath/class-chain locators.
-- Do not use hardcoded business copy in locator values. Put copy in parameter data when copy-based matching is unavoidable.
-- Use visual templates for non-text visual affordances that are not exposed as stable accessible elements.
+- action 使用 `element: alias.name`。
+- locator 只能定义在 element catalog。
+- 公共 app 和跨型号设备列表 locator 放 `elements/common.yaml` 等共享 catalog。
+- 型号专属设备页或能力 locator 放 `elements/device/<model-slug>.yaml`；同目录 case 需要型号 UI 时引用该 catalog。
+- Android 优先使用 resource id；iOS 优先使用稳定 accessibility id。
+- iOS 和 WebView 页面改 XPath/class-chain 前，先抓最新 XML。
+- 不要在 locator 里硬编码业务文案。不得不用 copy 匹配时，把 copy 放 data 文件。
+- 没有稳定可访问元素的非文字视觉控件，用 visual template。
 
-## Plan Rules
+## Plan 规则
 
-- Full plans can use `continue-case` when later cases should still execute after a failure.
-- Focused debug plans usually use `stop-case` and keep local artifacts.
-- Put formal app-wide and cross-model plans in `plans/common/`.
-- Put formal model-specific device plans in `plans/device/<model-slug>/`.
-- Put temporary, focused, or exploratory debug plans in `plans/debug/`; do not leave `*-debug.yaml` plans in `plans/common/` or model formal plan directories.
-- Stage setup should converge the start state once for the stage. Use it for expensive or stateful initialization such as logging in, selecting a device page, or reaching a shared module entry.
-- Case setup runs before every case. Use it only for per-case normalization such as `restartApp`, lightweight cleanup, or returning the app to foreground.
-- Do not copy a stage initialization fragment into `caseSetupFragments` when narrowing a full plan to a focused debug plan. Keep the stage's original `setupFragments` and preserve the original `caseSetupFragments` unless the complete plan proves a different per-case reset is intended.
-- If every focused case should start from a fresh foreground app, prefer a restart fragment such as `appState.restartApp` in `caseSetupFragments`; do not replace it with a page-convergence fragment such as `appState.loggedInDevicePage`.
-- Before running any temporary plan, write down the intended setup layout in the working notes or user update: `setupFragments` for once-per-stage convergence, `caseSetupFragments` for per-case reset. Re-read the YAML if those roles are not obvious.
-- Plan/stage/case setup and teardown actions use the same keyword payload rules as case actions.
-- Do not pass device/data/element paths as CLI arguments. Put them in YAML references.
-- For cases that start inside a selected device, compose setup fragments at the stage level: first converge to the device list, then open the target device. For example `appState.loggedInDevicePage` or `appState.guestDevicePage`, followed by `device.openTargetDevice`. Keep the target device name/MAC in `data/device/<model-slug>.yaml` or another referenced data file.
-- A target-device opening fragment should wait for the target device item to be connected before tapping it. Do not tap a merely present device item when the scenario needs an online device.
+- formal plan 可以使用 `continue-case`，让后续 case 在失败后继续收集证据。
+- focused debug plan 通常使用 `stop-case` 并保留本地产物。
+- 公共 app 和跨型号 formal plan 放 `plans/common/`。
+- 型号 formal plan 放 `plans/device/<model-slug>/`。
+- 临时、focused、探索性 plan 放 `plans/debug/`；不要把 `*-debug.yaml` 留在 `plans/common/` 或 formal plan 目录。
+- stage setup 做一次性起始状态收敛，例如登录、进入设备列表、打开目标设备页。
+- case setup 在每个 case 前执行，只做 per-case 归一化，例如 `restartApp`、轻量清理、回到前台。
+- 缩小 formal plan 为 focused plan 时，不要把 stage 初始化 fragment 复制到 `caseSetupFragments`。保留原 `setupFragments`，除非完整 plan 证明 case setup 本来就应不同。
+- 如果每个 focused case 都需要 fresh foreground app，优先在 `caseSetupFragments` 使用 `appState.restartApp`，不要用页面收敛 fragment 替代。
+- 运行临时 plan 前，在工作说明或用户更新里写清楚：`setupFragments` 是 once-per-stage convergence，`caseSetupFragments` 是 per-case reset。
+- plan/stage/case 的 setup 和 teardown action 使用与 case action 相同的关键字规则。
+- 不要通过 CLI 传 device/data/element 路径；这些必须写在 YAML 引用链里。
+- 从目标设备详情页开始的 case，应在 stage setup 组合 fragment：先到设备列表，再打开目标设备。例如 `appState.loggedInDevicePage` / `appState.guestDevicePage` 后接 `device.openTargetDevice`。
+- 目标设备打开 fragment 必须等待目标设备处于 connected/online 状态后再点击；需要在线设备的场景不能只判断设备项存在。
+- plan `app.reset` 当前只 seed `${app.reset}`，不会自动清理 app 数据。reset 行为必须通过 lifecycle fragment/action 显式表达，例如 `restartApp` 或 Android-only `clearAppData`。
 
-Example focused-plan setup layout:
+focused plan setup 示例：
 
 ```yaml
-# plans/debug/ios-mine-debug.yaml
-
 stages:
   - id: logged-in-device-page
     setupFragments:
@@ -112,11 +119,9 @@ stages:
       - file: cases/common/TC002_MINE_LANGUAGE_SETTINGS.yaml
 ```
 
-Example device-detail setup layout:
+设备详情页 setup 示例：
 
 ```yaml
-# plans/device/ugreen-hitune-s6-pro/ios.yaml
-
 fragmentRefs:
   - id: appState
     file: fragments/app-state.yaml

@@ -1,19 +1,19 @@
 schemaVersion: "1.0"
 id: {{PROJECT_ID}}-{{PLATFORM}}-smoke
-name: {{APP_NAME}} {{PLATFORM}} Smoke
+name: {{APP_NAME}} {{PLATFORM}} 冒烟
 productModel: {{PRODUCT_MODEL}}
 version: "0.1.0"
 metadata:
   owner: qa
   suite: smoke
-  intent: Verify the Soluna distribution can start the target app and collect a resource.
+  intent: 验证 Soluna distribution 能启动目标 App 并采集显式资源。
 parameters:
   - id: defaults
-    file: ../data/default.yaml
+    file: ../../data/default.yaml
 fragmentRefs:
   - id: app
-    file: ../fragments/app-lifecycle.yaml
-deviceConfig: ../../../devices/{{PLATFORM}}/{{UDID}}.yaml
+    file: ../../fragments/app-lifecycle.yaml
+deviceConfig: ../../../../devices/{{PLATFORM}}/{{UDID}}.yaml
 app:
   id: {{APP_ID}}
   name: {{APP_NAME}}
@@ -34,8 +34,8 @@ localArtifacts:
     mode: never
 stages:
   - id: smoke
-    name: Smoke
+    name: 冒烟
     setupFragments:
       - app.restart
     caseRefs:
-      - file: ../cases/common/smoke-screenshot.yaml
+      - file: ../../cases/common/smoke-screenshot.yaml

@@ -1,100 +1,129 @@
 # soluna-ui-autotest
 
-`soluna-ui-autotest` is a Kotlin/JVM framework project for iOS and Android real-device UI automation with Appium/WebDriver.
+`soluna-ui-autotest` 是一个 Kotlin/JVM UI 自动化执行框架，面向 iOS 和 Android 真机，通过 Appium / WebDriver 协议驱动设备。
 
-The framework is designed around YAML DSL test plans, pluggable execution components, hook-driven side effects, MinIO artifact storage, and a self-owned report model.
+本项目是框架和分发合同包，不是业务用例项目。业务 plan、case、data、element、fragment、device config、artifact config 和调试记录应放在外部 Soluna asset project 中；仓库内的 `AIot-Tests/` 只是当前联调用资产。
 
-## Current Status
+## 文档入口
 
-The framework is now a runnable contract and execution package. Current work is v1-style hardening driven by real asset-project cases: action keyword coverage, wait/assertion behavior, recovery diagnostics, report usability, platform integration contracts, and Codex-assisted asset-project authoring.
+- 架构事实来源：[docs/architecture.md](docs/architecture.md)
+- Schema 合同：[docs/schemas.md](docs/schemas.md)
+- 进度和已知差距：[docs/progress.md](docs/progress.md)
+- Codex/Agent 维护规则：[AGENTS.md](AGENTS.md)
 
-Primary design reference:
+当 README 与架构或 schema 文档冲突时，以 `docs/architecture.md` 和真实 schema 为准，并同步更新 README。
 
-- [docs/architecture.md](docs/architecture.md)
+## 核心模型
 
-Progress record:
+- 执行模型：`Plan -> Stage -> Case -> Action`
+- 测试表达：YAML DSL
+- 执行入口：`soluna run <plan.yaml>`
+- 调试入口：`soluna debug <plan.yaml> ...`
+- 执行方式：一个 runner 进程绑定一个真机，串行执行 case
+- Driver：Appium over WebDriver
+- 资产组织：plan-rooted 引用，device/case/element/data/fragment/artifact 都由 plan 直接或间接触达
+- 报告：自有 JSON/HTML report，不接入第三方测试报告插件
+- 产物：正式执行产物上传到 MinIO；未配置 artifact store 时只写本地报告和资源
+- 设备侧扩展：靠近设备、宿主机和 Appium Server 的能力优先放入内置 Appium plugin `soluna-ext`
 
-- [docs/progress.md](docs/progress.md)
+JUnit 只用于框架开发测试和 opt-in smoke test，不参与运行时 DSL plan 编排。
 
-Schema notes:
+## 当前能力
 
-- [docs/schemas.md](docs/schemas.md)
+框架已经具备可运行基础，当前重点是 v1 合同收口、真实 asset project 驱动的能力补齐和分发一致性。
 
-Codex agent development guidance:
+已实现能力包括：
 
-- [AGENTS.md](AGENTS.md)
+- schema-first YAML DSL：plan、case、fragment、element catalog、parameter data、device config、artifact store、notification、report、resource manifest、asset project、runner request/result 均有 v1 schema。
+- case DSL 保持线性；fragment 支持 `if` / `then` / `else`，用于可复用状态收敛。
+- 关键字即字段动作语法，推荐新资产使用嵌套形式：
 
-## Design Summary
-
-- Execution model: `Plan -> Stage -> Case -> Action`
-- DSL format: YAML
-- Case execution: linear, no logic control
-- Init fragments: reusable and allowed to contain logic control
-- Devices: one process, one real device, serial execution
-- Driver: Appium over WebDriver
-- Appium server: managed by the project, with custom plugin support
-- Artifacts: uploaded to MinIO
-- Reports: self-owned single HTML output backed by JSON data files
-- Extension model: schema-first, hook-driven, and pluggable
-- Runtime orchestration: owned by Soluna runner, not JUnit/TestNG
-
-## Example Asset Project
-
-```text
-AIot-Tests/soluna-project.yaml
-AIot-Tests/apps/com.ugreen.iot/plans/app-state/android.yaml
-AIot-Tests/apps/com.ugreen.iot/plans/app-state/ios.yaml
-AIot-Tests/apps/com.ugreen.iot/plans/common/android.yaml
-AIot-Tests/apps/com.ugreen.iot/plans/common/ios.yaml
-AIot-Tests/apps/com.ugreen.iot/cases/common/app-state/login-page.yaml
-AIot-Tests/apps/com.ugreen.iot/elements/common.yaml
-AIot-Tests/apps/com.ugreen.iot/fragments/app-state.yaml
-AIot-Tests/devices/android/AMRF026323000807.yaml
-AIot-Tests/devices/ios/00008140-001805D80C93801C.yaml
-AIot-Tests/artifacts/minio.template.yaml
-AIot-Tests/artifacts/dingtalk.template.yaml
+```yaml
+- tap:
+    id: open-mine-tab
+    element: common.mineTab
+    desc: 打开我的页
 ```
 
-The parser validates plan YAML with JSON Schema and framework policy checks before mapping it to Kotlin models.
+- 默认 action 覆盖点击、位置点击、长按、滑动、输入、等待、App 重启、Android 清数据、文本/矩形采集、截图、视觉模板点击、颜色断言、OCR、录屏、App log 采集、元素断言、源码断言和自定义 App log 断言。
+- `tap` / `longPress` / `swipe` 支持 viewport-visible 元素交互，每次执行前重新定位当前可见区域。
+- 参数引用 `${...}` 和运行时变量 `@{case.name}` / `@{plan.name}`。
+- managed Appium server：端口分配、plugin/driver 安装校验、`/status` 探测和 FFmpeg PATH 注入。
+- managed iOS WDA：go-ios 管理、iOS 17+ userspace tunnel、host-global tunnel 复用。
+- recovering WebDriver adapter：逻辑 session 稳定，物理 session / Appium server / WDA 可恢复重建。
+- `soluna-ext` 客户端：设备元信息、已安装 app 元信息、WDA bundle 查询、受控命令和日志会话。
+- 本地 `execution-result.json` / `index.html` 报告，包含执行摘要、失败摘要、动作元数据、trace 链接、显式资源入口和 per-case 动作明细。
+- `plan-resource-manifest.json` 记录 DSL 显式资源，例如 screenshot、recording、OCR match frame，以及当前 runtime 可写出的 App log JSONL 资源。
+- 失败诊断 screenshot/page source 进入 diagnostics，通过 report `traceArtifacts` 暴露，不进入 manifest。
+- MinIO 异步上传：压缩、重试、bounded drain、上传成功后本地清理。
+- DingTalk 生命周期通知和上传失败聚合告警。
+- 分发包包含 `tools/`、`plugins/soluna-appium-ext/`、`plugins/app-log/` 和 bundled Codex skill。
 
-Execution starts from a plan path. Other YAML files, including device config, parameter data, cases, element catalogs, and setup fragments, are reached through references declared by the plan directly or indirectly.
+当前已知差距见 [docs/progress.md](docs/progress.md)。重要边界包括：`Plan.defaults.retryStrategy` 尚未映射到命名运行时策略；`app.reset` 只 seed 参数，不自动清理数据；`soluna-project.yaml` 当前不参与 CLI project discovery；manifest schema 对 App log JSONL 资源仍需补齐合同。
 
-## Asset Project Contract
+## Asset Project
 
-Real test assets should live outside the framework source tree as a Soluna asset project. The framework is the runner and contract package; an asset project owns business plans, cases, elements, data, fragments, devices, and artifact configs.
-
-The first project-level contract is:
+推荐外部 asset project 结构：
 
 ```text
-src/main/resources/schemas/v1/soluna-project.schema.json
+<asset-root>/
+  soluna-project.yaml
+  apps/<app-id>/
+    plans/
+      common/
+      device/<model-slug>/
+      debug/
+    cases/
+      common/
+      device/common/
+      device/<model-slug>/
+    data/
+      common/
+      device/
+    elements/
+      common.yaml
+      device/<model-slug>.yaml
+    fragments/
+    plugins/app-log/
+    docs/
+  devices/
+    android/
+    ios/
+  artifacts/
 ```
 
-Service and platform integration contracts are:
+执行从 plan path 开始。`deviceConfig`、`artifactStore`、`parameters`、`fragmentRefs`、`caseRefs`、`dataRefs` 和 `elementRefs` 必须写在 YAML 引用链中，不通过 CLI 传入。
 
-```text
-src/main/resources/schemas/v1/run-request.schema.json
-src/main/resources/schemas/v1/run-result.schema.json
-```
+`soluna-project.yaml` 已有 schema，是项目元数据和未来平台发现入口；当前 CLI 不读取它来推导默认 plan、device 或 artifact config。
 
-The CLI still starts from a single plan path. Asset project metadata is a stable contract for future project discovery, platform use-case management, and Runner service requests.
+资产归属规则：
 
-## Codex Skill
+- `plans/`：编排 app identity、platform、device config、parameters、fragment refs、stages、case refs、diagnostics、artifact config 和 defaults。
+- `cases/`：表达线性用户意图。公共 App 用例放 `cases/common/`，跨型号设备用例放 `cases/device/common/`，型号专属用例放 `cases/device/<model-slug>/`。
+- `elements/`：唯一外部 locator 归属。动作使用 `element: alias.name`，不要 inline locator。
+- `data/`：输入、期望值、语言文案、regex、模板路径、型号数据和环境值。
+- `fragments/`：可复用 setup/teardown 和状态收敛，可以使用 fragment control flow。
+- `docs/`：记录业务前置条件、真实设备调试路径、账号/设备限制和最终通过 run/report。
 
-The project maintains a bundled Codex skill for creating and debugging external Soluna asset projects:
+每个 plan 必须声明 `productModel`。公共 App plan 使用 App 展示名；型号相关 plan 使用具体产品型号。`app.reset` 当前不会自动 reset，需要用 lifecycle fragment/action 显式表达。
+
+## Bundled Codex Skill
+
+本仓库维护一个随框架分发的 Codex skill：
 
 ```text
 codex/skills/soluna-ui-autotest-creator
 ```
 
-`./gradlew installDist` copies the skill into:
+`./gradlew installDist` 会把它复制到：
 
 ```text
 build/install/soluna/codex/skills/soluna-ui-autotest-creator
 ```
 
-The skill is versioned with the framework because it depends on the current DSL schema, CLI behavior, action keywords, debug workflow, and capability-extension rules. When those contracts change, update the skill in the same iteration.
+这个 skill 与框架 DSL、CLI、关键字、debug workflow、报告/产物合同和能力扩展规则强绑定。修改这些合同时，需要同轮更新 skill、脚手架模板和 `docs/progress.md`。
 
-The skill includes a deterministic starter scaffold for external asset projects:
+生成最小 asset project：
 
 ```bash
 python3 codex/skills/soluna-ui-autotest-creator/scripts/create_asset_project.py \
@@ -107,81 +136,33 @@ python3 codex/skills/soluna-ui-autotest-creator/scripts/create_asset_project.py 
   --udid CHANGE_ME_UDID
 ```
 
-The generated project is intentionally minimal. It creates a smoke plan with the required `productModel` display field, then restarts the app, waits, and captures a screenshot. Public app-function plans should set `productModel` to the app display name; model-specific plans should set it to the concrete product model shown in reports and DingTalk notifications. Business locators, state fragments, and test data should be added after real-device debugging through the distributed Soluna CLI validation, run, and debug workflows.
+脚手架只生成 starter smoke plan：重启 App、短暂等待、采集显式 screenshot。业务 locator、状态 fragment、测试数据和型号 catalog 必须在真实设备调试后补充。
 
-For app-log assertion extensions used by `customAssertAppLog`, the packaged CLI can create an independent Kotlin/JVM plugin project:
-
-```bash
-soluna scaffold app-log-plugin ./ugreen-audio-log-plugin \
-  --plugin-id ugreen-audio \
-  --package com.ugreen.soluna.applog \
-  --assertion ble-command-ack
-```
-
-The skill also includes `scripts/send_dingtalk_gap_notice.py` for approved capability-gap notifications. It defaults to the built-in Soluna debug DingTalk robot; override it with `SOLUNA_CODEX_DINGTALK_WEBHOOK` and `SOLUNA_CODEX_DINGTALK_SECRET` when another robot should receive notices.
-
-The in-repository asset project example is:
-
-```text
-AIot-Tests/
-```
-
-Within an app asset root, case files are organized by app module. Shared app behavior goes under `cases/common/`; model-specific behavior should use one directory per model or module under `cases/`, for example `cases/UGREEN HiTune X8/...`. Plans reference concrete case files through `caseRefs`, so the runner remains independent of business directory naming.
-
-Case-specific data may mirror the case path and logical case name. Shared test data stays under module-oriented data files such as `AIot-Tests/apps/com.ugreen.iot/data/common/mine.yaml`.
-
-Element catalogs stay module-oriented instead of case-oriented. Public app elements such as login, device, and mine live in:
-
-```text
-AIot-Tests/apps/com.ugreen.iot/elements/common.yaml
-```
-
-Reusable app-state initialization fragments live at:
-
-```text
-AIot-Tests/apps/com.ugreen.iot/fragments/app-state.yaml
-```
-
-They use generic fragment `if` / `then` / `else` control flow with ordinary action/assertion predicates. Asset-project docs should carry app-specific account state, device state, and debug-path notes.
-
-Run an example asset-project plan the same way as any plan:
+能力缺口通知 helper：
 
 ```bash
-./gradlew run --args='run AIot-Tests/apps/com.ugreen.iot/plans/app-state/ios.yaml'
+python3 codex/skills/soluna-ui-autotest-creator/scripts/send_dingtalk_gap_notice.py \
+  --file capability-gap.md \
+  --dry-run
 ```
 
-## Capability Snapshot
+helper 默认使用内置 Soluna debug DingTalk robot；需要发送到其他机器人时，用 `SOLUNA_CODEX_DINGTALK_WEBHOOK` 和 `SOLUNA_CODEX_DINGTALK_SECRET` 覆盖。capability-gap gate 未完成或用户未批准时，不要发送通知。
 
-The current runner supports:
+## CLI
 
-- Plan-rooted YAML execution with schema-first validation, case/data/element/fragment references, and keyword-as-field actions such as `tap: { id, element, desc }`.
-- Linear real-device execution on Android and iOS through Appium Java Client, managed Appium server startup, managed Appium extension/driver bootstrap, session recovery, and managed iOS WDA/go-ios support.
-- Pluggable execution boundaries for parsers, action executors, driver adapters, Appium server management, artifact upload, report writing, notifications, failure strategy, and retry strategy.
-- Default actions for tap/long press/swipe/input/wait/restart app/clear app data/get text/save element rect/screenshot/visual-template tap/screen recording/App log capture and element-attribute, source-regex, screen-recording OCR, or custom App log assertions. Assertion actions poll by resolved `wait`.
-- App log assertion plugins can be delivered as independent JVM JARs under `plugins/app-log/*.jar` in the distribution, current working directory, or inferred app asset root. Extra directories can be supplied with `-Dsoluna.appLogPluginDirs=<paths>` or `SOLUNA_APP_LOG_PLUGIN_DIRS=<paths>` using the host path separator.
-- Scaffold CLI for independent app-log assertion plugins through `soluna scaffold app-log-plugin`.
-- Runtime variables through `@{case.name}` / `@{plan.name}` and parameter references through `${...}`.
-- Local JSON/HTML reporting with product-model summary, `soluna-ext` resolved app/device/start/end metadata, failure/action metadata, overview-first HTML, report-resource links, collapsible case overview, case-linked action detail dialogs, explicit resource manifest for screenshots/recordings/OCR evidence/App log JSONL files, failure trace screenshots and page source, MinIO artifact upload, upload-success cleanup, and compact Chinese DingTalk lifecycle/upload-failure notifications with execution statistics.
-- Debug CLI for source/screenshot/tap/tap-element/swipe/swipe-element/input/tap-template/shell inspection from a plan's device and app config.
-
-JUnit is used for framework development tests only. Runtime DSL plan orchestration belongs to the Soluna runner and result model.
-
-## CLI Runner
-
-Normal execution starts from a single plan path:
-
-```bash
-./gradlew run --args='run AIot-Tests/apps/com.ugreen.iot/plans/app-state/android.yaml'
-```
-
-The installed distribution exposes the executable as `soluna`:
+构建并安装本地 distribution：
 
 ```bash
 ./gradlew installDist
-./build/install/soluna/bin/soluna run AIot-Tests/apps/com.ugreen.iot/plans/app-state/android.yaml
 ```
 
-Supported optional runtime flags:
+执行 plan：
+
+```bash
+build/install/soluna/bin/soluna run AIot-Tests/apps/com.ugreen.iot/plans/common/android.yaml
+```
+
+常用运行参数：
 
 ```bash
 soluna run <plan.yaml> \
@@ -191,9 +172,9 @@ soluna run <plan.yaml> \
   --expect passed
 ```
 
-Device config, artifact store config, cases, elements, data, and fragments are not CLI arguments. They must be referenced by the plan directly or indirectly.
+当前 CLI 没有独立 `validate` 命令。`soluna run` 在启动阶段完成 schema、policy、引用、device、artifact、Appium 和 plugin 检查。
 
-Create an app-log assertion plugin project when a `customAssertAppLog` assertion needs app-specific parsing:
+创建 App log assertion plugin 项目：
 
 ```bash
 soluna scaffold app-log-plugin ./ugreen-audio-log-plugin \
@@ -202,107 +183,72 @@ soluna scaffold app-log-plugin ./ugreen-audio-log-plugin \
   --assertion ble-command-ack
 ```
 
-For temporary real-device inspection, the installed distribution also exposes a debug command. It starts a managed Appium/WDA session from the plan device/app config, runs one low-level action, and exits without executing cases, reports, uploads, or notifications:
+`customAssertAppLog` 的业务日志解析应放在独立 JVM plugin JAR 中，不写进 case/data/element/fragment。运行时会查找 classpath、distribution `plugins/app-log/*.jar`、当前工作目录 `plugins/app-log/*.jar`、推断出的 asset root `plugins/app-log/*.jar`，以及 `-Dsoluna.appLogPluginDirs=<paths>` 或 `SOLUNA_APP_LOG_PLUGIN_DIRS=<paths>` 指定目录。
+
+## Debug CLI
+
+真实设备调试优先使用长生命周期 shell：
 
 ```bash
+soluna debug <plan.yaml> shell
+```
+
+也可以执行 one-shot debug action：
+
+```bash
+soluna debug <plan.yaml> restart-app
 soluna debug <plan.yaml> source --out build/soluna-debug/source.xml
 soluna debug <plan.yaml> screenshot --out build/soluna-debug/screen.png
 soluna debug <plan.yaml> tap --x-ratio 0.50 --y-ratio 0.50
 soluna debug <plan.yaml> tap-element --strategy xpath --locator "//XCUIElementTypeButton[1]" --element-x-ratio 0.50 --element-y-ratio 0.50
+soluna debug <plan.yaml> longPress --x-ratio 0.50 --y-ratio 0.30 --duration-ms 1200
+soluna debug <plan.yaml> longPress-element --strategy xpath --locator "//*[@resource-id='com.example:id/device_card']" --element-x-ratio 0.50 --element-y-ratio 0.50 --duration-ms 1200
 soluna debug <plan.yaml> swipe --start-x-ratio 0.50 --start-y-ratio 0.80 --end-x-ratio 0.50 --end-y-ratio 0.25 --duration-ms 500
 soluna debug <plan.yaml> swipe-element --strategy xpath --locator "//XCUIElementTypeScrollView[1]" --start-x-ratio 0.50 --start-y-ratio 0.90 --end-x-ratio 0.50 --end-y-ratio 0.10
 soluna debug <plan.yaml> input --strategy class --locator XCUIElementTypeTextView --text "debug text" --clear-first true
 soluna debug <plan.yaml> tap-template --template AIot-Tests/apps/com.ugreen.iot/data/common/templates/feedback-back-icon.png --roi 0,0.04,0.2,0.12
-soluna debug <plan.yaml> shell
 ```
 
-Use debug output as locator evidence; do not encode platform-specific debug operations into business cases.
+debug 会从 plan 的 device/app config 启动 managed Appium/WDA session，但不执行 case 生命周期，不生成报告、manifest、上传任务或通知。debug 输出只能作为 locator/template/OCR 证据，不要把 debug-only 操作写进业务 case。
 
-## Local Commands
+## 报告和上传
 
-```bash
-./gradlew test
-./gradlew build
-```
-
-The project currently uses Kotlin JVM with Java 21.
-
-## Bundled Runtime Tools
-
-Screen-recording toast analysis needs FFmpeg in two places: Appium XCUITest uses a command named `ffmpeg` from the Appium server process PATH to record iOS screens, and the runner uses FFmpeg to extract frames from recorded videos before OCR.
-
-Place platform binaries under:
+本地报告默认写入：
 
 ```text
-tools/ffmpeg/macos-arm64/ffmpeg
-tools/ffmpeg/macos-x64/ffmpeg
-tools/ffmpeg/linux-arm64/ffmpeg
-tools/ffmpeg/linux-x64/ffmpeg
-tools/ffmpeg/windows-x64/ffmpeg.exe
+build/soluna-runs/{runId}/report/index.html
+build/soluna-runs/{runId}/report/execution-result.json
+build/soluna-runs/{runId}/report/plan-resource-manifest.json
 ```
 
-`./gradlew installDist` copies `tools/` into `build/install/soluna/tools` and the bundled Appium extension source into `build/install/soluna/plugins/soluna-appium-ext`. Managed Appium server startup prepends the resolved explicit or bundled FFmpeg directory to PATH. Override paths with `-Dsoluna.ffmpeg.path=...`, `SOLUNA_FFMPEG`, `-Dsoluna.tools.dir=...`, or `SOLUNA_TOOLS_DIR`.
-
-The checked-in binaries are from `eugeneware/ffmpeg-static` release `b6.1.1` and follow that package's `GPL-3.0-or-later` license. Upstream README and LICENSE files are kept beside each platform binary.
-
-`assertScreenRecordingTextRegexMatch` uses Paddle OCR by default. Cases can set `recognizer: multimodal` to use the kt-visual OpenAI-compatible multimodal OCR client for difficult translucent or mixed-background text. Configure it at runtime only:
-
-```bash
-export SOLUNA_VISUAL_OCR_MULTIMODAL_BASE_URL=http://host:port/v1
-export SOLUNA_VISUAL_OCR_MULTIMODAL_API_KEY=<api-key>
-export SOLUNA_VISUAL_OCR_MULTIMODAL_MODEL=gpt-5.5
-export SOLUNA_VISUAL_OCR_MULTIMODAL_REASONING_EFFORT=high
-```
-
-The multimodal recognizer defaults to `stream=true` and logs stream chunks at info level; set `SOLUNA_VISUAL_OCR_MULTIMODAL_STREAM=false` to disable streaming. Stream mode uses a long HTTP timeout and an idle watchdog: `SOLUNA_VISUAL_OCR_MULTIMODAL_STREAM_IDLE_TIMEOUT_MS` controls how long the stream may go without reasoning or content output before it is stopped, while `SOLUNA_VISUAL_OCR_MULTIMODAL_STREAM_HTTP_TIMEOUT_MS` bounds the underlying HTTP request. Candidate frames for multimodal OCR are recognized concurrently; tune the worker count with `SOLUNA_VISUAL_OCR_MULTIMODAL_PARALLELISM`. The default prompt is tuned for UI assertions and low-contrast toast text; override it with `SOLUNA_VISUAL_OCR_MULTIMODAL_PROMPT` only when a specific model endpoint needs different wording.
-
-## Artifact Upload
-
-Upload is enabled by adding an artifact store reference to a plan:
+在 plan 中声明 artifact store 后启用 MinIO 上传：
 
 ```yaml
-artifactStore: ../artifacts/minio.yaml
+artifactStore: ../../../../artifacts/minio.local.yaml
 ```
 
-The example MinIO config is:
+示例模板位于：
 
 ```text
 AIot-Tests/artifacts/minio.template.yaml
-```
-
-It contains the endpoint, bucket, prefix, direct credentials, gzip compression policy, upload retry policy, and a relative reference to:
-
-```text
 AIot-Tests/artifacts/dingtalk.template.yaml
 ```
 
-The current config supports direct values in YAML:
-
-```yaml
-credentials:
-  accessKey: <minio-access-key>
-  secretKey: <minio-secret-key>
-
-robot:
-  webhook: <dingtalk-webhook>
-  secret: <dingtalk-signing-secret>
-```
-
-The tracked MinIO and DingTalk examples use placeholder credentials. Put private values in a copied `*.local.yaml` file or private test assets when the config should not be shared.
-
-When artifact upload is enabled, `PlanRunner` uploads:
+上传 object key 形状：
 
 ```text
+runs/{runId}/report/index.html
 runs/{runId}/report/execution-result.json
 runs/{runId}/report/plan-resource-manifest.json
-runs/{runId}/report/index.html
-runs/{runId}/resources/<explicit-screenshot-file>
-runs/{runId}/diagnostics/<failure-trace-screenshot-file>
+runs/{runId}/resources/<explicit-resource>
+runs/{runId}/diagnostics/<failure-trace>
 ```
 
-The local report remains under `build/soluna-runs/{runId}/report/`; links in uploaded HTML are rewritten to MinIO URLs. Failure trace screenshots are diagnostic artifacts and do not enter `plan-resource-manifest.json`, which is reserved for explicit screenshot actions.
+HTML 中的资源链接会改写为 MinIO URL。`plan-resource-manifest.json` 只服务 DSL 显式资源；失败 trace screenshot/page source 属于 diagnostics。
 
-Plans can enable failed-action trace screenshots and optional local cleanup:
+不要提交真实 MinIO 凭据、DingTalk token 或 secret。把模板复制为 `*.local.yaml` 或放在私有 asset project 中。
+
+失败 trace 和本地清理示例：
 
 ```yaml
 trace:
@@ -316,15 +262,95 @@ localArtifacts:
     mode: after-upload-success
 ```
 
-`after-upload-success` deletes the local run directory only after all queued upload tasks have completed successfully.
+`after-upload-success` 只在报告必需资源和入队上传任务全部成功后删除本地 run 目录。
 
-Optional Android real-device smoke tests require a running Appium server with `soluna-ext` enabled:
+## Runtime Tools 和 OCR
 
-```bash
-appium --use-plugins=soluna-ext --port 4725 --log-level info
+屏幕录制文本识别需要 FFmpeg：
+
+- Appium XCUITest 录制 iOS 屏幕时，需要 Appium server 进程 PATH 中有 `ffmpeg`。
+- runner 从录屏提取帧做 OCR 时，也需要 FFmpeg。
+
+可随分发包放置平台二进制：
+
+```text
+tools/ffmpeg/macos-arm64/ffmpeg
+tools/ffmpeg/macos-x64/ffmpeg
+tools/ffmpeg/linux-arm64/ffmpeg
+tools/ffmpeg/linux-x64/ffmpeg
+tools/ffmpeg/windows-x64/ffmpeg.exe
 ```
 
-Then run:
+`./gradlew installDist` 会复制 `tools/` 到 `build/install/soluna/tools`。managed Appium server 启动时会把解析出的 FFmpeg 目录注入 PATH。
+
+覆盖路径：
+
+```bash
+export SOLUNA_FFMPEG=/path/to/ffmpeg
+export SOLUNA_TOOLS_DIR=/path/to/tools
+```
+
+也可使用 JVM system properties：`-Dsoluna.ffmpeg.path=...`、`-Dsoluna.tools.dir=...`。
+
+`assertScreenRecordingTextRegexMatch` 默认使用 Paddle OCR。困难的半透明或混合背景文字可在 case 中设置 `recognizer: multimodal`，并只通过运行时环境变量配置 OpenAI-compatible endpoint：
+
+```bash
+export SOLUNA_VISUAL_OCR_MULTIMODAL_BASE_URL=http://host:port/v1
+export SOLUNA_VISUAL_OCR_MULTIMODAL_API_KEY=<api-key>
+export SOLUNA_VISUAL_OCR_MULTIMODAL_MODEL=gpt-5.5
+export SOLUNA_VISUAL_OCR_MULTIMODAL_REASONING_EFFORT=high
+```
+
+可选调优：
+
+```bash
+export SOLUNA_VISUAL_OCR_MULTIMODAL_STREAM=false
+export SOLUNA_VISUAL_OCR_MULTIMODAL_STREAM_IDLE_TIMEOUT_MS=120000
+export SOLUNA_VISUAL_OCR_MULTIMODAL_STREAM_HTTP_TIMEOUT_MS=300000
+export SOLUNA_VISUAL_OCR_MULTIMODAL_PARALLELISM=2
+```
+
+不要把 multimodal API key 写入 asset project。
+
+## Appium Plugin
+
+内置 Appium extension 源码位于：
+
+```text
+lib/soluna-appium-ext
+```
+
+宿主机/设备邻近能力应优先放在该 plugin 层，并由框架通过 client abstraction 消费。plugin 是本仓库集成组件，会随 Soluna distribution 打包；不再按外部 standalone GitHub 项目提交。
+
+managed Appium server 启动时会检查：
+
+- `soluna-ext`：缺失时从本仓库 bundled source 安装；如果已安装版本不是 bundled source，会卸载后重装。
+- `uiautomator2` / `xcuitest` driver：缺失时安装。
+
+本机仍需要 Node/npm 和 Appium。managed server 会维护自己启动的 Appium；外部 Appium server 不会被修改。
+
+plugin 开发命令：
+
+```bash
+cd lib/soluna-appium-ext
+npm ci
+npm test
+npm run build
+npm run lint
+```
+
+## 开发验证
+
+常规框架验证：
+
+```bash
+./gradlew test
+./gradlew build
+```
+
+本项目使用 Kotlin JVM 和 Java 21。
+
+按需真机 smoke test：
 
 ```bash
 SOLUNA_ANDROID_UDID=<device-udid> \
@@ -334,10 +360,6 @@ SOLUNA_APPIUM_SERVER_URL=http://127.0.0.1:4725 \
   --tests com.soluna.ui.autotest.appium.driver.RealAndroidAppiumSmokeTest
 ```
 
-Without `SOLUNA_ANDROID_UDID`, these smoke tests return early and do not require a device.
-
-Optional Android recovery smoke test:
-
 ```bash
 SOLUNA_APPIUM_RECOVERY_SMOKE=true \
 SOLUNA_ANDROID_UDID=<device-udid> \
@@ -345,19 +367,11 @@ SOLUNA_APPIUM_EXECUTABLE=/opt/homebrew/bin/appium \
 ./gradlew test --tests com.soluna.ui.autotest.appium.driver.RealAndroidAppiumRecoverySmokeTest
 ```
 
-This smoke test starts a managed Appium server, creates an Android session, forcefully exits that Appium process, then validates that `RecoveringWebDriverAdapter` restarts Appium, rebuilds the physical session, and captures another screenshot through the same logical session.
-
-Optional managed Appium server smoke test:
-
 ```bash
 SOLUNA_MANAGED_APPIUM_SMOKE=true \
 SOLUNA_APPIUM_EXECUTABLE=/opt/homebrew/bin/appium \
 ./gradlew test --tests com.soluna.ui.autotest.appium.server.ManagedAppiumServerSmokeTest
 ```
-
-This smoke test starts Appium through `LocalProcessAppiumServerManager` on an available local port, waits for `/status`, asserts it is running, and stops the process.
-
-Optional iOS WDA smoke test:
 
 ```bash
 SOLUNA_IOS_WDA_SMOKE=true \
@@ -368,17 +382,7 @@ SOLUNA_IOS_WDA_STARTUP_DELAY_MS=10000 \
 ./gradlew test --tests com.soluna.ui.autotest.appium.wda.RealIosWdaSmokeTest
 ```
 
-This smoke test starts a managed Appium server with `soluna-ext`, resolves iOS device metadata and the installed WDA runner bundle through the plugin, starts go-ios userspace tunnel for iOS 17+, starts WDA, starts local port forwarding, probes WDA `/status`, then stops all managed processes.
-
-Optional real Android asset-plan smoke:
-
-```bash
-SOLUNA_UGREEN_PROFILE_SMOKE=true \
-SOLUNA_UGREEN_PROFILE_PLAN_PATH=AIot-Tests/apps/com.ugreen.iot/plans/common/android.yaml \
-./gradlew test --tests com.soluna.ui.autotest.runner.RealAndroidUgreenProfilePlanTest
-```
-
-To run an upload-enabled plan, point the test at a local plan that references a private artifact config such as `AIot-Tests/artifacts/minio.local.yaml`:
+按需真实 asset plan smoke：
 
 ```bash
 SOLUNA_UGREEN_PROFILE_SMOKE=true \
@@ -387,15 +391,6 @@ SOLUNA_RUN_ID=ugreen-android-local \
 ./gradlew test --tests com.soluna.ui.autotest.runner.RealAndroidUgreenProfilePlanTest
 ```
 
-The default in-repository Android asset plan is `AIot-Tests/apps/com.ugreen.iot/plans/common/android.yaml`. It composes cases under `AIot-Tests/apps/com.ugreen.iot/cases/common/`, uses shared data and elements under the same app asset root, and resolves the Android device config from `AIot-Tests/devices/android/`. The local report writer emits:
-
-```text
-build/soluna-runs/{runId}/report/index.html
-build/soluna-runs/{runId}/report/execution-result.json
-```
-
-Optional real iOS asset-plan smoke:
-
 ```bash
 SOLUNA_IOS_UGREEN_PROFILE_SMOKE=true \
 SOLUNA_IOS_UGREEN_PROFILE_PLAN_PATH=AIot-Tests/apps/com.ugreen.iot/plans/common/ios.yaml \
@@ -403,31 +398,4 @@ SOLUNA_RUN_ID=ugreen-ios-local \
 ./gradlew test --tests com.soluna.ui.autotest.runner.RealIosUgreenProfilePlanTest
 ```
 
-The default in-repository iOS asset plan is `AIot-Tests/apps/com.ugreen.iot/plans/common/ios.yaml`. The connected iOS device must satisfy that plan's account and app-state preconditions.
-
-## Appium Plugin
-
-The Appium extension source is maintained in this repository as an integrated project component:
-
-```text
-lib/soluna-appium-ext
-```
-
-Host/device-adjacent capabilities should generally be implemented in that Appium plugin layer and consumed here through a client abstraction. Plugin changes are committed with this repository and distributed with the Soluna package; they are no longer prepared for submission back to the original standalone project.
-
-Managed Appium startup automatically checks required Appium extensions before launching the server:
-
-- `soluna-ext` is installed from the project-bundled source when missing. If an installed `soluna-ext` is not from this project's bundled source, it is uninstalled and reinstalled from the bundled source.
-- `uiautomator2` and `xcuitest` drivers are installed when missing.
-
-Local hosts still need Node/npm and Appium installed. The runner owns Appium extension installation for managed servers; external Appium servers are left untouched.
-
-Plugin commands:
-
-```bash
-cd lib/soluna-appium-ext
-npm ci
-npm test
-npm run build
-npm run lint
-```
+这些 smoke test 依赖本地真机、Appium、go-ios、账号状态和对应 asset plan 前置条件。未设置对应环境变量时，部分 smoke test 会主动跳过。

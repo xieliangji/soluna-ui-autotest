@@ -1,11 +1,11 @@
 schemaVersion: "1.0"
 id: app-lifecycle
-description: Reusable app lifecycle fragments.
+description: 可复用 App 生命周期 fragment。
 fragments:
   restart:
-    name: Restart App
+    name: 重启 App
     actions:
       - restartApp:
           id: restart-app
           appId: "${app.id}"
-          desc: Restart target app.
+          desc: 重启目标 App。

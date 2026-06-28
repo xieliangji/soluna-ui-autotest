@@ -1,202 +1,331 @@
-# Schemas
+# Schema 合同
 
-The project uses JSON Schema as the external data-contract format.
-
-Schema files live under:
+JSON Schema 是本项目对外数据合同的主格式。schema 文件位于：
 
 ```text
 src/main/resources/schemas/v1/
 ```
 
-Current schemas:
+当前 v1 schema 均使用 `schemaVersion: "1.0"`。Kotlin data class 是运行时模型，不等同于外部合同；外部资产、平台请求、报告数据和资源清单应以本目录下的 schema 为准。
 
-- `plan.schema.json`: YAML plan DSL after YAML is parsed into JSON-compatible data.
-- `case.schema.json`: standalone case YAML referenced by plan stages.
-- `element-catalog.schema.json`: reusable element locator definitions referenced by cases.
-- `fragment-catalog.schema.json`: reusable setup fragment definitions referenced by plans, stages, or cases.
-- `parameter-data.schema.json`: standalone parameter data files referenced by plans.
-- `device-config.schema.json`: per-device config copied from a device config template.
-- `artifact-store.schema.json`: MinIO artifact store, upload queue, retry, and upload-failure notification references.
-- `notification-sender.schema.json`: DingTalk robot notification sender config.
-- `plan-resource-manifest.schema.json`: plan-level explicit screenshot resource manifest written beside report files.
-- `report-data.schema.json`: report data JSON written as `execution-result.json` and consumed by report renderers.
-- `soluna-project.schema.json`: asset project root metadata consumed by tooling and future project discovery.
-- `run-request.schema.json`: platform-to-runner execution request summary.
-- `run-result.schema.json`: runner-to-platform execution result summary.
+DSL 输入的处理顺序是：
 
-`plan.schema.json` is the root execution contract consumed by `PlanRunner`. A run starts from the plan path; device config, artifact store config, parameter data, case files, element catalogs, and fragment catalogs must be referenced by the plan directly or indirectly. `deviceConfig` and `productModel` are required on the plan. `productModel` is the product/model display name used by reports and DingTalk notifications; public app-function plans should use the app display name, while model-specific plans should use the concrete product model. `artifactStore` is optional and points to an artifact config file when a run should publish report/resource artifacts.
+1. YAML 解析为 JSON-compatible tree。
+2. 按对应 JSON Schema 校验结构、必填字段、枚举和基础类型。
+3. 执行框架 policy 校验，例如 case 线性规则、动作关键字规则、locator 文案规则。
+4. 将动作 DSL 归一化为内部 `ActionDefinition`，再进入引用解析、参数解析和执行。
 
-`plan.schema.json` supports both legacy inline cases and the preferred `caseRefs` composition model. New plans should keep cases in standalone YAML files and let stages reference them through `caseRefs`.
+破坏性合同变化必须新建版本目录，不应静默改变 v1 语义。
 
-`soluna-project.schema.json` defines a Soluna asset project, not the framework project. It records project identity, framework/schema compatibility, app roots, shared/device/artifact roots, and optional project defaults. The current CLI does not require this file; it is the contract for future project discovery, platform-managed assets, and Codex agents that generate cases outside this repository.
+## 1. Schema 清单
 
-`run-request.schema.json` and `run-result.schema.json` are service/platform boundary contracts. They intentionally expose plan URI, asset revision, device selection, parameter overrides, run status, counts, and artifact links instead of internal Kotlin runner models.
+| 文件 | 角色 | 当前消费者或产物 |
+| --- | --- | --- |
+| `plan.schema.json` | plan 根 DSL，运行入口合同 | `YamlPlanParser`、`PlanRunner` |
+| `case.schema.json` | 独立 case DSL | `YamlCaseParser`、`PlanReferenceResolver` |
+| `element-catalog.schema.json` | 元素定位器 catalog | `YamlElementCatalogParser` |
+| `fragment-catalog.schema.json` | 可复用 fragment catalog | `YamlFragmentCatalogParser` |
+| `parameter-data.schema.json` | 参数数据文件 | `YamlParameterDataParser`、`PlanParameterResolver` |
+| `device-config.schema.json` | 单设备 Appium/WDA 配置 | `YamlDeviceConfigParser`、device resolver |
+| `artifact-store.schema.json` | MinIO、上传队列、压缩、重试和通知引用 | `YamlArtifactStoreConfigParser` |
+| `notification-sender.schema.json` | DingTalk 机器人发送器配置 | `YamlNotificationSenderConfigParser` |
+| `report-data.schema.json` | `execution-result.json` 报告数据合同 | `LocalReportWriter` |
+| `plan-resource-manifest.schema.json` | `plan-resource-manifest.json` 显式资源清单合同 | `PlanResourceManifestWriter` |
+| `soluna-project.schema.json` | asset project 根元数据合同 | 工具、平台和 Codex 资产生成流程 |
+| `run-request.schema.json` | 平台到 runner 的执行请求摘要 | 平台边界合同 |
+| `run-result.schema.json` | runner 到平台的执行结果摘要 | 平台边界合同 |
 
-Element catalogs reject hardcoded UI copy by default. Locator text parameters are allowed only when the parameter value is language-insensitive, such as MAC suffixes or device model names, and must use `parameterizedTextReason: language_insensitive_text`. Fixed text values in locators are allowed only when they are language-insensitive, such as brand names, version markers, or resource-style accessibility names, and must use `hardcodedTextReason: language_insensitive_text`. Language-specific UI copy belongs in language-versioned data files for assertion/input keywords, not in element locators. `language_insensitive_text` is the only allowed text-locator reason and is not project-configurable. State comparisons such as `@value='1'` are treated as control state, not UI copy. Locator expressions must not use coordinate or size attributes such as `@x`, `@y`, `@width`, or `@height`.
+## 2. 输入 DSL 合同
 
-Plan defaults currently include:
+### Plan
 
-- `implicitWaitMs`: default implicit wait budget.
-- `actionWait`: default explicit wait for actions. It is applied after case/fragment references are assembled and only fills setup, action, and teardown actions that do not already declare `wait`. It is not a substitute for WebDriver implicit wait and should be used sparingly for known slow action groups. When an action declares `wait`, element lookup for that action temporarily disables the session implicit wait, polls with the explicit action timeout, and then restores the configured implicit wait. Assertion actions treat `wait.timeoutMs` as the total assertion budget; each element probe also disables implicit wait so short branch predicates are not multiplied by the session implicit wait. This lets fragments use shorter state probes or longer slow-page probes without changing the session default.
-- `failureStrategy`: named failure strategy selection. Built-in values are `stop-case` / `fail-fast` for fail-fast execution and `continue-case` for stopping only the failed case while continuing later cases and stages.
-- `retryStrategy`: named retry strategy selection.
+`plan.schema.json` 是执行根合同。必填字段为：
 
-Plan diagnostics and local artifact handling currently include:
+- `schemaVersion`
+- `id`
+- `name`
+- `productModel`
+- `deviceConfig`
+- `stages`
 
-- `trace.screenshots.enabled`: enables before-action trace screenshots.
-- `trace.screenshots.beforeAction`: currently `never` or `onFailure`; `onFailure` retains before-action screenshots and page source snapshots in memory and publishes them only if an action fails.
-- `trace.screenshots.retainBeforeActionCount`: number of recent before-action screenshots retained for a failure.
-- `trace.screenshots.upload`: currently `never` or `onFailure`.
-- `localArtifacts.cleanup.mode`: `never` or `after-upload-success`. The latter deletes local run artifacts only after all queued upload tasks complete successfully.
+`deviceConfig` 指向设备配置文件；`productModel` 是报告和 DingTalk 通知展示用的产品/型号名称；`artifactStore` 可选，存在时启用 MinIO 上传和通知配置解析。stage 必须包含 `cases` 或 `caseRefs`，新资产应优先使用 `caseRefs` 引用独立 case 文件，inline `cases` 只作为兼容路径保留。
 
-`case.schema.json` keeps the case body linear. A case can reference:
+`app` 只描述目标应用展示与参数 seed：
 
-- `dataRefs`: case-scoped parameter data files.
-- `elementRefs`: element catalogs used by `element: alias.name` action fields.
-- `setupFragments`: reusable setup fragments that execute in the case setup lifecycle before case actions.
-- `setupActions`: inline lifecycle setup actions.
-- `teardownFragments`: reusable teardown fragments that execute after case actions even when the main action flow failed.
-- `teardownActions`: inline teardown actions.
+- `id`
+- `name`
+- `platform`
+- `reset`
 
-`fragment-catalog.schema.json` is the only current DSL schema that accepts generic control flow. The supported control structure is `if` / `then` / `else`; the `if` value must be one existing executable action or assertion keyword, and branch arrays contain normal action objects. Control keys are intentionally business-neutral. Business predicates such as page state, login state, or element visibility must be expressed through ordinary action/assertion keywords like `assertElementExists`, `assertElementAttrRegexMatch`, or `assertSourceRegexMatch`.
+当前实现会把这些值注入 `${app.*}` 参数上下文。`app.reset` 不会自动清理应用数据；reset 需要通过 lifecycle fragment/action 显式表达。
 
-Action DSL now uses a single keyword field. New assets should use the nested object form, for example:
+`defaults` 当前包含：
+
+- `implicitWaitMs`：WebDriver session 默认隐式等待，默认 5000ms。
+- `actionWait`：动作默认显式等待。`PlanDefaultsResolver` 只填充未显式声明 `wait` 的 setup、case action 和 teardown action。
+- `failureStrategy`：命名失败策略。当前 runner 支持空值/default、`stop-case`、`fail-fast`、`continue-case`。
+- `retryStrategy`：schema/model 已声明，但 `PlanRunner` 当前未把该字段映射为命名运行时策略，仍使用构造时注入的 `RetryStrategy`。
+
+`trace.screenshots` 控制失败诊断截图：
+
+- `enabled`
+- `beforeAction`: `never` 或 `onFailure`
+- `retainBeforeActionCount`
+- `upload`: `never` 或 `onFailure`
+
+trace 是诊断产物，不进入 `plan-resource-manifest.json`。`localArtifacts.cleanup.mode` 当前支持 `never` 和 `after-upload-success`，后者只在必需上传 drain 成功后清理本地 run 目录。
+
+Plan、stage、case 均支持 lifecycle 字段：
+
+- `setupFragments` / `setupActions`
+- `teardownFragments` / `teardownActions`
+- `caseSetupFragments` / `caseSetupActions`
+- `caseTeardownFragments` / `caseTeardownActions`
+
+case setup 合并顺序为 plan、stage、case；case teardown 合并顺序为 case、stage、plan。teardown 结果和主动作结果分开记录。
+
+### Case
+
+`case.schema.json` 的必填字段为：
+
+- `schemaVersion`
+- `id`
+- `name`
+- `actions`
+
+case DSL 必须保持线性，不允许 `if`、`else`、`for`、`while`、`loop`、`repeat`、`switch` 等通用控制键。case 可以声明：
+
+- `dataRefs`：case 级参数数据文件。
+- `elementRefs`：动作 `element: alias.name` 使用的元素 catalog。
+- lifecycle fragments/actions：只作用于当前 case 或每个 case 的 scoped setup/teardown。
+- `parameters`：case 内联参数。
+
+`PlanReferenceResolver` 会在引用解析阶段把 `element` 解析为内部 `locator`，执行器不直接读取外部 element catalog。
+
+### Fragment
+
+`fragment-catalog.schema.json` 的必填字段为 `schemaVersion`、`id`、`fragments`。fragment 是当前唯一允许通用控制流的 DSL 容器：
+
+```yaml
+- if:
+    assertElementExists:
+      id: detect-page
+      element: common.pageMarker
+  then:
+    - tap:
+        id: continue
+        element: common.next
+  else: []
+```
+
+`if` 必须是一个普通可执行动作或断言动作；`then` / `else` 是普通动作数组。fragment catalog 会先作为 catalog 解析，具体 fragment 只在 plan、stage 或 case 引用时才解析元素和资产路径，因此共享 catalog 可以同时包含 Android-only 和 iOS-only fragment，但当前平台实际引用缺失 fragment 或元素时仍会失败。
+
+### Element Catalog
+
+`element-catalog.schema.json` 的必填字段为 `schemaVersion`、`id`、`elements`。元素可声明 common locator，也可声明 `android` / `ios` 平台分支。引用装配时只加载当前平台可用 locator；如果动作引用的平台元素不存在，解析失败。
+
+定位器 policy：
+
+- 外部动作不允许 inline `locator`；动作应通过 `element: alias.name` 引用 catalog。
+- locator 表达式不能使用坐标或尺寸属性，例如 `@x`、`@y`、`@width`、`@height`。
+- 固定 UI 文案不能硬编码进 locator。
+- 文案 locator 只有在语言无关时才允许固定或参数化，例如 MAC 后缀、型号名、品牌名、资源式 accessibility 名称。
+- `parameterizedTextReason` 和 `hardcodedTextReason` 当前只允许 `language_insensitive_text`。
+- `@value='1'` / `@value='0'` / boolean 这类控件状态比较不按 UI 文案处理。
+
+语言相关文案应放在参数数据文件中，用于输入和断言，不应进入 locator。
+
+### Parameter Data
+
+`parameter-data.schema.json` 的必填字段为 `schemaVersion`、`id`、`values`，可选 `secrets`。参数引用语法为 `${path.to.value}`；当整个字符串是一个参数引用时，会保留原 JSON 类型，否则按字符串插值。
+
+参数合并顺序：
+
+1. plan `parameters` 引用的数据文件。
+2. plan `app.*` seed。
+3. run request parameter overrides。
+4. stage inline `parameters`。
+5. case `dataRefs`。
+6. case inline `parameters`。
+7. case 范围再次应用 overrides。
+
+嵌套对象递归合并；内联参数名支持 dotted path，例如 `appState.mine.entryIndex`。运行时变量 `@{plan.name}` / `@{case.name}` 是执行期变量，不属于 parameter data。
+
+## 3. 动作 DSL 合同
+
+动作对象必须声明且只能声明一个关键字字段。推荐使用 nested object 形式：
 
 ```yaml
 - tap:
-    id: open-mine-tab
-    element: common.mineTab
-    desc: 打开我的页
+    id: open-settings
+    element: common.settings
+    desc: 打开设置
 ```
 
-The older `tap: open-mine-tab` form with sibling fields remains accepted for compatibility. `case.schema.json`, `plan.schema.json`, and `fragment-catalog.schema.json` explicitly enumerate the currently supported action keywords and aliases: `tap`, `tapPosition`, `longPress`, `swipe`, `tapVisualTemplate`, `tapImage`, `tapTemplate`, `assertImageColorRatio`, `imageColorRatio`, `assertImageContainsColor`, `imageContainsColor`, `input`, `restartApp`, `clearAppData`, `getText`, `saveElementRect`, `wait`, `assertElementExists`, `assertElementAttrEquals`, `assertElementAttrRegexMatch`, `assertSourceRegexMatch`, `screenshot`, `assertImageTextRegexMatch`, `startScreenRecording`, `stopScreenRecording`, `assertScreenRecordingTextRegexMatch`, `captureAppLogStart`, `captureAppLogEnd`, and `customAssertAppLog`. Unsupported action types fail schema/policy validation before execution.
+兼容旧形式：
 
-`assertElementExists` asserts that the configured `element` can be found and is the preferred predicate for fragment page-state branches. Element attribute assertions use an explicit `attr` field instead of encoding the attribute in the keyword. `attr` may contain slash-separated fallback candidates such as `name/label/text`. Regex assertions use contains-style matching by default through the regex engine; cases that need full-string matching should use anchors such as `^...$`. Assertion actions poll until matched or timed out when they have a `wait` value; that timeout is the total assertion budget, not a per-probe timeout. Plan-level `defaults.actionWait` supplies that wait unless the action overrides it.
-
-Action-specific fields are declared directly on the action object instead of through open `args`. For `tap`, an action should normally use `element: alias.name`; runtime tap resolves the current element, requires it to intersect the screen viewport, and clicks the center of the element's visible area by default. `tapPosition` is the explicit position-click keyword: it requires `xRatio` and `yRatio`; without `element` the ratios are relative to the viewport, and with `element` the ratios are relative to the element's current visible area. Coordinate taps are action parameters, not locator definitions. Element taps may set `ignoreMissingElement: true` only for approved conditional UI such as a firmware-upgrade prompt that appears only when a backend/device state requires it. This field must be paired with the predefined `ignoreMissingElementReason`; the current allowed value is `optionalFirmwareUpgradePrompt`. When the element is absent and the reason is present, Appium/Selenium "no such element" lookup failures and explicit wait timeouts are treated as passed skipped taps. Required path elements must not use this escape hatch. `tap` and `tapPosition` wait 800ms after execution by default; `settleMs` can override that delay or disable it with `0`. `longPress` / `longTap` / `pressAndHold` uses the same target fields as `tap`, adds `durationMs` for the press duration, defaults to 1000ms, and also supports `settleMs` after the press. `swipe` uses explicit start/end ratios: viewport swipes require `startXRatio`, `startYRatio`, `endXRatio`, and `endYRatio`; element-relative swipes require `element` plus `startElementXRatio`, `startElementYRatio`, `endElementXRatio`, and `endElementYRatio`. `swipe` defaults to a 500ms movement and an 800ms settle delay, both overrideable through `durationMs` and `settleMs`. The parser normalizes this external DSL into the compact internal `ActionDefinition` model consumed by executors.
-
-`tapVisualTemplate` / `tapImage` / `tapTemplate` click a non-text visual affordance by matching a template image against the current screenshot with kt-visual, then tapping a configurable percentage point inside the matched region. Supported fields are `template`, `threshold`, `scales`, `roi`, `targetXRatio`, `targetYRatio`, `settleMs`, and action-level `wait`. `roi` uses normalized screenshot coordinates (`x`, `y`, `width`, `height`) and should be supplied for repeated or small controls to reduce false matches; it can also be an exact runtime variable reference such as `@{case.titleBarRoi}` when a previous action saved a normalized ROI object. When `wait` is present, template matching retries with fresh screenshots until the match is found or the timeout expires. Template assets belong under the project data tree, typically `data/<module>/templates/`; case and fragment DSL should reference the path through parameter data, for example `template: "${mine.visualTemplates.feedbackBackIcon}"`, instead of hardcoding an asset path in the case. During reference and parameter resolution, non-dynamic relative template paths are resolved relative to the data file directory, then inherited plan/case asset directories.
-
-`assertImageColorRatio` / `imageColorRatio` / `assertImageContainsColor` / `imageContainsColor` reads an image file from `source` and asserts kt-visual named-color coverage. Supported fields are `source`, `color`, `minRatio`, optional `minPixels`, optional normalized `roi`, and action-level `wait`. `color` uses kt-visual named color families such as `red`, `orange`, `yellow`, `green`, `cyan`, `blue`, `purple`, `pink`, `white`, `black`, and `gray`; the action intentionally uses named HSV ranges instead of exact RGB values. A common pattern is to run `screenshot` with `saveAs`, then pass `source: "@{case.savedScreenshot}"` into `assertImageColorRatio`. When the target UI area can be resolved as an element, prefer `screenshot` with `element` so the color assertion reads the element image directly; use normalized `roi` on full-screen screenshots only when no stable element is available. When `wait` is present, the same source image is re-read until the color ratio passes or the timeout expires.
-
-`screenshot` captures an explicit image resource and writes it through the plan resource sink. Without `element`, it captures the full screen. With `element`, it resolves the current element and captures that element image through WebDriver/Appium before writing the same explicit screenshot resource. With `saveAs`, the local file path of the captured screenshot is stored in the requested `scope` (`case` by default), and the latest captured screenshot path is also stored as `@{case.lastScreenshot}`.
-
-`assertImageTextRegexMatch` / `imageTextRegexMatch` / `assertScreenshotTextRegexMatch` / `screenshotTextRegexMatch` runs OCR against a static image file and asserts a regex match. `source` defaults to `@{case.lastScreenshot}` and can reference a screenshot saved with `saveAs`; `pattern` is required. Optional `recognizer` uses the same values as recording OCR (`paddle` by default, or `multimodal` when configured), and optional normalized `roi` crops the image before OCR. Use this for stable pages such as PDF/manual screens where a screenshot is enough; toast-like transient text should still use screen recording OCR.
-
-`saveElementRect` / `getElementRect` / `saveElementRegion` reads the visible viewport rectangle of an element and stores it in a runtime variable with `saveAs` and optional `scope`. By default the saved object is pixel based: `x`, `y`, `width`, `height`, `viewportWidth`, and `viewportHeight`. With `asRoi: true`, it saves normalized ROI coordinates compatible with visual actions. `fullWidth` or `fullHeight` can expand the saved ROI to the viewport edge while preserving the element's other axis; `expandLeftRatio`, `expandRightRatio`, `expandTopRatio`, and `expandBottomRatio` expand the element rectangle by a multiple of the element width or height before normalization.
-
-`restartApp` terminates and activates the target app, then waits until Appium reports the target app is running in the foreground. Its action-level `wait` overrides the default foreground wait budget.
-
-`clearAppData` / `clearApplicationData` clears Android app data for the supplied `appId`, reactivates the app, and waits for foreground state. It is Android-only. If the current session requested `appium:autoGrantPermissions=true` or `autoGrantPermissions=true`, the action re-reads runtime permissions through `dumpsys package <appId>` after `pm clear` and attempts to grant each runtime permission before relaunch. This keeps clear-data first-use flows from being interrupted by system permission prompts while preserving the normal app data reset semantics.
-
-Toast-like transient text should be checked with screen recording analysis instead of page source polling. `startScreenRecording` starts an Appium recording with optional `timeLimitMs`; `stopScreenRecording` writes a video resource and can save its local path with `saveAs`; `assertScreenRecordingTextRegexMatch` extracts frames from that video with the resolved FFmpeg tool, optionally crops each frame by normalized `roi`, selects candidate frames through `candidateStrategy`, runs kt-visual OCR on those candidates, and stores the matched frame as a manifest resource when the regex matches. `recognizer` defaults to `paddle`; use `multimodal` for OpenAI-compatible kt-visual multimodal OCR. Multimodal OCR reads `soluna.visual.ocr.multimodal.baseUrl` / `SOLUNA_VISUAL_OCR_MULTIMODAL_BASE_URL`, optional `apiKey`, `model`, `timeoutMs`, `reasoningEffort`, `stream`, prompt, stream idle timeout, stream HTTP timeout, and multimodal candidate parallelism settings from system properties or environment variables. Defaults are `model=gpt-5.5`, `reasoningEffort=high`, `stream=true`, `streamIdleTimeoutMs=60000`, `streamHttpTimeoutMs=600000`, and multimodal candidate `parallelism=4`; stream chunks are logged at info level, and the idle timeout is reset only by reasoning or content output. The default multimodal prompt is tuned to include low-contrast UI overlay text and visible substrings of clipped toast text without completing hidden characters. FFmpeg resolution prefers `soluna.ffmpeg.path` / `SOLUNA_FFMPEG`, then `tools/ffmpeg/<os>-<arch>/ffmpeg(.exe)` from configured tool roots, the working tree, or the installed distribution, and finally `ffmpeg` from PATH. Managed Appium server startup also prepends the resolved explicit or bundled FFmpeg directory to PATH because Appium XCUITest iOS recording invokes a command named `ffmpeg` in the server process. Candidate strategies are `visual-diff` for transient visual changes, `uniform` for evenly sampled videos, `visual-diff-uniform` for choosing visually changed frames and then spreading OCR candidates across that set, and `all` for short ROI-cropped recordings where every extracted frame should be OCRed. `candidateMaxFrames` bounds OCR work for `visual-diff`, `visual-diff-uniform`, and `uniform`; `visualDifferenceThreshold` controls visual-diff sensitivity.
-
-`captureAppLogStart` creates a `soluna-ext` log session for the current device and requires `saveAs`; the saved descriptor also becomes `@{case.lastAppLogCapture}`. Its `filter` object is applied while logs are captured, before buffering and JSONL persistence, to keep long sessions bounded. Filter fields include `source`, `level` / `levels`, `tag` / `tags`, `tagRegex`, `process` / `processes`, `processRegex`, `messageContains`, `messageRegex`, `rawContains`, and `rawRegex`. The same fields can be nested under `filter.android` or `filter.ios`; runtime matching requires both the common filter and the current platform branch to pass. iOS syslog lines emitted as JSON objects with a `msg` field are normalized before iOS process/level/message parsing and filtering, while the original line remains available as `raw`. `captureAppLogEnd` reads bounded batches from the saved session, closes it, writes an `application/x-ndjson` explicit resource, saves the file descriptor in `@{case.lastAppLogFile}`, and optionally saves it through `saveAs`. `customAssertAppLog` requires `plugin` and `assertion`, defaults `source` to `@{case.lastAppLogFile}`, and delegates to a registered JVM app-log assertion extension. The runner discovers these extensions from classpath and `plugins/app-log/*.jar` under the distribution root, current working directory, or inferred plan asset root; `soluna.appLogPluginDirs` and `SOLUNA_APP_LOG_PLUGIN_DIRS` add explicit directory lists. Missing plugin/assertion registrations fail validation at execution time instead of passing as a no-op.
-
-Plan and stage schemas expose the same lifecycle pattern through `setupFragments` / `setupActions` and `teardownFragments` / `teardownActions`. Teardown results are recorded separately from main action results.
-
-Case lifecycle fields support scoped setup/teardown around every case:
-
-- Plan-level `caseSetupFragments` / `caseSetupActions` and `caseTeardownFragments` / `caseTeardownActions` apply to all cases in the plan.
-- Stage-level `caseSetupFragments` / `caseSetupActions` and `caseTeardownFragments` / `caseTeardownActions` apply to all cases in that stage.
-- Case-level `caseSetupFragments` / `caseSetupActions` and `caseTeardownFragments` / `caseTeardownActions` apply only to that case.
-
-Setup order is plan, then stage, then case. Teardown order is case, then stage, then plan.
-
-`element-catalog.schema.json` is the only v1 DSL input schema that stores locator definitions. Parameter syntax remains `${...}`; element syntax is a distinct `element: alias.name` field on actions. An element can define common `strategy` / `value`, or platform-specific `android` and `ios` locators.
-
-Stage and case inline `parameters` are merged into the parameter context used to resolve later lifecycle actions, case actions, and element locators. Nested objects merge recursively; dotted inline parameter names such as `appState.mine.entryIndex` are also supported.
-
-Asset projects should keep case-specific data close to the case naming convention, while element catalogs stay module-oriented. Language-specific UI copy should live in language-versioned data files such as `data/common/mine.zh-CN.yaml`; an English run can use a peer file such as `data/common/mine.en.yaml`. Shared login/device/mine locators should live in `elements/common.yaml` rather than a case-named element file.
-
-`case.schema.json`, `plan.schema.json`, and `fragment-catalog.schema.json` do not allow inline `locator` on actions. Actions reference elements through `element`; `PlanReferenceResolver` resolves that reference into the internal runtime `ActionDefinition.locator` before execution. This keeps locator ownership in element catalogs while preserving compact runtime executor inputs.
-
-Runtime variables are not parameter data. Actions can write/read `@{plan.name}` and `@{case.name}` values during execution.
-
-`report-data.schema.json` defines the current report data contract written by `LocalReportWriter` as `execution-result.json`. It is a report-consumption view, not a direct serialization of internal `PlanRunResult` or `PlanExecutionResult`. The report data JSON includes `schemaVersion: "1.0"`, plan/app display fields such as `productModel`, `appId`, and `appName`, device display fields such as `deviceId` and `deviceName`, nullable plan-level `startedAt` and `finishedAt`, optional top-level `summary` and `failures` views, and lifecycle buckets. `appName` and `deviceName` prefer `soluna-ext` metadata and fall back to plan/device YAML fields. For iOS, `soluna-ext` must use the real device name returned by `ios devicename`, not the `ProductName` value from `ios list --details`:
-
-- plan: `setupActions`, `teardownActions`
-- stage: `setupActions`, `teardownActions`
-- case: `setupActions`, `actions`, `teardownActions`
-- top level: `traceArtifacts`, containing failed-action diagnostic screenshot and page-source links when trace screenshots were published.
-
-The `summary` view contains stage/case/action totals by status for report renderers and notifications. The `failures` view contains flattened failed action locations with stage, case, phase, index, action id, action keyword, message, and error. Stage and case records carry both stable ids and display names. Action records may include action id, keyword, name, attempt, started/finished timestamps, and duration when the result came from the execution engine. The HTML renderer keeps report resources in a dedicated panel above the execution summary, renders the case overview as a collapsible section, and opens per-case action details from the case row or `操作` column `动作明细` link instead of rendering a homepage action timeline. Detail modal titles carry stage/case context, so the modal table starts at action-level columns; opening a modal locks the page behind it from scrolling, and only the modal body scrolls while the title bar stays fixed.
-
-`device-config.schema.json` currently covers:
-
-- device identity: UDID plus optional platform and display name; when `soluna-ext` returns metadata, the resolved display name uses the extension's real device name instead of a configured placeholder
-- optional device OS version; for iOS this can be resolved through `soluna-ext` when omitted
-- UDID-only device configs; missing platform can be resolved through `soluna-ext`
-- Appium server mode: managed or external
-- optional Appium server location for external servers
-- executable, plugins, required driver names, extra args, startup timeout, and optional environment overrides
-- device/session-level Appium capabilities
-- iOS WDA lifecycle config under `ios.wda`, including managed/external mode, local host port, device WDA port, go-ios executable, optional WDA identity overrides, tunnel mode, tunnel info/userspace tunnel ports, startup timeout, tunnel startup delay, and runwda startup delay
-
-Device config must not contain target app identity or app reset intent. App lifecycle belongs to plan/stage/case setup fragments or explicit actions, not session creation.
-
-For iOS, WDA is treated as a device-adjacent capability. `DeviceConfigResolver` fills missing iOS `device.osVersion` through `soluna-ext`; WDA management consumes that resolved version to choose the iOS 17+ tunnel path or the legacy path. The WDA runner bundle is resolved through `soluna-ext` by default and can be overridden with `ios.wda.bundleId`, `ios.wda.testRunnerBundleId`, and `ios.wda.xctestConfig` when needed. iOS 17+ managed WDA defaults to go-ios userspace tunnel mode and uses runtime-allocated tunnel info/userspace ports unless the device config pins them. Because the iOS tunnel is a host-global singleton, the manager reuses an existing `ios` / `go-ios tunnel start` process when one is visible and never stops tunnel processes during WDA stop, restart, or failed-start cleanup. Case and plan DSL files should not branch on iOS versions.
-
-For managed Appium servers, `host` and `port` are optional. When `port` is omitted, the manager chooses an available local port at runtime. Before launching Appium, the manager ensures configured `usePlugins` are installed and configured `ensureDrivers` are installed. The default plugin list is `["soluna-ext"]`; the default driver list is `["uiautomator2", "xcuitest"]`. `soluna-ext` is treated as project-owned: if an installed copy is not from the project-bundled source, it is uninstalled and reinstalled from the bundled source. The Appium child process inherits the current runner process environment by default; `environment` only adds or overrides variables for exceptional cases.
-
-Android session construction adds these defaults when the per-device config does not override them:
-
-- `appium:unicodeKeyboard=true`
-- `appium:resetKeyboard=true`
-
-This keeps Android text input stable across real devices with different system keyboard implementations.
-
-`artifact-store.schema.json` currently covers:
-
-- MinIO endpoint, bucket, prefix, and optional public base URL.
-- direct MinIO credentials through `credentials.accessKey` / `credentials.secretKey`, with `accessKeyEnv` / `secretKeyEnv` still supported as optional indirection.
-- async upload worker count, queue capacity, bounded drain timeout, compression policy, and retry policy.
-- `upload.compression` defaults to gzip-compressing text-like artifacts such as HTML, JSON, XML, JavaScript, and structured `+json` / `+xml` content types.
-- optional upload-failure notification config reference, normally another YAML file under the asset project's `artifacts/` directory.
-- optional plan lifecycle notification references: `planStarted`, `testFinished`, and `reportPublished`. The legacy `planFinished` field is still accepted as a compatibility alias for `reportPublished`.
-
-`notification-sender.schema.json` currently covers DingTalk robot config:
-
-- direct DingTalk robot `webhook` and optional signing `secret`, with `webhookEnv` / `secretEnv` still supported as optional indirection.
-- optional DingTalk at-list settings.
-- upload-failure alert window, threshold, and suppression interval.
-
-Lifecycle DingTalk notifications currently use a compact Chinese Markdown card. The DingTalk title is `App UI自动化测试`; the card body renders a styled title, a divider, a blockquote subtitle `<productModel> UI 自动化测试`, another divider, then each notification field as its own Markdown bullet. Field labels are Chinese semantic labels. The field list starts with `设备名称` and `设备标识`; execution-finished and report-published notifications use execution `开始时间` / `结束时间` and do not show report generation time. Notifications reuse the report summary view to include stage/case/action totals, first failed action summaries, trace artifact count, upload status, and report/manifest links where available. Device name and app name prefer `soluna-ext` metadata and fall back to configured YAML fields.
-
-`plan-resource-manifest.schema.json` stores plan-level metadata and explicit DSL resources, including screenshots, screen recordings, and screen-recording text match frames. It is written as `plan-resource-manifest.json` beside report files and is not a step execution-detail file.
-
-Example asset-project files:
-
-- `AIot-Tests/soluna-project.yaml`
-- `AIot-Tests/apps/com.ugreen.iot/plans/app-state/android.yaml`
-- `AIot-Tests/apps/com.ugreen.iot/plans/app-state/ios.yaml`
-- `AIot-Tests/apps/com.ugreen.iot/cases/common/app-state/login-page.yaml`
-- `AIot-Tests/apps/com.ugreen.iot/data/app-state.yaml`
-- `AIot-Tests/apps/com.ugreen.iot/elements/common.yaml`
-- `AIot-Tests/apps/com.ugreen.iot/fragments/app-state.yaml`
-- `AIot-Tests/devices/android/AMRF026323000807.yaml`
-- `AIot-Tests/devices/ios/00008140-001805D80C93801C.yaml`
-- `AIot-Tests/artifacts/minio.template.yaml`
-- `AIot-Tests/artifacts/dingtalk.template.yaml`
-
-Runtime model classes live under:
-
-```text
-src/main/kotlin/com/soluna/ui/autotest/core/model/
-src/main/kotlin/com/soluna/ui/autotest/config/
-src/main/kotlin/com/soluna/ui/autotest/artifact/
-src/main/kotlin/com/soluna/ui/autotest/notification/
+```yaml
+- tap: open-settings
+  element: common.settings
 ```
 
-The DSL parser validates YAML in this order:
+nested object 形式必须包含非空 `id`。解析后，关键字会通过 `KeywordRegistry` 归一化为内部 canonical keyword；`tapPosition` 会归一化为内部 `tap`，并把外部 `xRatio` / `yRatio` 转为元素相对坐标参数。
 
-1. Parse YAML into a JSON tree.
-2. Validate the tree against `plan.schema.json`.
-3. Apply framework policy validation, including linear case DSL and locator text rules.
-4. Map the validated tree into Kotlin model classes.
+当前 canonical keyword 和别名：
 
-Schema files are versioned by directory. Breaking contract changes should create a new version directory instead of silently changing v1 semantics.
+| canonical | aliases |
+| --- | --- |
+| `tap` | `click`、`点击`、`轻点` |
+| `tapPosition` | `tapAt`、`positionTap`、`点击位置`、`按位置点击`、`坐标点击` |
+| `longPress` | `longTap`、`pressAndHold`、`长按`、`长按点击` |
+| `swipe` | `滑动`、`划动` |
+| `tapVisualTemplate` | `tapImage`、`tapTemplate`、`视觉点击`、`模板点击`、`图片点击` |
+| `assertImageColorRatio` | `imageColorRatio`、`assertImageContainsColor`、`imageContainsColor`、`断言图片颜色占比`、`图片颜色占比`、`图片含颜色量`、`图片含蓝色量` |
+| `input` | `type`、`输入`、`录入` |
+| `restartApp` | `restart`、`重启应用`、`重启App`、`重启APP` |
+| `clearAppData` | `clearApplicationData`、`清除应用数据`、`清理应用数据` |
+| `getText` | `readText`、`saveText`、`获取文本`、`读取文本`、`保存文本` |
+| `saveElementRect` | `getElementRect`、`saveElementRegion`、`获取元素矩形`、`保存元素矩形`、`保存元素区域` |
+| `wait` | `sleep`、`pause`、`等待`、`暂停` |
+| `assertElementExists` | `elementExists`、`assertElementPresent`、`elementPresent`、`断言元素存在`、`元素存在` |
+| `assertElementAttrEquals` | `elementAttrEquals`、`attrEquals`、`断言元素属性相等`、`元素属性相等`、`属性相等` |
+| `assertElementAttrRegexMatch` | `elementAttrRegexMatch`、`attrRegexMatch`、`断言元素属性匹配`、`元素属性匹配`、`属性匹配` |
+| `assertSourceRegexMatch` | `sourceRegexMatch`、`断言源码匹配`、`源码匹配` |
+| `screenshot` | `截图`、`显式截图` |
+| `startScreenRecording` | `startRecording`、`开始录屏`、`开始屏幕录制` |
+| `stopScreenRecording` | `stopRecording`、`停止录屏`、`停止屏幕录制` |
+| `assertScreenRecordingTextRegexMatch` | `screenRecordingTextRegexMatch`、`断言录屏文本匹配`、`录屏文本匹配` |
+| `assertImageTextRegexMatch` | `imageTextRegexMatch`、`assertScreenshotTextRegexMatch`、`screenshotTextRegexMatch`、`断言图片文本匹配`、`图片文本匹配`、`断言截图文本匹配`、`截图文本匹配` |
+| `captureAppLogStart` | `startAppLogCapture`、`开始采集App日志`、`开始抓取App日志` |
+| `captureAppLogEnd` | `stopAppLogCapture`、`结束采集App日志`、`结束抓取App日志` |
+| `customAssertAppLog` | `assertCustomAppLog`、`自定义断言App日志`、`自定义App日志断言` |
 
-Element catalogs may contain platform-specific entries that are not available on every platform. During reference assembly, the runner loads only locators available for the current plan platform and skips entries that have no matching platform/common locator. If an action references a skipped element, action reference resolution still fails because that element is unavailable for the current platform.
+关键动作约束：
 
-Fragment catalogs are parsed as catalogs, but fragment actions are resolved lazily only when a plan, stage, or case references that fragment. This lets a shared fragment catalog contain Android-only or iOS-only helper fragments without making the other platform fail during plan assembly, while still failing if the current platform actually references an unsupported fragment.
+- `tap`：需要 `element`，或同时提供 `xRatio` / `yRatio`。元素点击每次执行前重新定位，并点击可见区域中心或指定元素相对比例。
+- `tapPosition`：必须有 `xRatio` / `yRatio`；无 `element` 时按 viewport 比例，有 `element` 时按元素可见区域比例。
+- `tap.ignoreMissingElement` 只允许元素点击使用，且必须搭配 `ignoreMissingElementReason`。当前唯一允许原因是 `optionalFirmwareUpgradePrompt`。
+- `longPress`：目标规则与 `tap` 相同，支持 `durationMs` 和 `settleMs`。
+- `swipe`：viewport 滑动需要 `startXRatio`、`startYRatio`、`endXRatio`、`endYRatio`；元素内滑动需要 `element` 加四个 `startElement*` / `endElement*` 比例。
+- `input`：需要 `element` 和 `value`，支持 `clearFirst`。
+- `wait`：需要 `durationMs`、`timeoutMs`、`value` 或 `wait.timeoutMs`。
+- `restartApp`：需要 `appId`，终止并激活目标 app，等待其回到前台。
+- `clearAppData`：需要 `appId`，当前只支持 Android；实现仍在 Kotlin WebDriver adapter 内直接调用 `adb`。
+- `getText`：需要 `element` 和 `saveAs`，把文本写入运行时变量。
+- `saveElementRect`：需要 `element` 和 `saveAs`，默认保存像素矩形；`asRoi: true` 保存归一化 ROI，可供视觉/OCR 动作复用。
+- `screenshot`：显式截图资源；无 `element` 截全屏，有 `element` 截元素图。`saveAs` 会写入变量，并更新 `@{case.lastScreenshot}`。
+- `tapVisualTemplate`：需要 `template`，使用 kt-visual 匹配当前截图后点击命中区域；`roi` 可是归一化对象或精确 runtime 变量引用。
+- `assertImageColorRatio`：需要 `source`、`color`、`minRatio`，读取静态图片并按 kt-visual 命名颜色族断言；带 `wait` 时重复读取同一 source。
+- `assertImageTextRegexMatch`：需要 `pattern`，默认 source 是 `@{case.lastScreenshot}`，用于静态图片 OCR。
+- `startScreenRecording` / `stopScreenRecording`：通过 Appium 录屏，`stop` 可写显式视频资源并通过 `saveAs` 保存描述符。
+- `assertScreenRecordingTextRegexMatch`：需要 `pattern`，从录屏抽帧、可选 ROI 裁剪、OCR 后做正则断言；命中帧写为显式资源。
+- `captureAppLogStart`：需要 `saveAs`，通过 `soluna-ext` 创建日志 session，可配置通用和平台分支 filter。
+- `captureAppLogEnd`：读取并关闭日志 session，写 `application/x-ndjson` 显式资源，更新 `@{case.lastAppLogFile}`。
+- `customAssertAppLog`：需要 `plugin` 和 `assertion`，委托 JVM app-log assertion 扩展执行。
+
+属性断言使用显式 `attr` 字段。`attr` 支持 slash-separated fallback，例如 `name/label/text`；正则默认是 contains-style 匹配，完整匹配应使用 `^...$`。
+
+## 4. 设备、产物和通知配置
+
+### Device Config
+
+`device-config.schema.json` 的必填字段为 `schemaVersion`、`id`、`device`、`appium`。
+
+`device` 描述 UDID、可选平台、展示名和 OS 版本。平台或 iOS OS 版本缺失时，当前实现可通过 `soluna-ext` 解析。目标 app 身份和 reset 意图不属于 device config。
+
+`appium.server` 支持 managed 和 external：
+
+- managed server 可省略 `host` / `port`，运行时选择可用端口。
+- 默认 `usePlugins` 为 `["soluna-ext"]`，默认 `ensureDrivers` 为 `["uiautomator2", "xcuitest"]`。
+- runner 会校验并安装所需 Appium plugin/driver；`soluna-ext` 视为本仓库集成组件。
+- Android session 默认补充 `appium:unicodeKeyboard=true` 和 `appium:resetKeyboard=true`，除非设备配置显式覆盖。
+
+`ios.wda` 描述 iOS WDA 生命周期。managed WDA 使用 go-ios；iOS 17+ 默认走 userspace tunnel，tunnel 是 host-global singleton，当前 manager 会复用已有 tunnel 进程，不在 stop/restart/failure cleanup 中停止 tunnel。
+
+### Artifact Store
+
+`artifact-store.schema.json` 的必填字段为 `schemaVersion`、`id`、`type`、`endpoint`、`secure`、`bucket`、`credentials`。当前实现只支持 MinIO/S3 风格 artifact store。
+
+配置覆盖：
+
+- endpoint、bucket、prefix、publicBaseUrl。
+- 直接 credential 和 env indirection。
+- 上传 worker 数、队列容量、bounded drain timeout。
+- gzip 压缩策略，默认覆盖 HTML/JSON/XML/JS 和 `+json` / `+xml` 类型。
+- 重试次数、初始延迟、最大延迟和退避倍数。
+- `notifications.uploadFailures`、`planStarted`、`testFinished`、`reportPublished`。
+
+`notifications.planFinished` 仍作为 `reportPublished` 的兼容别名解析。
+
+### Notification Sender
+
+`notification-sender.schema.json` 的必填字段为 `schemaVersion`、`id`、`type`、`robot`。当前 sender 类型为 DingTalk：
+
+- `robot.webhook` / `robot.secret` 可直接配置，也可用 `webhookEnv` / `secretEnv`。
+- 支持 `atMobiles`、`atUserIds`、`isAtAll`。
+- `uploadFailurePolicy` 控制上传失败聚合告警窗口、阈值和抑制间隔。
+
+生命周期通知当前由 `PlanRunner` 读取 artifact store 中的 notification 引用并发送。通知内容复用报告摘要和失败摘要，字段标签为中文。
+
+## 5. 输出和平台边界合同
+
+### Report Data
+
+`report-data.schema.json` 描述 `LocalReportWriter` 写出的 `execution-result.json`。它是报告消费视图，不是内部 `PlanRunResult` 或 `PlanExecutionResult` 的直接序列化。
+
+必填顶层字段包括：
+
+- 运行和计划信息：`generatedAt`、`startedAt`、`finishedAt`、`runId`、`planId`、`planName`、`productModel`。
+- app/device 展示字段：`appId`、`appName`、`deviceId`、`deviceName`、`platform`。
+- 状态和视图：`status`、`summary`、`failures`、`traceArtifacts`。
+- lifecycle/action 结果：`setupActions`、`teardownActions`、`stages`。
+
+`summary` 提供 stage/case/action 的总数和 passed/failed/skipped 统计。`failures` 是扁平失败摘要，包含 stage、case、phase、index、action id、action keyword、message 和 error。`traceArtifacts` 只包含失败诊断 trace 的链接，不包含显式截图资源。
+
+### Plan Resource Manifest
+
+`plan-resource-manifest.schema.json` 描述报告旁边的 `plan-resource-manifest.json`。它记录 plan 元数据、run resource batch 和显式 DSL 资源。当前 schema 枚举覆盖：
+
+- `type`: `image`、`video`
+- `purpose`: `explicit_screenshot`、`explicit_screen_recording`、`screen_recording_text_match_frame`
+
+manifest 不记录失败前 trace；trace 仍走普通 diagnostic artifact。
+
+当前实现边界：`captureAppLogEnd` 已通过通用 `PlanResourceSink` 写出 `type=log`、`purpose=app_log_capture`、`contentType=application/x-ndjson` 的显式资源，但 v1 `plan-resource-manifest.schema.json` 尚未补入该枚举。外部消费者如果按 schema 严格校验包含 App log 的 manifest，会遇到合同不匹配。后续应补齐 manifest schema/test，或调整 App log 资源边界。
+
+### Run Request / Run Result
+
+`run-request.schema.json` 和 `run-result.schema.json` 是平台边界摘要合同。它们暴露 plan URI、asset project revision、设备选择、参数覆盖、预期/实际状态、计数和 artifact 链接，不暴露内部 Kotlin 执行模型。
+
+`run-result` 不能替代：
+
+- `execution-result.json`
+- `plan-resource-manifest.json`
+- HTML report
+
+### Asset Project
+
+`soluna-project.schema.json` 描述外部 asset project 根元数据，包括项目身份、framework/schema 兼容性、app roots、共享路径、设备路径、artifact 路径和默认值。当前 CLI 不强制发现或读取 `soluna-project.yaml`；它主要服务未来平台资产管理、项目发现和 Codex 资产生成。
+
+## 6. 验证建议
+
+schema 或 DSL 行为变更时，至少运行：
+
+```bash
+./gradlew test --tests com.soluna.ui.autotest.schema.JsonSchemaDslValidatorTest
+```
+
+触达解析、引用装配、参数、执行策略或报告输出时，补充对应 focused tests：
+
+```bash
+./gradlew test --tests com.soluna.ui.autotest.dsl.YamlPlanParserTest
+./gradlew test --tests com.soluna.ui.autotest.runner.PlanReferenceResolverTest
+./gradlew test --tests com.soluna.ui.autotest.runner.PlanParameterResolverTest
+./gradlew test --tests com.soluna.ui.autotest.report.LocalReportWriterTest
+```
+
+只修改文档时，至少运行：
+
+```bash
+git diff --check -- docs/schemas.md docs/progress.md
+```

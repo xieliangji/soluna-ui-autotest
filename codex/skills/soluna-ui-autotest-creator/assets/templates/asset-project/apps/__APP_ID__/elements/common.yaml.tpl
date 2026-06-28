@@ -1,4 +1,4 @@
 schemaVersion: "1.0"
 id: common-elements
-description: Common reusable elements for {{APP_NAME}}.
+description: {{APP_NAME}} 公共可复用元素。
 elements: {}

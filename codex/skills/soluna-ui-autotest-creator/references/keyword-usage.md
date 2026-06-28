@@ -1,45 +1,60 @@
-# Keyword Usage
+# 关键字使用入口
 
-Use this reference before adding or changing Soluna case, fragment, plan setup, or teardown actions. It explains how to write the supported DSL keywords, not just what keywords exist.
+在 case、fragment、plan setup、stage setup、case setup 或 teardown 中新增/修改 action 前读取本文件。
 
-## Contents
+本文件只提供关键字路由和通用 DSL 合同。字段级写法按任务读取对应动作族文件：
 
-- Action form
-- Shared fields
-- Element locators
-- Runtime values
-- Keyword recipes
-- Fragment control flow
-- Capability-gap checklist
+- 基础 UI、App 状态、等待、元素/源码断言：`keyword-core-actions.md`
+- 截图、视觉模板、颜色断言、OCR、录屏、ROI：`keyword-visual-ocr.md`
+- App log 采集、JSONL 资源、自定义 App log 断言：`keyword-app-log.md`
 
-## Action Form
+## 目录
 
-Prefer the nested keyword form for every action:
+- Action 形式
+- 共享字段
+- Locator 规则
+- 运行时值
+- 关键字族
+- Fragment Control Flow
+- 请求新关键字前
+
+## Action 形式
+
+优先使用 nested keyword 形式：
 
 ```yaml
 - tap:
     id: open-settings
     element: common.settingsButton
-    desc: Open settings.
+    desc: 打开设置
 ```
 
-The keyword field is the action type. Its object payload must include `id`. Use the canonical English keyword unless an existing asset project already uses aliases.
+规则：
 
-Some legacy short forms are accepted for simple actions, but avoid creating new short-form actions because required fields are split between the keyword value and sibling fields:
+- keyword 字段就是 action 类型。
+- nested payload 必须包含非空 `id`。
+- 新资产优先使用 canonical English keyword，除非现有 asset project 已统一使用别名。
+- 一个 action 只能有一个 keyword 字段。
+- case `actions` 中不能写 `if`；fragment/lifecycle flow 才能使用 fragment control flow。
+
+旧 short form 仍兼容，但不要在新资产中引入：
 
 ```yaml
 - tap: open-settings
   element: common.settingsButton
 ```
 
-Do not put more than one keyword field in one action. Do not put `if` in case actions; `if` is allowed only in fragments and lifecycle actions that use fragment syntax.
+## 共享字段
 
-## Shared Fields
+- `id`：稳定 action id，nested form 必填。
+- `desc`：可读操作意图。
+- `element`：元素别名，例如 `common.submitButton`。
+- `wait`：action 级等待。
+- `saveAs`：采集/读取类 action 写入的运行时变量名。
+- `scope`：运行时变量作用域，通常用 `case`；只有后续 case 需要读取时才用 `plan`。
+- `resourceId`：screenshot、recording、OCR match frame 或 log 的稳定显式资源 id。
 
-- `id`: Stable action id. Required in nested form.
-- `desc`: Human-readable operation intent.
-- `element`: Element alias, such as `common.submitButton`. Define the locator in an element catalog.
-- `wait`: Per-action wait object. Common shape:
+通用 wait 形状：
 
 ```yaml
 wait:
@@ -47,11 +62,11 @@ wait:
   intervalMs: 500
 ```
 
-Use `wait` on element actions and assertions when the UI may transition. Do not replace state checks with long global sleeps.
+UI 状态可能转变时使用 `wait`。不要用长全局 sleep 替代状态断言。
 
-## Element Locators
+## Locator 规则
 
-Actions should reference `element`, not inline locator expressions. Define platform locators in catalog files:
+action 应使用 `element`，不要 inline locator：
 
 ```yaml
 elements:
@@ -64,11 +79,20 @@ elements:
       value: MineTab
 ```
 
-Prefer stable accessibility ids, structural locators, element-relative ratios, or visual templates over UI copy. Parameterizing business copy does not make it a stable locator. Locator text parameters are allowed only for language-insensitive values such as MAC suffixes or device model names, and must use `parameterizedTextReason: language_insensitive_text`. Fixed text values in locators are allowed only for language-insensitive values such as brand names, version markers, or resource-style accessibility names, and must use `hardcodedTextReason: language_insensitive_text`. `language_insensitive_text` is the only allowed text-locator reason and is not project-configurable. Language-specific UI copy belongs in language-versioned data files and should be used by assertions, inputs, OCR, or log-aided assertions instead of element locators. Locator expressions must not use coordinate or size attributes such as `@x`, `@y`, `@width`, or `@height`; use `tapPosition` with an element-relative ratio for click offsets instead.
+规则：
 
-## Runtime Values
+- locator 只定义在 element catalog。
+- 优先使用 resource id、稳定 accessibility id、结构 locator、元素相对比例或 visual template。
+- 不要在 locator value 中使用语言相关 UI 文案。
+- 参数化文案 locator 只允许语言无关值，并要求 `parameterizedTextReason: language_insensitive_text`。
+- 固定文案 locator 只允许语言无关值，并要求 `hardcodedTextReason: language_insensitive_text`。
+- locator 表达式不能使用 `@x`、`@y`、`@width`、`@height` 等坐标或尺寸属性。
 
-Use parameter references for static test data:
+语言相关文案应放在语言版本 data 文件中，用于 assertion、input、OCR 或 app-log assertion。
+
+## 运行时值
+
+静态数据使用参数引用：
 
 ```yaml
 value: ${auth.phone}
@@ -76,7 +100,7 @@ pattern: ${messages.sendCodeCountdownRegex}
 template: ${templates.feedbackIcon}
 ```
 
-Use runtime variable references for values captured during execution:
+执行期采集值使用 runtime variable：
 
 ```yaml
 expected: "@{case.nicknameBefore}"
@@ -84,518 +108,50 @@ roi: "@{case.feedbackRowRoi}"
 source: "@{case.loginVideo}"
 ```
 
-`scope` defaults to `case` for captured values. Set `scope: plan` only when later cases must read the value.
-
-## Keyword Recipes
-
-### tap
-
-Use for ordinary element taps. Prefer `tap` for center clicks on stable elements. Use `tapPosition` when the click target is a specific position inside a region.
-
-```yaml
-- tap:
-    id: open-profile
-    element: common.profileEntry
-    wait:
-      timeoutMs: 8000
-      intervalMs: 500
-```
-
-Optional fields:
-
-- `settleMs`: Post-tap settle delay. Defaults to `800`.
-- `ignoreMissingElement`, `ignoreMissingElementReason`: Element taps only. Use only for approved conditional UI where absence is expected, such as a firmware-upgrade prompt that appears only when a newer backend/device version exists. `ignoreMissingElementReason` is a predefined enum; current allowed value: `optionalFirmwareUpgradePrompt`. Missing-element lookup failures and explicit wait timeouts are skipped only with this approved reason.
-
-Conditional firmware prompt example:
-
-```yaml
-- tap:
-    id: dismiss-firmware-upgrade-prompt-if-present
-    element: common.firmwareUpgradeIgnoreButton
-    ignoreMissingElement: true
-    ignoreMissingElementReason: optionalFirmwareUpgradePrompt
-    wait:
-      timeoutMs: 5000
-      intervalMs: 500
-```
-
-### tapPosition
-
-Use for explicit position clicks. `xRatio` and `yRatio` are required. Without `element`, ratios are relative to the full viewport. With `element`, ratios are relative to the current visible area of that element.
-
-Element-region example:
-
-```yaml
-- tapPosition:
-    id: set-volume-to-10
-    element: device.promptSoundVolumeSlider
-    xRatio: 0.64
-    yRatio: 0.30
-    wait:
-      timeoutMs: 5000
-      intervalMs: 500
-```
-
-Viewport example:
-
-```yaml
-- tapPosition:
-    id: dismiss-backdrop
-    xRatio: 0.50
-    yRatio: 0.15
-    desc: Dismiss modal backdrop when it exposes no stable element.
-```
-
-### input
-
-Use for text input into an element.
-
-```yaml
-- input:
-    id: enter-phone
-    element: auth.phoneField
-    value: ${auth.phone}
-    clearFirst: true
-```
-
-`clearFirst` defaults to `true`. Values are scalar and may be parameter or runtime references.
-
-### longPress
-
-Use for press-and-hold interactions such as opening a contextual action sheet from a list item. Prefer an element target over viewport coordinates.
-
-```yaml
-- longPress:
-    id: open-device-actions
-    element: device.firstDeviceCard
-    durationMs: 1000
-    wait:
-      timeoutMs: 8000
-      intervalMs: 500
-```
-
-Optional fields:
-
-- `durationMs`: Press duration in milliseconds. Defaults to `1000`.
-- `elementXRatio`, `elementYRatio`: Press inside the visible element area. Defaults to center `0.5`.
-- `settleMs`: Post-press settle delay. Defaults to `800`.
-- `xRatio`, `yRatio`: Viewport press ratios. Use only when no stable element or visual template can model the action.
-
-Aliases are `longTap`, `pressAndHold`, `长按`, and `长按点击`; prefer canonical `longPress` in new assets.
-
-### swipe
-
-Use for drag/swipe gestures such as scrolling a detail page or moving inside a scrollable list. Prefer an element-relative swipe when a stable scrollable container is exposed; use viewport ratios only when no stable element can model the scroll surface.
-
-Viewport example:
-
-```yaml
-- swipe:
-    id: scroll-device-detail
-    startXRatio: 0.50
-    startYRatio: 0.80
-    endXRatio: 0.50
-    endYRatio: 0.25
-    durationMs: 500
-```
-
-Element-relative example:
-
-```yaml
-- swipe:
-    id: scroll-settings-list
-    element: device.settingsList
-    startElementXRatio: 0.50
-    startElementYRatio: 0.90
-    endElementXRatio: 0.50
-    endElementYRatio: 0.10
-```
-
-Optional fields:
-
-- `durationMs`: Swipe movement duration in milliseconds. Defaults to `500`.
-- `settleMs`: Post-swipe settle delay. Defaults to `800`.
-- `startXRatio`, `startYRatio`, `endXRatio`, `endYRatio`: Viewport-relative start/end points. Provide all four fields together and do not combine them with `element`.
-- `startElementXRatio`, `startElementYRatio`, `endElementXRatio`, `endElementYRatio`: Element-relative start/end points. Provide all four fields together with `element`.
-
-Aliases are `滑动` and `划动`; prefer canonical `swipe` in new assets.
-
-### wait
-
-Use only for brief UI settling or platform delays that cannot be asserted directly.
-
-```yaml
-- wait:
-    id: wait-after-restart
-    durationMs: 2000
-```
-
-`durationMs` and `timeoutMs` both sleep for that many milliseconds in the current executor. Prefer `durationMs` for clarity.
-
-### restartApp
-
-Use to restart the target app and wait for foreground state.
-
-```yaml
-- restartApp:
-    id: restart-target-app
-    appId: ${app.id}
-    wait:
-      timeoutMs: 15000
-      intervalMs: 500
-```
-
-Put common restart behavior in setup fragments. Do not repeat it in every business case unless the case needs a specific restart point.
-
-### clearAppData
-
-Use for Android app data reset flows or first-use state convergence.
-
-```yaml
-- clearAppData:
-    id: reset-app-data
-    appId: ${app.id}
-    wait:
-      timeoutMs: 20000
-      intervalMs: 500
-```
-
-Treat it as destructive. Keep it in focused plans, setup fragments, or final isolated stages unless the plan explicitly expects data reset.
-
-### getText
-
-Use to capture element text into runtime variables.
-
-```yaml
-- getText:
-    id: remember-current-nickname
-    element: profile.nicknameValue
-    saveAs: nicknameBefore
-    scope: case
-    wait:
-      timeoutMs: 8000
-      intervalMs: 500
-```
-
-Read it later with `@{case.nicknameBefore}` or `@{plan.nicknameBefore}` depending on scope.
-
-### saveElementRect
-
-Use to capture an element rectangle. Use `asRoi: true` when the next visual or OCR action needs a normalized ROI.
-
-```yaml
-- saveElementRect:
-    id: save-feedback-row-roi
-    element: feedback.firstRow
-    saveAs: feedbackRowRoi
-    scope: case
-    asRoi: true
-    fullWidth: true
-    expandTopRatio: 0.25
-    expandBottomRatio: 0.25
-```
-
-ROI options:
-
-- `fullWidth`, `fullHeight`: Expand ROI to full viewport width or height.
-- `expandLeftRatio`, `expandRightRatio`, `expandTopRatio`, `expandBottomRatio`: Expand by a multiple of the element size.
-
-Use the ROI with `roi: "@{case.feedbackRowRoi}"`.
-
-### tapVisualTemplate
-
-Use for visual affordances that do not expose a stable element. Store template image paths in data files.
-
-```yaml
-- tapVisualTemplate:
-    id: tap-feedback-icon
-    template: ${templates.feedbackIcon}
-    roi: "@{case.feedbackRowRoi}"
-    threshold: 0.78
-    scales: [0.8, 1.0, 1.2]
-    targetXRatio: 0.5
-    targetYRatio: 0.5
-    wait:
-      timeoutMs: 8000
-      intervalMs: 500
-```
-
-Defaults:
-
-- `threshold`: `0.88`
-- `scales`: `[1.0]`
-- `targetXRatio`, `targetYRatio`: `0.5`
-- `settleMs`: `800`
-
-Record debug evidence for the chosen screenshot, template, ROI, threshold, scales, match score, and bounds.
-
-### screenshot
-
-Use explicit screenshots when another service or module must consume the resource. These screenshots are written to `plan-resource-manifest.json`.
-
-```yaml
-- screenshot:
-    id: capture-result-page
-    resourceId: result-page
-    saveAs: resultScreenshot
-    desc: Capture result page for downstream review.
-```
-
-With `saveAs`, the screenshot action stores the captured local image path in `@{case.<name>}` by default. It also updates `@{case.lastScreenshot}`. Add `element: alias.name` when the useful evidence is a specific UI element; the runner captures the element image instead of the full screen.
-
-Failure trace screenshots are diagnostics and do not replace explicit screenshot actions.
-
-### assertImageTextRegexMatch
-
-Use for OCR on a stable screenshot, such as a product manual or scanned PDF page. Capture the page first, then assert required keywords on the screenshot. Do not use recording OCR for stable pages.
-
-```yaml
-- screenshot:
-    id: capture-manual-page
-    resourceId: manual-page
-    saveAs: manualScreenshot
-- assertImageTextRegexMatch:
-    id: assert-manual-keywords
-    source: "@{case.manualScreenshot}"
-    pattern: "(?s)产品说明书.*UGREEN HiTune T8"
-    recognizer: paddle
-```
-
-`source` defaults to `@{case.lastScreenshot}`. Optional fields: `roi`, `recognizer`.
-
-### assertImageColorRatio
-
-Use for visual checks where the stable signal is color coverage rather than a specific template. Capture or provide an image file first, then assert a kt-visual named color ratio.
-
-Prefer an element screenshot when a precise element can be located. Use a full-screen screenshot plus `roi` only when no stable element exists.
-
-```yaml
-- screenshot:
-    id: capture-map
-    resourceId: route-map
-    saveAs: routeMapScreenshot
-- assertImageColorRatio:
-    id: assert-blue-location-marker
-    source: "@{case.routeMapScreenshot}"
-    color: blue
-    minRatio: 0.0005
-    minPixels: 50
-    roi:
-      x: 0.20
-      y: 0.35
-      width: 0.60
-      height: 0.45
-    wait:
-      timeoutMs: 3000
-      intervalMs: 500
-```
-
-Supported colors follow kt-visual `NamedColor`: `red`, `orange`, `yellow`, `green`, `cyan`, `blue`, `purple`, `pink`, `white`, `black`, and `gray`. Use `roi` to constrain small markers or repeated colors. The keyword intentionally checks named color families, not exact RGB values.
-
-### startScreenRecording
-
-Use before a transient UI event such as a toast, animation, or mixed-background text.
-
-```yaml
-- startScreenRecording:
-    id: start-toast-recording
-    timeLimitMs: 10000
-```
-
-`timeLimitMs` defaults to `10000`.
-
-### stopScreenRecording
-
-Use after the transient event and optionally save the video path for OCR.
-
-```yaml
-- stopScreenRecording:
-    id: stop-toast-recording
-    resourceId: toast-recording
-    saveAs: toastVideo
-    scope: case
-```
-
-The runner also saves the last video path to `@{case.lastScreenRecording}`.
-
-### captureAppLogStart
-
-Use before a UI action that must later be checked against app logs. Always keep the capture window narrow and use `filter` to reduce log volume during collection.
-
-```yaml
-- captureAppLogStart:
-    id: start-ble-log-capture
-    saveAs: bleLogCapture
-    filter:
-      messageContains: BLE
-      android:
-        tagRegex: Bluetooth|BLE
-      ios:
-        processRegex: Ugreen|Bluetooth
-```
-
-Required fields:
-
-- `saveAs`: Runtime variable name for the log-session descriptor. The runner also stores the latest capture descriptor as `@{case.lastAppLogCapture}`.
-
-Optional fields:
-
-- `filter`: Capture-time filter. Common fields at the top level are combined with the current platform branch under `android` or `ios`.
-- `maxBufferEntries`, `maxSessionBytes`, `ttlMs`: Bounds passed to the underlying log session.
-- `udid`: Override the plan device UDID only for focused diagnostics.
-
-Filter fields are `source`, `level` / `levels`, `tag` / `tags`, `tagRegex`, `process` / `processes`, `processRegex`, `messageContains`, `messageRegex`, `rawContains`, and `rawRegex`.
-
-### captureAppLogEnd
-
-Use after the UI action to close the current app-log capture and write a JSONL resource.
-
-```yaml
-- captureAppLogEnd:
-    id: stop-ble-log-capture
-    source: "@{case.bleLogCapture}"
-    resourceId: ble-command-log
-    saveAs: bleLogFile
-```
-
-Defaults:
-
-- `source`: `@{case.lastAppLogCapture}`
-- `readLimit`: `500`
-- `maxReadBatches`: `20`
-- `maxEntries`: `5000`
-
-The runner writes an `application/x-ndjson` explicit resource, stores its descriptor in `@{case.lastAppLogFile}`, and also stores it in `saveAs` when supplied.
-
-### assertElementExists
-
-Use for presence or page-state assertions.
-
-```yaml
-- assertElementExists:
-    id: profile-page-loaded
-    element: profile.title
-    wait:
-      timeoutMs: 10000
-      intervalMs: 500
-```
-
-### assertElementAttrEquals
-
-Use when a known element attribute must equal expected text or state.
-
-```yaml
-- assertElementAttrEquals:
-    id: nickname-restored
-    element: profile.nicknameValue
-    attr: text/label/name/value
-    expected: "@{case.nicknameBefore}"
-    wait:
-      timeoutMs: 10000
-      intervalMs: 500
-```
-
-`attr` may contain slash-separated candidates. The executor uses the first non-blank attribute value.
-
-### assertElementAttrRegexMatch
-
-Use when an element attribute should match a regex.
-
-```yaml
-- assertElementAttrRegexMatch:
-    id: countdown-visible
-    element: auth.sendCodeButton
-    attr: text/label/name/value
-    pattern: ${messages.countdownRegex}
-    wait:
-      timeoutMs: 10000
-      intervalMs: 500
-```
-
-Regex uses DOT_MATCHES_ALL. Escape regex content in YAML as needed.
-
-### assertSourceRegexMatch
-
-Use when the relevant state is only visible in page source and a stable element alias is not practical.
-
-```yaml
-- assertSourceRegexMatch:
-    id: source-has-feedback-entry
-    pattern: ${feedback.historyEntryRegex}
-```
-
-Prefer element assertions when possible. Keep copy in data files.
-
-### assertScreenRecordingTextRegexMatch
-
-Use for transient text such as toast-like messages or text that source polling cannot capture.
-
-```yaml
-- assertScreenRecordingTextRegexMatch:
-    id: toast-text-visible
-    source: "@{case.toastVideo}"
-    pattern: ${messages.savedToastRegex}
-    resourceId: toast-text
-    roi:
-      x: 0.05
-      y: 0.65
-      width: 0.90
-      height: 0.25
-    candidateStrategy: visual-diff-uniform
-    candidateMaxFrames: 5
-    framesPerSecond: 5
-    maxFrames: 40
-    recognizer: paddle
-```
-
-Defaults:
-
-- `source`: `@{case.lastScreenRecording}`
-- `recognizer`: `paddle`
-- `candidateStrategy`: `visual-diff`
-- `candidateMaxFrames`: `5`
-- `framesPerSecond`: `5`
-- `maxFrames`: `40`
-- `visualDifferenceThreshold`: `0.01`
-
-Use `recognizer: multimodal` only when Paddle OCR is insufficient and runtime multimodal environment variables are configured.
-
-### customAssertAppLog
-
-Use after `captureAppLogEnd` when log semantics require an app-specific parser or matcher.
-
-```yaml
-- customAssertAppLog:
-    id: assert-ble-command-succeeded
-    source: "@{case.bleLogFile}"
-    plugin: ugreen-audio
-    assertion: ble-command-ack
-    args:
-      command: ${deviceLog.expectedCommand}
-      status: success
-```
-
-Required fields:
-
-- `plugin`: App-log assertion plugin id.
-- `assertion`: Assertion name provided by that plugin.
-
-Defaults:
-
-- `source`: `@{case.lastAppLogFile}`
-
-`args` is plugin-specific structured data. Missing plugin/assertion registrations fail the action; do not rely on this keyword as a no-op placeholder.
-
-Plugin source should live in an independent JVM module. Start one with `soluna scaffold app-log-plugin`, then install its JAR into an app-log plugin directory. At runtime, the runner loads app-log assertion JARs from classpath, `plugins/app-log/*.jar` under the active distribution/current working directory/inferred plan asset root, and any directories listed in `soluna.appLogPluginDirs` or `SOLUNA_APP_LOG_PLUGIN_DIRS`.
+`@{case.*}` 只在当前 case 内有效。`@{plan.*}` 会跨 case 共享，应谨慎使用。
+
+## 关键字族
+
+基础 UI 和状态动作：
+
+- `tap`
+- `tapPosition`
+- `longPress`
+- `swipe`
+- `input`
+- `wait`
+- `restartApp`
+- `clearAppData`
+- `getText`
+- `saveElementRect`
+- `assertElementExists`
+- `assertElementAttrEquals`
+- `assertElementAttrRegexMatch`
+- `assertSourceRegexMatch`
+
+视觉、OCR 和录屏动作：
+
+- `screenshot`
+- `tapVisualTemplate`
+- `assertImageColorRatio`
+- `assertImageTextRegexMatch`
+- `startScreenRecording`
+- `stopScreenRecording`
+- `assertScreenRecordingTextRegexMatch`
+
+App log 动作：
+
+- `captureAppLogStart`
+- `captureAppLogEnd`
+- `customAssertAppLog`
 
 ## Fragment Control Flow
 
-Use `if` only in fragments or reusable lifecycle flows, not in case `actions`.
+`if` 只能用于 fragment 或可复用 lifecycle flow，不能出现在 case `actions`。
 
 ```yaml
 fragments:
   ensureLoggedIn:
-    name: Ensure logged-in state
     actions:
       - if:
           assertElementExists:
@@ -621,18 +177,8 @@ fragments:
                 intervalMs: 500
 ```
 
-Keep case files linear. Put branchy state convergence in fragments referenced by plan, stage, or case setup.
+case 文件保持线性。分支式状态收敛放在 plan、stage、case setup 或 teardown 引用的 fragment 中。
 
-## Capability-Gap Checklist
+## 请求新关键字前
 
-Before requesting a new keyword or framework capability, prove why the current recipes cannot close the scenario:
-
-- Element/gesture action path tried: `tap`, `swipe`, `input`, `getText`, element assertions.
-- Source path tried: `assertSourceRegexMatch` with parameterized regex.
-- Visual path tried: `saveElementRect` plus `tapVisualTemplate` or OCR ROI.
-- Transient text path tried: `startScreenRecording`, `stopScreenRecording`, `assertScreenRecordingTextRegexMatch`.
-- App log path tried: `captureAppLogStart`, `captureAppLogEnd`, and existing app-log assertion plugins.
-- State orchestration tried: plan/stage/case setup and teardown, fragment `if` branches, focused platform-specific cases.
-- Evidence collected: fresh source, screenshot, template/ROI match data, run report, and minimal reproducing plan/case.
-
-Only request extension after the relevant recipe fails for a general framework reason, not because of missing data, unstable locator work, account state, permissions, or environment setup.
+先读 `capability-gap-gate.md` 并完成证据清单。只有相关动作族方案因通用框架原因无法闭环时，才请求新增关键字；缺数据、旧 XML、locator 选择弱、账号状态、权限或环境问题都不构成新关键字需求。

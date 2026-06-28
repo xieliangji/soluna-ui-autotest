@@ -1,24 +1,206 @@
 # soluna-ui-autotest Architecture
 
-本文档记录 `soluna-ui-autotest` 的架构约束和设计边界。它是后续代码骨架、DSL schema、组件 schema、插件接口和报告模型的事实来源。
+本文档记录 `soluna-ui-autotest` 的架构边界、当前实现事实和后续演进约束。它是框架设计判断的事实来源；字段级 schema 说明以 [docs/schemas.md](schemas.md) 为准，真实 schema 位于 `src/main/resources/schemas/v1/`。
+
+`soluna` 只是项目名前缀，不表达业务域。
 
 ## 1. 项目定位
 
-`soluna-ui-autotest` 是一个基于 Appium / WebDriver 协议、面向 iOS / Android 真机的 UI 自动化测试框架。
+`soluna-ui-autotest` 是一个 Kotlin/JVM UI 自动化执行框架，面向 iOS 和 Android 真机，通过 Appium / WebDriver 协议驱动设备。
 
-核心目标：
+核心方向：
 
-- 使用 YAML DSL 模板表达测试计划、阶段、用例和动作。
-- 用例主体默认单线顺序执行，不把用例 DSL 设计成脚本语言。
-- 可复用初始化片段允许逻辑控制表达。
-- 所有执行产物上传到 MinIO。
-- 自研测试报告，不依赖第三方测试报告插件。
-- 框架整体可插拔，核心上下文保持紧凑，外围能力通过 hook / async worker 消费。
-- 靠近设备、宿主机和 Appium Server 的增强能力，优先放到自定义 Appium 插件中实现。
+- 测试表达使用 YAML DSL，执行模型固定为 `Plan -> Stage -> Case -> Action`。
+- 用例主体保持线性，不把 case DSL 做成脚本语言。
+- 可复用生命周期 fragment 可以表达业务无关的流程控制。
+- 参数、元素、fragment、设备、产物和通知配置都拆成独立文件，并通过 plan 直接或间接引用。
+- App 默认已安装；启动、重启、清数据、登录态准备和清理由 plan/stage/case lifecycle 动作或 fragment 显式表达。
+- 报告模型和 HTML 渲染由本项目自有，不引入第三方测试报告插件。
+- 正式执行产物应上传到 MinIO；当前实现允许不配置 artifact store，此时只写本地报告和资源。
+- 靠近设备、宿主机和 Appium Server 的增强能力优先收敛到内置 Appium 插件 `soluna-ext`，框架侧通过客户端抽象消费。
 
-## 2. 执行模型
+本项目是框架和契约包，不是业务用例项目。业务资产应作为 Soluna asset project 管理；本仓库中的 `AIot-Tests/` 是当前联调资产，不应把业务用例进度写入框架架构文档。
 
-执行模型固定为四层：
+## 2. 运行入口和编排
+
+当前 CLI 入口：
+
+```text
+soluna run <plan.yaml>
+soluna debug <plan.yaml> source|screenshot|tap|tap-element|longPress|longPress-element|swipe|swipe-element|input|tap-template
+soluna debug <plan.yaml> shell
+soluna scaffold app-log-plugin
+```
+
+`soluna run` 只接收 plan 路径作为执行根。runner 不再单独接收 device、case、element、data、fragment 或 artifact 配置路径。
+
+当前 `PlanRunner` 编排顺序：
+
+1. 解析 plan YAML，执行 JSON Schema 校验和 DSL policy 校验，并把关键字动作归一化为内部 `ActionDefinition`。
+2. 从 plan 的 `deviceConfig` 解析设备配置；从 plan 的 `artifactStore` 可选解析 MinIO/通知配置。
+3. 启动或探测 Appium Server。managed server 会分配端口、确保 Appium plugin/driver 安装、在解析到显式或内置 FFmpeg 时注入 PATH，并等待 `/status` ready。
+4. 通过 `soluna-ext` 解析设备元信息。设备配置可只写 UDID；缺失的 platform、device name 和 iOS OS version 会尽量从插件补齐。
+5. iOS managed WDA 启用时，必要的 WDA bundle 信息通过 `soluna-ext` 解析；随后由 go-ios 管理 WDA。
+6. 按 plan 引用链装配 case、element、fragment 和模板资产路径。
+7. 应用 plan defaults，再解析 `${...}` 参数引用。
+8. 通过 `soluna-ext` 解析已安装 app 元信息，用真实 app name/platform 覆盖 plan 中的展示兜底值。
+9. 发送可配置的 `planStarted` DingTalk 通知。
+10. 创建 Appium session。session 默认只绑定设备和能力，不自动安装或启动业务 app；目标 app 操作由 DSL 动作表达。
+11. `LinearExecutionEngine` 串行执行 `Plan -> Stage -> Case -> Action`。
+12. 执行结束后发送 `testFinished`，写 `execution-result.json` / `index.html`，写 `plan-resource-manifest.json`，把报告和显式资源入队上传，执行报告必需资源的 bounded drain，发送 `reportPublished`。
+13. 如果配置 `localArtifacts.cleanup.mode: after-upload-success`，只有所有上传任务成功后才删除本地 run 目录。
+14. 停止本次创建的 WebDriver session、managed WDA runwda/forward、managed Appium Server，并关闭自有 uploader。
+
+`soluna debug` 复用 plan 的设备、Appium Server、`soluna-ext` 和 iOS WDA 配置，只执行低层定位、输入、点击、长按、滑动、截图或模板点击。debug 不进入 plan/stage/case 生命周期，不生成报告、manifest、上传任务或通知。
+
+平台服务边界：
+
+- 平台触发 runner 应使用 `run-request.schema.json`。
+- runner 回传平台摘要应使用 `run-result.schema.json`。
+- `run-result` 只是平台消费摘要，不替代 `execution-result.json`、`plan-resource-manifest.json` 和 HTML 报告。
+- `soluna-project.yaml` 已有 schema，用于 asset project 元数据和未来项目发现；当前 CLI 不强制读取它。
+
+## 3. 文件和资产组织
+
+推荐 asset project 结构：
+
+```text
+<asset-root>/
+  soluna-project.yaml
+  apps/<app-id>/
+    plans/
+    cases/
+    elements/
+    data/
+    fragments/
+    plugins/app-log/
+    docs/
+  devices/<platform>/<udid>.yaml
+  artifacts/
+```
+
+边界规则：
+
+- `Plan` 表达测试目的、设备配置引用、参数引用、fragment 引用、artifact store 引用、阶段和用例编排。
+- `Stage` 表达同一 plan 下的初始状态或执行阶段，通过 `caseRefs` 装配 case 文件；inline cases 只保留为小型调试或兼容形式。
+- `Case` 表达线性动作列表，可引用 case-scoped data 和 element catalogs。
+- `Fragment catalog` 管理可复用 setup/teardown 片段，适合登录态收敛、权限处理、清理和复杂前置状态。
+- `Element catalog` 是 locator 的唯一外部 DSL 归属；case/plan/fragment 动作不允许直接写 inline locator。
+- `Parameter data` 只保存测试输入、期望值、环境值、文案资源和视觉模板路径，不承担元素归属。
+- 业务用例编写进度、调试路径、账号/设备前置条件和产品差异说明写入 asset project 的 `docs/`，不写入框架 `docs/progress.md`。
+
+`PlanReferenceResolver` 当前行为：
+
+- plan 先加载 `fragmentRefs` 指向的 catalog；fragment 动作只在被引用时解析。
+- case refs 按 stage 装配；`caseRef.id` 可覆盖被引用 case 的 id。
+- element catalog 可同时包含 Android-only、iOS-only 和通用元素。装配时只加载当前 platform 可用 locator；未被当前平台支持的元素会被跳过。如果动作实际引用被跳过的元素，解析失败。
+- fragment catalog 可以混合平台专属片段。只要当前 plan/stage/case 没引用该 fragment，就不会解析其元素；实际引用到不支持当前平台的 fragment 时仍会失败。
+- 视觉模板字段如果是非动态相对路径，会按 case data 目录、plan data 目录和当前文件目录等资产根解析为绝对路径；`${...}` 和 `@{...}` 动态引用不在引用装配期解析。
+
+## 4. DSL 契约
+
+YAML DSL 的解析顺序固定为：
+
+1. YAML 解析成 JSON-compatible tree。
+2. 对应 v1 JSON Schema 校验。
+3. Framework policy 校验，例如 case 线性约束和 locator 文案规则。
+4. 关键字动作归一化。
+5. 映射到 Kotlin 运行时模型。
+
+关键字支持中文和英文别名，但必须归一到一个内部 action model。新用例推荐使用单关键字嵌套对象形式：
+
+```yaml
+- tap:
+    id: open-mine-tab
+    element: common.mineTab
+    desc: 打开我的页
+```
+
+旧的 `tap: open-mine-tab` 加同级字段形式仍兼容，但不作为新资产首选。
+
+用例主体约束：
+
+- case `actions` 不支持 `if` / `else` / `for` / `while` / `switch` / branch 等逻辑控制。
+- case setup/teardown inline actions 同样不支持逻辑控制。
+- 业务判断应通过普通动作或断言表达，不新增 `ifLoggedIn`、`ifElementPresent` 这类混合流程和业务语义的关键字。
+
+fragment 控制流：
+
+- 当前只有 `fragment-catalog.schema.json` 支持 `if` / `then` / `else`。
+- `if` 值必须是一个已有动作或断言关键字；条件动作执行成功为 true，失败为 false。
+- 条件失败不会直接判定用例失败；被选中分支中的动作失败才会让整个 `if` action 失败。
+- 当前执行结果只记录 wrapper `if` action 的结果。条件动作只作为 predicate 执行，不发布独立 hook/trace，也不写入报告；分支动作按普通 action 执行并发布 hook/trace，但也不作为独立 action result 写入报告动作列表。
+
+生命周期动作：
+
+- plan/stage/case 都有 `setupFragments` / `setupActions` 和 `teardownFragments` / `teardownActions`。
+- plan/stage 还可以声明 `caseSetupFragments` / `caseSetupActions` 和 `caseTeardownFragments` / `caseTeardownActions`，作用于其范围内每个 case。
+- case 自身也可以声明 `caseSetup*` / `caseTeardown*`，用于插入到该 case 的 lifecycle。
+
+当前 case setup 合并顺序：
+
+```text
+plan caseSetup -> stage caseSetup -> case caseSetup -> case setup
+```
+
+当前 case teardown 合并顺序：
+
+```text
+case teardown -> case caseTeardown -> stage caseTeardown -> plan caseTeardown
+```
+
+任一层级主流程失败后，当前层级 teardown 仍会执行。setup/teardown action list 内部遇到第一个失败会停止该 list；teardown 失败会把当前层级结果标为 failed，不抹掉主流程原始失败事实。
+
+## 5. 参数和运行时变量
+
+参数引用使用 `${name.path}`，运行时变量引用使用 `@{plan.name}` 或 `@{case.name}`。两者语义不同，不能混用。
+
+当前 `PlanParameterResolver` 参数合并事实：
+
+- plan 级动作使用：plan parameter files -> plan app seed -> CLI/request overrides。
+- stage lifecycle 动作使用：plan 合并结果 -> stage inline `parameters`。
+- case lifecycle 和 case actions 使用：stage 合并结果 -> case `dataRefs` -> case inline `parameters` -> CLI/request overrides。
+- inline parameter 支持嵌套对象递归合并，也支持 dotted key，例如 `appState.mine.entryIndex`。
+- `deviceConfig` 当前不是 `${...}` 参数源。
+- `plan.app.id/name/platform/reset` 会 seed 到 `app.*` 参数路径；其中 `app.reset` 当前不会触发自动 reset 行为。
+
+运行时变量：
+
+- 变量只存在于一次执行的内存上下文，不写回参数文件。
+- `plan` 变量作用域在整个 plan 内共享。
+- `case` 变量作用域按 `stageId:caseId` 隔离，同一个 case 文件在不同 stage 中互不共享 case 变量。
+- `getText`、`saveElementRect`、`screenshot`、`stopScreenRecording`、`captureAppLogStart` 和 `captureAppLogEnd` 等动作可以写运行时变量。
+
+## 6. 元素定位
+
+元素定位规则是框架稳定性的核心边界：
+
+- 外部 DSL 中 locator 只能写在 `element-catalog.schema.json`。
+- case/plan/fragment 动作使用 `element: alias.name` 引用元素，不使用 `${...}` 表示元素。
+- 引用装配后，runner 把 `element` 转成内部 `ActionDefinition.locator`；该 locator 是执行器输入，不是外部 DSL 输入。
+- 同一元素可定义通用 `strategy` / `value`，也可定义 `android` 和 `ios` 平台分支。
+- 定位策略保持可扩展，例如 id、accessibility id、xpath、class chain、predicate、uiautomator、image 等。
+
+文案定位规则：
+
+- 固定 UI 文案不能无说明地直接写进 locator。
+- 参数化 locator 文案只允许用于多语言不敏感值，例如 MAC 后缀、设备型号或稳定资源式 accessibility name，并必须声明 `parameterizedTextReason: language_insensitive_text`。
+- 固定文本值只允许用于多语言不敏感值，例如品牌名、版本标志或资源式 accessibility name，并必须声明 `hardcodedTextReason: language_insensitive_text`。
+- `language_insensitive_text` 是当前唯一允许 reason，不支持项目级扩展。
+- 语言相关 UI 文案应放入语言版本化 data 文件，用于输入、断言、OCR 或日志辅助断言，不作为 locator 条件。
+- locator 表达式禁止使用 `@x`、`@y`、`@width`、`@height` 等坐标/尺寸属性。
+
+非定位交互：
+
+- `tapPosition` 是显式比例点击关键字。无 `element` 时比例相对 viewport；有 `element` 时比例相对元素当前可见区域。
+- viewport/element 比例参数不是 locator，不能替代可维护的元素目录定位。
+- 没有稳定元素时才使用 viewport 比例，例如 modal backdrop 或无稳定滚动容器。
+
+## 7. 执行引擎、hook 和策略
+
+`LinearExecutionEngine` 是当前 DSL plan 的唯一编排核心。JUnit 不参与 plan 编排；JUnit 只用于框架单元测试、集成测试和 opt-in 真机 smoke。
+
+执行模型：
 
 ```text
 Plan
@@ -27,655 +209,251 @@ Plan
       Action
 ```
 
-- `Plan`：一次测试计划，包含计划级元信息、参数数据引用、设备配置引用、阶段列表和报告配置。
-- `Stage`：同一计划下的不同初始状态执行阶段。例如未登录、已登录、权限已授权、清理后状态。
-- `Case`：测试用例。默认按动作列表顺序单线执行，不支持逻辑控制。
-- `Action`：动作、等待、断言、截图、采集证据等最小执行单元。
-
 执行约束：
 
-- 单个进程内只绑定一个设备，单设备串行执行。
-- 多设备执行通过多进程或外部调度实现，每个设备使用独立配置文件。
-- 设备配置文件由模板拷贝生成，每个设备实例配置独立存在，推荐用设备 UDID 命名。
-- 设备配置可只声明 UDID；平台、名称、型号、系统版本等设备信息优先通过 `soluna-ext` 获取。报告和通知展示的设备名称以 `soluna-ext` 返回的真实设备名称为准，配置里的名称只作为扩展不可用时的兜底。计划声明 `app.id` 时，应用名称也优先通过 `soluna-ext` 查询已安装应用元数据，计划中的 `app.name` 只作为兜底展示值。
-- App 默认已安装。
-- 是否重置 App 状态可配置。
-- Appium session 默认按 `Plan` 复用，但必须有健康检查和恢复机制。
-- 执行引擎持有稳定的逻辑 session id；底层 Appium 物理 session 可在 server 异常退出后重建。
+- 一个 runner 进程绑定一个设备。
+- 单设备内串行执行 stages、cases 和 actions。
+- 多设备并发由外部调度多个进程实现。
+- Appium session 默认按 plan 复用；`RecoveringWebDriverAdapter` 暴露稳定逻辑 session id，底层物理 session 可重建。
 
-运行编排边界：
-
-- DSL 运行时编排由本项目自己的 `PlanRunner` 和执行结果模型负责。
-- JUnit/TestNG 不作为 DSL plan 的编排核心，避免其 suite/test/lifecycle/report 模型反向约束 Soluna 的阶段、hook、产物和报告语义。
-- JUnit 仅用于框架自身单元测试、集成测试和 opt-in 真机 smoke 测试。
-- 后续如需 CI/IDE 兼容，可增加 JUnit XML exporter 或 JUnit Platform adapter，但 adapter 只能消费 Soluna runner 结果，不能支配核心执行。
-
-服务化和平台边界：
-
-- 本项目定位为执行引擎和契约包，不是实际业务用例项目。
-- 实际业务资产应作为独立 Soluna asset project 管理；资产项目负责 plans、cases、elements、data、fragments、devices 和 artifact configs。
-- 实际业务用例的编写进度、调试路径、账号/设备前置条件和产品差异说明，应记录在对应 asset project 的 `docs/` 目录中，不写入本框架项目的进度文档。
-- 本项目维护随分发包交付的 Codex skill `codex/skills/soluna-ui-autotest-creator`，用于指导外部 asset project 的创建、校验、调试、执行编排和严格的框架能力缺口上报；该 skill 跟随框架 schema、CLI、关键字和 debug 行为一起版本化。
-- 测试平台负责资产版本、计划选择、参数覆盖、设备调度、执行触发和结果消费，不直接依赖 Kotlin 内部模型。
-- 平台调用 Runner 服务时应使用 `run-request.schema.json`；Runner 回传平台时应使用 `run-result.schema.json`。
-- `run-result` 是平台消费摘要，不替代报告数据 `execution-result.json` 和显式截图 `plan-resource-manifest.json`。
-
-文件编排边界：
-
-- 最终执行入口以 `Plan` 文件路径为配置引用根。runner 不应再单独接收 device config、data、element、fragment 等配置文件路径。
-- `Plan` 必须声明 `deviceConfig` 和 `productModel`。`productModel` 是报告和钉钉通知使用的产品/型号展示名；公共功能计划使用 app 展示名，型号专项计划使用具体产品型号。设备配置只声明设备标识、Appium server 和设备级 capabilities，不声明目标 app。
-- 其它配置文件通过 `Plan` 直接引用，或通过 `Plan -> Stage -> Case` 间接引用。
-- 测试输入资产推荐按 app id 分组，例如 `AIot-Tests/apps/com.ugreen.iot/{plans,cases,elements,data,fragments}`；`AIot-Tests/devices` 这类设备目录保持在 app 资产根之外。
-- 资产项目根可声明 `soluna-project.yaml`，由 `soluna-project.schema.json` 校验。当前 CLI 不强制读取该文件；后续 project resolver 和平台资产管理应以它作为项目发现契约。
-- `Plan` 应主要表达测试目的、阶段和用例编排，不应直接承载大段用例步骤。
-- 推荐一个 `Case` 一个 YAML 文件，便于按不同测试目的复用和重组。
-- App 资产下的 `cases` 目录按模块组织。公共功能放在 `cases/common/...`；各型号设备相关功能放在 `cases/<model-or-module>/...`。这里的型号目录可理解为 app 的业务模块边界，runner 不对目录名赋予特殊语义，只通过 plan 中的 `caseRefs` 装配。
-- Case 专属 `data` 文件可以跟随 case 路径和命名组织；跨用例共享数据可以按模块放在 `data/common/mine.zh-CN.yaml` 这类文件中。数据文件表达测试输入、期望值、环境值和文案资源，不承担元素归属。
-- `elements` 目录必须保持模块化 catalog，不按单个用例命名。公共模块元素放在 `elements/common.yaml`，型号或模块专属元素放在 `elements/<model-or-module>.yaml`，例如 `elements/UGREEN HiTune X8.yaml`。`common` 可覆盖登录、设备、我的等公共模块元素。
-- `Stage` 通过 `caseRefs` 引用 case 文件；inline cases 只作为小型调试或兼容形式保留。
-- `Case` 可以通过 `dataRefs` 引用参数数据文件，通过 `elementRefs` 引用元素定义文件。
-- 元素定义不应混在参数数据文件里；参数数据负责输入值、期望值、环境值等测试数据。
-- 可复用初始化/清理片段通过 fragment catalog 管理，并由 plan/stage/case 以引用方式装配。
-- 初始化和清理片段属于 DSL 生命周期，不属于 hook。hook 只观察 before/after 事件，不承载重启 app、准备登录态、清理状态等动作。
-
-## 3. DSL
-
-### 3.1 文件格式
-
-DSL 使用 YAML。
-
-所有 DSL 关键字支持中英双语，但解析后必须映射到统一的内部 action model。中英文只是输入别名，不产生两套执行语义。
-
-### 3.2 用例主体
-
-用例主体不支持逻辑控制：
-
-- 不支持 `if` / `else`
-- 不支持 `for` / `while`
-- 不支持分支跳转
-- 不支持运行时动态插入步骤
-
-用例主体只表达线性意图：
-
-```yaml
-cases:
-  - id: login_success
-    name: 登录成功
-    actions:
-      - tap:
-          id: tap-login-button
-          element: login.loginButton
-          desc: 点击登录按钮
-      - input:
-          id: input-username
-          element: login.usernameInput
-          value: ${account.username}
-          desc: 输入用户名
-      - assertElementAttrEquals:
-          id: assert-home-title
-          element: home.title
-          attr: name/label/text
-          expected: ${home.expectedTitle}
-          desc: 校验首页标题
-```
-
-动作推荐使用关键字嵌套对象格式，使 `element`、`value`、`desc`、`wait` 等都成为动作关键字的属性。旧的 `tap: action-id` 加同级属性格式仅作为兼容输入保留，不作为新用例首选写法。
-
-### 3.3 生命周期片段
-
-可复用生命周期片段支持逻辑控制，用于处理复杂前置状态或清理状态：
-
-- 条件判断
-- 循环
-- 重试
-- 权限处理
-- 登录态准备
-- App 状态清理
-- 环境准备
-
-初始化/清理片段和用例主体使用不同 schema，避免普通用例逐渐演化为脚本语言。
-
-逻辑控制关键字必须与业务判断解耦。控制结构只表达流程，例如 `if` / `then` / `else`；业务状态判断仍由已有动作或断言关键字完成。不要引入 `ifElementPresent`、`ifLoggedIn` 这类把流程控制、元素探测和业务语义耦合在一起的关键字。
-
-当前实现先支持 fragment schema 中的通用 `if`：
-
-```yaml
-actions:
-  - if:
-      assertElementAttrRegexMatch:
-        id: detect-login-page
-        element: common.loginPageMarker
-        attr: name/label/text
-        pattern: ${appState.patterns.loginPage}
-        desc: 判断是否在登录页
-    then:
-      - tap:
-          id: enter-guest-device-page
-          element: common.guestEntry
-          desc: 进入游客设备页
-    else: []
-```
-
-`if` 下面必须是一个已有动作或断言。该条件动作执行成功表示条件为真；执行失败表示条件为假并进入 `else`，不直接判定用例失败。被选中分支中的动作失败，才会让当前 fragment action 失败。分支中的动作仍按普通动作执行，拥有 action hook 和 trace 处理；条件动作当前作为 predicate 执行，不写入报告动作列表。
-
-plan/stage/case 均可声明：
-
-- `setupFragments` / `setupActions`：在当前层级主流程前执行。
-- `teardownFragments` / `teardownActions`：在当前层级主流程后执行。主流程失败时仍会执行，用于恢复 app/账号/环境状态。
-
-`planSetup` / `planTeardown` 只作用于当前 plan；现有 plan 级 `setupFragments` / `setupActions` 和 `teardownFragments` / `teardownActions` 是其兼容写法。`stageSetup` / `stageTeardown` 可在 plan 级或 stage 级表达；当前实现先保留 stage 自身的 `setupFragments` / `setupActions` 和 `teardownFragments` / `teardownActions`。`caseSetup` / `caseTeardown` 支持 plan、stage、case 三种作用域：plan 级作用于当前 plan 内所有 case，stage 级作用于当前 stage 下所有 case，case 级只作用于当前 case。装配顺序为 case setup: plan -> stage -> case；case teardown: case -> stage -> plan。
-
-teardown 失败会让当前层级结果标记为 failed；如果主流程已经失败，teardown 结果只追加记录，不覆盖原失败事实。
-
-### 3.4 参数管理
-
-参数使用单独的数据文件管理，并支持参数化。
-
-参数数据文件使用 YAML，并通过 JSON Schema 校验其 YAML 解析后的 JSON-compatible 数据结构。
-
-设计要求：
-
-- DSL 文件不直接承载大块测试数据。
-- 参数数据文件独立管理，可被多个计划复用。
-- 参数解析支持作用域和覆盖顺序。
-- 敏感数据需要支持脱敏展示和安全注入。
-- 输入值、断言期望值、环境变量均可引用参数。
-- Stage / case inline `parameters` 必须参与后续生命周期动作、用例动作和元素定位解析，不能只作为元数据保留。
-- 元素定位属于 element catalog；只有文案类、多语言资源类定位表达式需要把文案值参数化时，才在元素定义中引用参数，并通过 `parameterizedTextReason` 说明原因。
-- 运行时产生的数据不进入参数文件，使用执行变量集保存。每个 plan 和每次 case 执行都有独立变量作用域；case 作用域按 stage/case 执行上下文隔离。
-- 运行时变量引用使用 `@{plan.name}` / `@{case.name}`，与参数引用 `${...}` 区分。
-
-建议的覆盖顺序：
+Hook 事件：
 
 ```text
-runtime overrides > case data refs > device config > stage params > plan params > data file defaults
+plan.before / plan.after
+stage.before / stage.after
+case.before / case.after
+action.before / action.after
 ```
-
-## 4. 元素定位
-
-元素定位表达式不允许无说明地基于固定文案定位。locator 中的参数化文案只能用于 MAC 后缀、设备型号这类多语言不敏感参数，并必须声明 `parameterizedTextReason: language_insensitive_text`；表达式中的固定文本值只能是品牌名、版本标志、资源式 accessibility name 等多语言不敏感文本，并必须声明 `hardcodedTextReason: language_insensitive_text`。
-
-不允许：
-
-```yaml
-locator:
-  strategy: text
-  value: 登录
-```
-
-允许：
-
-```yaml
-locator:
-  strategy: xpath
-  value: "//*[contains(@name,'${device.targetMacSuffix}')]"
-  parameterizedTextReason: language_insensitive_text
-```
-
-允许：
-
-```yaml
-locator:
-  strategy: xpath
-  value: "//XCUIElementTypeButton[starts-with(@name,'icon round')]"
-  hardcodedTextReason: language_insensitive_text
-```
-
-约束：
-
-- 固定 UI 文案不能无说明地直接写在 locator 表达式里。
-- locator 参数化文案只能用于多语言不敏感值，例如 MAC 后缀和设备型号，并声明 `parameterizedTextReason: language_insensitive_text`。
-- 多语言不敏感的固定文本值必须声明 `hardcodedTextReason: language_insensitive_text`。
-- `language_insensitive_text` 是唯一允许的文案定位 reason，不支持项目级扩展。
-- locator 表达式不能使用 `@x`、`@y`、`@width`、`@height` 这类坐标/尺寸属性。
-- 普通业务流程优先使用 resource-id、accessibility id、class、稳定层级或插件增强能力定位，避免因多语言切换导致用例失效。
-- 语言相关 UI 文案应放在按语言版本拆分的 data 文件中，供断言、输入、OCR 或日志辅助断言关键字使用；不要作为元素定位条件。
-- 用例中引用元素时使用独立字段，例如 `element: common.nicknameInput`，不使用 `${...}` 参数引用语法。
-- `case.schema.json`、`plan.schema.json` 和 `fragment-catalog.schema.json` 的 action 输入不允许直接声明 `locator`；locator 只允许定义在 `element-catalog.schema.json` 中。
-- runner 在引用装配阶段把 `element` 解析为内部运行时 `ActionDefinition.locator`，该字段属于执行器输入，不是外部 DSL 输入。
-- 当没有稳定元素可定位时，动作可以声明 executor 参数完成非定位交互。例如 `tapPosition` 不指定 `element` 时支持 viewport 相对坐标 `xRatio` / `yRatio`，`swipe` 支持 viewport 相对起止坐标，用于 modal backdrop 或无稳定滚动容器这类非元素目标。坐标类参数不是 locator，不应替代可维护的元素目录定位。
-- 元素点击不直接依赖 WebDriver `click()` 或历史缓存元素。运行时必须重新解析当前元素，确认元素与屏幕 viewport 有可见交集，再按元素当前可见区域计算点击点。`tap` 默认点击元素可见区域中心；需要点击元素内部特定区域时，使用 `tapPosition` 并声明 `element`、`xRatio`、`yRatio`，比例基于元素当前可见区域计算。
-- DSL parser / validator 必须能识别并阻断硬编码文案定位。
-- 定位策略本身保持可扩展，例如 id、accessibility id、xpath、class chain、predicate、uiautomator、image 等。
-
-元素定义文件示例：
-
-```yaml
-schemaVersion: "1.0"
-id: ugreen-common
-elements:
-  nicknameInput:
-    android:
-      strategy: class
-      value: android.widget.EditText
-    ios:
-      strategy: accessibility id
-      value: nickname_input
-```
-
-用例引用示例：
-
-```yaml
-actions:
-  - input: input-nickname
-    element: common.nicknameInput
-    value: ${profile.newNickname}
-    desc: 输入新昵称
-```
-
-同一个元素可以同时声明 Android 和 iOS 定位器。runner 根据当前 plan/device 平台选择对应分支；没有平台分支时可退回通用 `strategy` / `value` 定义。
-
-同一个 element catalog 可以同时包含跨平台元素和单平台元素。runner 装配引用时只加载当前平台可用的 locator；当前平台不可用的元素会被跳过，不会因为 catalog 中存在 Android-only 或 iOS-only 元素而阻断另一端计划。若用例实际引用了被跳过的元素，动作解析仍会失败，以暴露该用例不适用于当前平台。
-
-fragment catalog 按实际引用懒解析动作。共享 fragment 文件中可以同时存在 Android-only 和 iOS-only 的状态收敛片段；只要当前 plan/stage/case 没有引用对应片段，就不会解析其元素和视觉资产。当前平台实际引用到不支持的 fragment 时，解析仍会失败。
-
-## 5. Hook 机制
-
-所有执行层级都必须提供前后 hook：
-
-```text
-plan.before
-plan.after
-stage.before
-stage.after
-case.before
-case.after
-action.before
-action.after
-```
-
-默认日志记录器订阅：
-
-```text
-plan.before
-plan.after
-stage.before
-stage.after
-case.before
-case.after
-action.before
-```
-
-设计要求：
-
-- 核心上下文保持紧凑，只保存执行必要状态。
-- hook payload 使用事件快照，不要求 consumer 直接持有可变核心上下文。
-- 影响执行结果的 hook 可以同步执行。
-- 产物上传、数据整理、报告聚合、钉钉通知等副作用优先异步执行。
-- hook consumer 必须可插拔，可按配置启用、禁用或替换。
-
-典型 hook consumer：
-
-- 执行日志记录器
-- 设备日志会话管理器
-- 显式截图资源清单收集器
-- MinIO 上传调度器
-- 报告数据聚合器
-- 钉钉通知器
-- 失败诊断采集器
 
 当前实现：
 
-- `HookEvent` / `HookEventType` 定义计划、阶段、用例、动作前后事件。
-- `SimpleHookBus` 提供同步 hook 分发骨架。
-- `DefaultLoggingHook` 订阅默认日志节点：动作前、用例前后、阶段前后、计划前后。
-- `PlanRunner` 默认注册 `DefaultLoggingHook`，通过 SLF4J 输出生命周期日志；命令行运行必须携带 SLF4J backend。
-- managed Appium server 和 managed WDA/go-ios 管理器在启动、端口分配、命令构造、PATH 注入、ready probe、停止和失败清理等关键位置输出包级 debug 日志；日志不输出完整环境变量值，并对命令中的敏感参数做基础脱敏。
-- `LinearExecutionEngine` 在执行 `Plan -> Stage -> Case -> Action` 时发布完整生命周期事件。
+- `SimpleHookBus` 同步分发 hook。
+- `DefaultLoggingHook` 默认订阅 plan、stage、case 和 action 生命周期日志。
+- `LinearExecutionEngine` 发布完整生命周期事件。
+- failure trace 通过 `ActionTraceCollector` 接入执行器前后，不是 HookBus consumer。
+- 报告写入、manifest 生成、DingTalk 生命周期通知和上传 drain 当前由 `PlanRunner` 直接编排；架构目标仍是外围副作用优先通过 hook consumer 和 async worker 解耦。
+
+失败策略：
+
+- `fail-fast` / `stop-case`：action 失败停止当前 case，case 失败停止当前 stage，stage 失败停止整个 plan。
+- `continue-case`：action 失败仍停止当前 case，但继续同 stage 后续 case；stage 失败后继续后续 stage；plan 最终状态反映任一失败。
+- setup 失败会跳过该层级主流程；teardown 仍执行。
+
+重试策略：
+
+- `RetryStrategy` 接口和 `NoRetryStrategy`、`MaxAttemptsRetryStrategy` 已存在。
+- `LinearExecutionEngine` 已接入 action 级 retry。
+- `PlanRunner` 当前默认使用注入的 `NoRetryStrategy`，尚未把 plan `defaults.retryStrategy` 的字符串值映射为运行时策略。
+- 当前 retry 只在具备 stage/case 上下文的 action 上决策；plan/stage 级 setup/teardown 不走 action retry。
+
+等待模型：
+
+- `defaults.implicitWaitMs` 写入 session capabilities，并作为 session implicit wait。
+- `defaults.actionWait` 在引用装配后填充到没有自定义 `wait` 的动作，包括嵌套分支动作。
+- action 自己的 `wait` 优先于 `defaults.actionWait`。
+- 显式 `wait` 执行期间，WebDriver element lookup 会临时把 implicit wait 置零，按显式 timeout/interval 轮询，结束后恢复 implicit wait。
+- 断言动作按 `wait` 轮询，timeout 是该断言总预算。
+- `tap`、`tapPosition`、`longPress` 和 `swipe` 默认执行后 settle 800ms，可用 `settleMs` 覆盖或设为 `0`。
+
+## 8. Appium、WDA 和 `soluna-ext`
+
+框架侧通过 `WebDriverAdapter` 隔离 Appium Java Client。默认实现 `AppiumJavaClientWebDriverAdapter` 负责：
+
+- session 创建、停止和健康检查。
+- 元素查找、输入、点击、长按、滑动、截图、元素截图、page source、属性读取和矩形读取。
+- App restart、Android clear app data、Android/iOS screen recording。
+- 对截图、source、元素查找、元素矩形、窗口尺寸、输入和 health check 等慢 WebDriver 命令增加有界 timeout；timeout 是 session recovery 信号。
+- 每次元素交互重新按 locator 查找当前 viewport-visible 元素，不依赖历史 WebElement 缓存。
+- 点击、长按和元素滑动基于元素与 viewport 的可见交集计算坐标，并尽量避开软键盘遮挡区域。
+
+session 创建事实：
+
+- plan `app.platform` 必须与 device platform 一致。
+- platform 缺失时依赖 `soluna-ext` 从设备元信息补齐。
+- Android 默认补 `appium:unicodeKeyboard=true` 和 `appium:resetKeyboard=true`，除非设备 capabilities 已覆盖。
+- iOS managed WDA 会把 `appium:webDriverAgentUrl` 写入 capabilities。
+- session 创建不自动安装 app，也不把 `app.reset` 转成 session reset 行为。
+
+managed Appium Server：
+
+- 可使用外部 server，也可由框架启动本地 Appium 进程。
+- managed server 支持自动端口、`/status` readiness probe、进程清理和 FFmpeg PATH 注入。
+- 启动前会确保 `usePlugins` 和 `ensureDrivers` 已安装。默认插件为 `soluna-ext`，默认 driver 为 `uiautomator2` 和 `xcuitest`。
+- `soluna-ext` 是项目内置组件，源码位于 `lib/soluna-appium-ext`，分发时进入 `plugins/soluna-appium-ext`。如果宿主机已有同名插件但不是当前项目源码安装，会卸载后重新从项目源码安装。
+
+iOS WDA：
+
+- `LocalGoIosWdaManager` 通过 go-ios/ios 管理 WDA。
+- iOS 17+ 会进入 go-ios tunnel 路径；是否需要 tunnel 由 `soluna-ext` 补齐的 iOS OS version 决定，默认 tunnel mode 为 `userspace`。
+- managed WDA 会运行 go-ios `runwda` 和 `forward`；iOS 17+ 还需要 tunnel。
+- tunnel 是宿主机全局单例资源。框架优先复用已存在的 `ios` / `go-ios tunnel start` 进程；plan 结束、WDA restart 或启动失败清理都不能停止 tunnel 进程，只停止本框架管理的 runwda 和 forward。
+- WDA runner bundle 优先从 `soluna-ext` 查询已安装应用元信息推断；必要时可在 device config 中同时覆盖 `bundleId`、`testRunnerBundleId` 和 `xctestConfig`。
+
+`soluna-ext` 插件能力边界：
+
+- 设备发现和设备元信息。
+- 已安装 app 元信息。
+- iOS WDA runner bundle 查询。
+- App 日志 / 设备日志采集会话。
+- 受控 `adb`、`go-ios`、`ios` 命令执行。
+- 宿主机依赖预检和设备邻近辅助能力。
 
-## 6. 失败策略和重试策略
+当前实现差距：
 
-失败策略和重试策略都必须可配置、可插拔。
+- `clearAppData` 和 Android screen recording 仍在 WebDriver adapter 内直接调用 `adb`。后续应优先迁移到 `soluna-ext` 客户端抽象。
+- Appium/WDA 进程管理仍在 Kotlin 框架侧；这属于 runner infrastructure，不要求放入插件。
 
-失败策略需要覆盖：
+## 9. 动作能力和证据采集
 
-- action 失败后是否终止当前 case
-- case 失败后是否继续执行同 stage 后续 case
-- stage 失败后是否继续执行后续 stage
-- plan/stage/case 主流程失败后仍执行 teardown 生命周期动作
-- 初始化片段失败后是否允许恢复或重试
-- Appium session 异常后是否重建 session 并继续
+当前默认 action executors 覆盖：
 
-重试策略需要覆盖：
+- 交互：`tap`、`tapPosition`、`longPress`、`swipe`、`input`、`wait`。
+- App 生命周期：`restartApp`、`clearAppData`。
+- 数据读取：`getText`、`saveElementRect`。
+- 断言：`assertElementExists`、`assertElementAttrEquals`、`assertElementAttrRegexMatch`、`assertSourceRegexMatch`。
+- 显式资源：`screenshot`、`startScreenRecording`、`stopScreenRecording`。
+- 视觉能力：`tapVisualTemplate`、`assertImageColorRatio`、`assertImageTextRegexMatch`、`assertScreenRecordingTextRegexMatch`。
+- App 日志：`captureAppLogStart`、`captureAppLogEnd`、`customAssertAppLog`。
 
-- action 级重试
-- case 级重试
-- 初始化片段重试
-- Appium / WebDriver 请求重试
-- MinIO 上传任务重试
-- 钉钉通知发送重试
+关键语义：
 
-策略接口应能按错误类型、动作类型、阶段、设备、历史失败次数和时间窗口做决策。
+- `tapPosition` 在外部 DSL 中是独立关键字，归一化后走内部 `tap` 执行器。
+- `tap` 的 `ignoreMissingElement` 只允许预定义条件 UI，目前 reason 只有 `optionalFirmwareUpgradePrompt`。
+- 元素属性断言的 `attr` 可用 `/` 声明候选属性，例如 `name/label/text`；当前平台不支持或返回空值的候选会跳过。
+- `restartApp` 终止并激活目标 app，然后等待前台状态；action `wait` 可覆盖前台等待。
+- `clearAppData` 当前仅 Android 支持，执行 `pm clear` 后重新激活 app；如果 session 请求了 autoGrantPermissions，会尝试重新授予 runtime permissions。
+- `screenshot` 无 `element` 时截全屏，有 `element` 时截元素图；`saveAs` 写运行时变量，并同时更新 `@{case.lastScreenshot}`。
+- `saveElementRect` 可保存 pixel rect，也可用 `asRoi: true` 保存归一化 ROI，供视觉动作复用。
+- `tapVisualTemplate` 基于当前截图和 kt-visual 模板匹配，支持 normalized ROI、scale、threshold、目标点比例和 action wait 重试。
+- `assertImageColorRatio` 对图片文件做 kt-visual 命名色覆盖断言，支持 ROI 和 wait 轮询；它重读同一个 source 文件，不重新截图。
+- `assertImageTextRegexMatch` 对静态图片 OCR；默认 source 为 `@{case.lastScreenshot}`。
+- `startScreenRecording` / `stopScreenRecording` 生成显式视频资源。Android 当前直接使用 `adb screenrecord`；iOS 使用 Appium XCUITest recording。
+- `assertScreenRecordingTextRegexMatch` 用 FFmpeg 抽帧，可按 ROI 裁剪，按 candidate strategy 选帧，再用 kt-visual Paddle OCR 或 OpenAI-compatible multimodal OCR 做正则匹配；匹配帧会作为显式资源写入 manifest。
+- multimodal OCR 的 base URL、API key、model、reasoning effort、prompt、timeout、stream 和 parallelism 只来自系统属性或环境变量，不写入用例资产。
+- FFmpeg 解析顺序为显式配置、分发包内 `tools/ffmpeg/<os>-<arch>/ffmpeg(.exe)`、最后宿主机 PATH。
 
-当前实现提供 `FailureStrategy` 接口和基础实现。
+App 日志动作：
 
-`FailFastFailureStrategy` / plan `defaults.failureStrategy: stop-case` 或 `fail-fast`：
+- `captureAppLogStart` 通过 `soluna-ext` 创建日志会话并保存 descriptor。
+- 日志 filter 支持通用字段和 `android` / `ios` 平台分支；匹配语义是通用规则与当前平台分支的交集。
+- Android logcat 会话从当前日志尾开始采集，避免历史日志误命中新交互断言。
+- iOS syslog 如果以 JSON `msg` 包裹真实文本，插件先按 `msg` 归一化再解析进程、级别和消息，同时保留原始 `raw`。
+- `captureAppLogEnd` 读取 bounded batches，关闭会话，写 JSONL 显式资源并保存 `@{case.lastAppLogFile}`。
+- `customAssertAppLog` 通过 `plugin` + `assertion` 找 JVM `AppLogAssertionPlugin`，未找到插件或断言必须失败。
+- App log assertion 插件可来自 classpath、发行包 `plugins/app-log/*.jar`、当前工作目录 `plugins/app-log/*.jar`、plan 资产根 `plugins/app-log/*.jar`，或 `soluna.appLogPluginDirs` / `SOLUNA_APP_LOG_PLUGIN_DIRS`。
 
-- action 失败后停止当前 case。
-- case 失败后停止当前 stage。
-- stage 失败后停止整个 plan。
-- plan/stage/case 的 teardown actions 不因对应主流程失败而跳过；teardown 自身失败会让当前层级结果为 failed。
+## 10. 产物、上传和报告
 
-`ContinueCaseFailureStrategy` / plan `defaults.failureStrategy: continue-case`：
+产物分类：
 
-- action 失败后停止当前 case。
-- case 失败后继续执行同一 stage 的后续 case。
-- stage 失败后继续执行后续 stage。
-- plan 最终状态仍会反映任一失败 case 或 stage。
+- `report`：`index.html`、`execution-result.json`、`plan-resource-manifest.json`。
+- `resources`：DSL 显式请求保留的截图、录屏、OCR 命中帧、App log JSONL。
+- `diagnostics`：失败 trace 截图、page source、WDA/go-ios 日志等诊断材料。
 
-后续可在该接口下加入分级中断、重试后决策等策略。
+MinIO 上传：
 
-当前实现还提供 `RetryStrategy` 接口和两个基础实现：
+- `ArtifactStore` / `ArtifactUploader` 隔离存储实现。
+- 默认实现为 MinIO + `AsyncArtifactUploader` 后台队列。
+- object key 稳定格式为 `{prefix}/runs/{runId}/{report|resources|diagnostics}/{fileName}`。
+- 文本类产物按配置 gzip 上传；图片、视频等已压缩资源不重复压缩。
+- 上传任务状态包含 pending、uploading、uploaded、failed_retryable、failed_permanent、abandoned。
+- report-required 资源在 plan 结束后执行 bounded drain。
+- `localArtifacts.cleanup.mode: after-upload-success` 只有在全部上传任务成功后才删除本地 run 目录。
+- upload failure notifier 可聚合失败并通过 DingTalk 告警，支持时间窗口、阈值和抑制间隔。
 
-- `NoRetryStrategy`：默认不重试。
-- `MaxAttemptsRetryStrategy`：按最大尝试次数进行 action 级重试。
+显式资源 manifest：
 
-`LinearExecutionEngine` 已接入 action 级 retry。默认 no-retry 时行为保持 fail-fast；配置可重试策略后，同一个 action executor 会重复执行，最终结果进入 action result。
+- `plan-resource-manifest.json` 只记录 DSL 显式资源，不记录失败 trace。
+- manifest 包含 plan 级元信息、run 批次信息、资源 id、类型、purpose、action id、MinIO object key / URL、content type、size 和 capturedAt。
+- manifest 与报告文件放在同级 report 目录；启用 uploader 时报告 HTML 中链接会改写为 MinIO URL。
 
-## 7. 等待模型
+失败 trace：
 
-框架提供默认隐式等待，同时支持显式等待覆盖隐式等待。
+- `trace.screenshots.enabled` 控制是否采集。
+- `beforeAction: onFailure` 会在内存中保留最近 N 个 action 前截图和 page source。
+- action 最终失败时，保留的截图和 source 写入 `diagnostics/trace`，并作为 report-required diagnostic 上传。
+- trace 不进入 `plan-resource-manifest.json`。
 
-要求：
+报告：
 
-- 默认隐式等待用于减少普通元素查找抖动。
-- plan 可通过 `defaults.actionWait` 声明 action 级显式等待默认值，避免少数同类慢动作重复写相同的 timeout / interval。它不是隐式等待，不应作为所有动作的全局 10s 等待开关使用。
-- action 可声明显式等待，显式等待优先于默认隐式等待。
-- action 自己声明的 `wait` 优先级高于 `defaults.actionWait`，用于处理个别慢页面或特殊等待条件。
-- `tap` 默认在点击后等待 800ms 作为 UI 转场 settle；可通过 `settleMs` 覆盖，或设为 `0` 关闭。
-- `tap` 的可选缺失元素跳过只用于预定义条件 UI，例如有新固件时才出现的升级提示弹窗；DSL 必须同时声明 `ignoreMissingElement: true` 和预定义 `ignoreMissingElementReason`，普通必经路径元素不得使用该能力；元素查找无结果和显式等待超时都按该预定义 reason 跳过。
-- 显式等待应支持条件表达式，例如可见、存在、消失、可点击、文本匹配、属性匹配、页面稳定。
-- 等待策略可插拔。
-- 等待结果应进入执行数据，但不要污染核心上下文。
+- `LocalReportWriter` 写 `execution-result.json` 和单体 `index.html`。
+- `report-data.schema.json` 是报告消费视图，不是内部 `PlanRunResult` 的直接序列化。
+- 报告数据包含 plan/app/device 展示字段、开始/结束时间、stage/case/action 统计、失败摘要、生命周期动作列表和 trace artifacts。
+- app name 和 device name 优先使用 `soluna-ext` 元数据；iOS 设备名必须来自 `ios devicename`，不能使用 `ios list --details` 的 `ProductName`。
+- HTML 首屏展示概览、资源入口、统计、可折叠用例概览、失败摘要和 trace 资源。
+- 每个 case 的动作明细通过弹窗查看；失败原因/错误列在概要表中固定宽度省略，完整文本保留在 tooltip 和动作明细中。
 
-## 8. 断言模型
+## 11. DingTalk 通知
 
-支持多种断言共存，并保持可扩展。
+通知组件是可替换的 `NotificationSender`。当前配置入口位于 artifact store config：
 
-初版断言类型：
+- `planStarted`
+- `testFinished`
+- `reportPublished`
+- 兼容字段 `planFinished` 映射到 `reportPublished`
+- `uploadFailures`
 
-- 元素存在 / 不存在
-- 元素可见 / 不可见
-- 元素属性断言
-- 参数值断言
-- 设备状态断言
-- 日志断言
-- 截图资源存在性断言
+当前 DingTalk 生命周期通知使用固定标题 `App UI自动化测试`，正文是中文 Markdown 卡片。字段从 `设备名称`、`设备标识` 开始，报告发布通知包含报告和 manifest 链接；执行结束和报告发布使用执行开始/结束时间，不展示报告生成时间。
 
-断言引擎应通过 registry 注册，DSL 只绑定断言类型和参数，不直接绑定实现类。
+架构目标是把生命周期通知从 artifact store 配置中解耦为独立 plan 通知配置；当前实现尚未完成该拆分。
 
-## 9. Appium Server 和自定义插件
+## 12. Schema 和外部合同
 
-项目自身应提供 Appium Server 维持机制，而不是完全依赖外部 server 运维。
+所有外部消费的数据合同必须 schema-first。当前 v1 schema 覆盖：
 
-要求：
+- plan、case、fragment catalog、element catalog、parameter data。
+- device config、artifact store、notification sender。
+- report data、plan resource manifest。
+- asset project metadata。
+- runner request/result 平台边界。
 
-- 框架可启动、停止和监控 Appium Server。
-- 自定义 Appium 插件可随 server 一起打包和启用。
-- Appium Server 意外退出时，框架可按策略重启。
-- 重启后需要重建 Appium session，并对当前 plan 的可恢复性做判断。
-- Appium session 默认按 plan 复用，但要具备健康检查、请求超时和失效恢复。
+规则：
 
-自定义插件边界：
+- schema 文件版本化，破坏性合同变化应新建版本目录，不静默改变 v1 语义。
+- Kotlin runtime model 不替代外部 schema。
+- parser/validator 变更必须保持 schema-first 校验顺序。
+- `docs/schemas.md` 记录字段级用法和当前 schema 范围；本文档只记录架构边界和关键运行语义。
 
-- 设备查询
-- iOS 已安装 WDA runner bundle 查询
-- 设备日志和 App 日志采集会话
-- `adb` / `go-ios` / `ios` 受控命令
-- 宿主机依赖检查
-- 设备文件、系统状态等靠近宿主机的增强能力
+## 13. 可替换接口
 
-框架侧通过插件 HTTP API 消费这些能力，避免在测试框架中散落宿主机命令。
+核心层应依赖接口而不是固定实现。当前已有或应保持稳定的边界包括：
 
-插件源码作为本项目内置组件维护在 `lib/soluna-appium-ext`，跟随当前框架一起开发、验证、提交和分发。插件能力扩展不再准备回提交到原独立 GitHub 项目。
+- DSL：`DslParser`、`JsonSchemaDslValidator`、`KeywordRegistry`、policy validator。
+- 执行：`ExecutionEngine`、`ActionExecutor`、`FailureStrategy`、`RetryStrategy`、`HookBus`、`ActionTraceCollector`。
+- Appium：`WebDriverAdapter`、`AppiumServerManager`、`WdaManager`、`WdaBundleResolver`、`SolunaAppiumExtClient`。
+- 配置解析：device、parameter data、artifact store、notification sender。
+- 产物：`ArtifactStore`、`ArtifactUploader`、`PlanResourceManifestWriter`。
+- 报告：`ReportWriter`。
+- 通知：`NotificationSender`。
+- App 日志扩展：`AppLogAssertionPlugin` / `AppLogAssertionRegistry`。
 
-插件能力协商、版本兼容、schema、实现和分发都由本项目统一协调。框架侧仍应通过插件 HTTP API 和客户端抽象消费能力，避免宿主机命令散落到执行器中。
-
-当前状态摘要：
-
-- 默认 driver 适配器基于 Appium Java Client；框架内部通过 `WebDriverAdapter` 抽象隔离实现。
-- `PlanRunner` 只接收 plan 路径，按引用链解析 device、data、case、element、fragment 和 artifact 配置。
-- managed Appium server 支持自动端口、Appium 扩展安装检查、`/status` readiness probe、插件启用和进程清理；外部 server 仍可配置。启动 managed server 前，框架会确保 `usePlugins` 中的插件和 `ensureDrivers` 中的 drivers 已安装；默认会确保项目自带 `soluna-ext`、`uiautomator2` 和 `xcuitest` 可用。`soluna-ext` 必须来自当前项目绑定源码，若宿主机已安装的同名插件不是项目源，会先卸载再从项目源安装。
-- session 创建只绑定设备，不顺带启动目标 app；Android 默认启用 `appium:unicodeKeyboard=true` 和 `appium:resetKeyboard=true`。
-- `RecoveringWebDriverAdapter` 维护逻辑 session，可在 managed Appium server、managed iOS WDA 或物理 session 失效后重建底层 session；若 WDA 不健康，恢复流程会先重启 WDA，再用新的 `appium:webDriverAgentUrl` 重建 Appium session。
-- WebDriver 命令需要有有界等待。默认 adapter 在容易被 WDA/Appium 慢响应拖住的截图、source、元素查找、元素矩形、窗口尺寸、输入和 session health check 等命令外层加显式超时；命令超时属于 session 恢复信号，恢复判断不能再依赖一个可能继续卡住的无界 health check。
-- iOS WDA 由 `LocalGoIosWdaManager` 通过 go-ios 管理，iOS 17+ 使用 userspace tunnel，并保证 runwda 重启后 forward 同步重启；go-ios v1.0.x 的 tunnel-info CLI 只传 `--tunnel-info-port`。iOS tunnel 按宿主机全局单例资源处理，框架优先复用已存在的 `ios` / `go-ios tunnel start` 进程；无论 plan 结束、WDA 重启还是 WDA 启动失败清理，都不能停止任何 iOS tunnel 进程。
-- `soluna-ext` 客户端用于设备元信息、已安装应用元信息、iOS WDA runner bundle、受控宿主机命令和日志会话等设备邻近能力。iOS 设备展示名不能使用 `ios list --details` 的 `ProductName`，该字段可能是 `iPhone OS` 这类产品/系统名；插件需要通过 `ios --udid=<udid> devicename` 读取真实设备名，并仅在读取失败时回退到 `ProductName`。App 日志会话在采集阶段过滤日志，过滤规则支持通用字段和 `android` / `ios` 平台分支；实际匹配为通用规则与当前平台分支的交集，避免把平台差异化日志格式塞进用例侧处理。iOS syslog 若以 JSON `msg` 包裹真实 syslog 文本，`soluna-ext` 需要先按 `msg` 归一化再解析进程、级别和消息，同时保留原始行到 `raw`。
-- 默认 action executor 覆盖 tap/longPress/swipe/input/wait/restartApp/clearAppData/getText/saveElementRect/screenshot/screen recording、App 日志采集、视觉模板点击、属性/source 断言、录屏文本 OCR 断言和自定义 App 日志断言；断言可按 `wait` 轮询。元素 tap、longPress 和 swipe 会重新定位当前元素、过滤屏幕外元素，并按元素可见区域计算点击、长按或滑动起止点；`longPress` 支持元素内比例或视口比例目标，默认按压 1000ms；`swipe` 支持元素内起止比例或视口起止比例目标，默认移动 500ms。`clearAppData` 当前是 Android 专用动作，通过 `pm clear` 清理应用数据并重新激活应用；如果当前 Android session 申请了 `autoGrantPermissions`，清理后会重新授予 package runtime permissions，避免首启流程被系统权限弹框打断。`screenshot` 默认保存整屏显式截图，带 `element` 时重新定位元素并保存元素截图，适合后续视觉颜色断言直接读取元素区域。`saveElementRect` 可把元素可见矩形保存为像素 rect 或归一化 ROI，供后续步骤通过运行时变量引用。视觉模板点击通过当前截图、data 目录模板资产、归一化 `roi` 和 kt-visual 匹配得到目标区域，再转换为视口比例点击，不暴露平台 back 这类平台敏感动作；其 `roi` 可直接写对象或引用 `saveElementRect` 保存的 ROI，且 action 级 `wait` 会触发重复截图匹配。`captureAppLogStart` / `captureAppLogEnd` 通过 `soluna-ext` 创建、读取和关闭 App 日志会话，结束时把抓到的日志写成 JSONL 显式资源并把描述符保存到 case 变量；`customAssertAppLog` 根据 `plugin` + `assertion` 通过 JVM ServiceLoader 注册的 `AppLogAssertionPlugin` 分发到独立扩展实现，未找到插件或断言时必须失败。App 日志断言插件源码应作为独立 Kotlin/JVM 模块维护；运行时可从 classpath、发行包 `plugins/app-log/*.jar`、当前工作目录 `plugins/app-log/*.jar`、plan 资产根 `plugins/app-log/*.jar` 或 `soluna.appLogPluginDirs` / `SOLUNA_APP_LOG_PLUGIN_DIRS` 指定目录加载 JAR；`soluna scaffold app-log-plugin` 提供该类插件项目结构脚手架。录屏文本断言默认使用 kt-visual Paddle OCR，也可通过 action 的 `recognizer: multimodal` 切到 OpenAI-compatible kt-visual multimodal OCR；多模态候选帧并发识别，stream 模式按 reasoning/content 输出刷新 idle timeout。动作级显式 `wait` 会覆盖元素查找的隐式等待预算：执行显式轮询期间临时关闭 session implicit wait，结束后恢复。`restartApp` 和 `clearAppData` 在返回前都需要等待目标 app 进入前台，动作级 `wait` 可覆盖默认前台等待预算。FFmpeg 作为项目运行工具解析，优先使用显式配置或分发包内 `tools/ffmpeg/<os>-<arch>/ffmpeg(.exe)`，最后才回退到宿主机 PATH。
-- Android/iOS opt-in 真机验证覆盖基础 Appium、session recovery、AIot asset plan 执行、MinIO 上传和钉钉通知链路。
-
-实现细节以代码和 schema 为准；本节只保留边界和能力摘要，避免后续维护两套细粒度说明。
-
-## 10. MinIO 产物上传
-
-所有执行产物最终都需要上传到 MinIO。
-
-上传不能阻塞测试执行主流程，应由后台线程或异步 worker 处理。
-
-要求：
-
-- 上传任务进入队列，由后台 worker 消费。
-- 上传状态可被监控。
-- 上传失败采用智能重试。
-- 对单个偶发失败任务保持持续重试或长周期重试。
-- 当连续长时间出现同一时间段大量任务失败时，通过钉钉发送告警。
-- 告警策略需要去重和抑制，避免刷屏。
-- 上传请求启用压缩相关能力；文本类产物可压缩后上传，图片、视频等已压缩资源不重复压缩。
-- MinIO 对象 key 生成规则稳定，可从 run / plan / stage / case / artifact 类型推导。
-- 上传 worker 需要在 plan 结束后支持 bounded drain，用于确保报告必需资源完成上传或明确标记失败。
-
-上传任务状态建议：
-
-```text
-pending
-uploading
-uploaded
-failed_retryable
-failed_permanent
-abandoned
-```
-
-当前状态摘要：
-
-- `artifact-store.schema.json` 定义 MinIO、上传队列、压缩、重试、通知引用和本地清理相关配置。
-- `ArtifactStore` / `ArtifactUploader` 隔离存储实现；默认实现为 MinIO + 后台上传队列。
-- 对象 key 规则稳定：`{prefix}/runs/{runId}/{report|resources|diagnostics}/{fileName}`。
-- 文本类报告产物默认 gzip 上传；图片等已压缩资源不重复压缩。
-- `localArtifacts.cleanup.mode: after-upload-success` 只在全部上传任务成功后删除本地 run 目录。
-
-## 11. 显式资源清单
-
-trace 中的截图按普通诊断产物处理，不进入显式资源清单。
-
-当前 trace 截图策略：
-
-- `trace.screenshots.enabled` 控制是否启用动作前 trace 截图。
-- `beforeAction: onFailure` 在执行期只保留最近 N 张动作前截图和 page source 到内存，不为通过动作落盘。
-- 当 action 最终失败时，保留的动作前截图和 page source XML 写入本地 `diagnostics/trace` 并以 `ArtifactKind.DIAGNOSTIC` 入队上传。
-- 如果报告引用 trace 截图，启用 artifact uploader 时报告数据使用 MinIO URL；未启用上传时使用本地路径。
-- trace 截图上传不写入 `plan-resource-manifest.json`，该 manifest 只面向业务 DSL 显式请求的资源。
-- 正式 plan 运行中，managed iOS WDA/go-ios 子进程日志写入本地 run 目录的 `diagnostics/wda`，用于定位 WDA 启动、隧道和端口转发问题；该目录不进入显式资源清单。
+新增能力应优先插入这些边界，不把策略、宿主机命令、报告格式或通知渠道硬编码进执行引擎。
 
-本地调试可使用 `soluna debug <plan.yaml> source|screenshot|tap|tap-element|swipe|swipe-element|input|tap-template`，也可以使用 `soluna debug <plan.yaml> shell` 在同一个临时 Appium/WDA session 中逐步执行这些低层动作。debug 命令复用 plan 的 device/app 配置、managed Appium server、soluna-ext 设备解析和 iOS WDA 管理，只执行少量定位、滑动、输入、截图或模板点击动作，不进入 plan/stage/case 生命周期，不生成报告、上传或通知。该路径用于采集 page source、截图或验证定位、滑动和视觉模板点击，不能替代正式 DSL 用例。
-
-用例 DSL 中显式截图、录屏和录屏分析命中帧等资源，需要统一整理到一个 JSON 文件中。该 JSON 主要面向其他服务或模块消费，不是步骤级执行明细。
-
-要求：
-
-- 只收集业务 DSL 显式请求保留的资源；失败 trace 仍走诊断产物链路。
-- JSON 文件包含执行计划整体元信息和资源列表。
-- JSON 文件与测试报告文件放在 MinIO 同一级目录。
-- 测试报告中必须包含该 JSON 文件的引用链接。
-- JSON schema 必须版本化。
-
-建议文件名：
-
-```text
-plan-resource-manifest.json
-```
-
-示例结构：
+## 14. 当前实现边界和 v1 收口
 
-```json
-{
-  "schemaVersion": "1.0",
-  "plan": {
-    "planId": "daily-smoke",
-    "planName": "每日冒烟",
-    "planVersion": "2026.06.12",
-    "environment": "staging",
-    "source": {
-      "type": "yaml",
-      "uri": "minio://bucket/plans/daily-smoke.yaml"
-    }
-  },
-  "resourceBatch": {
-    "runId": "run-20260612-001",
-    "generatedAt": "2026-06-12T10:00:00.000Z",
-    "minioPrefix": "runs/run-20260612-001/report/"
-  },
-  "resources": [
-    {
-      "resourceId": "home_after_login",
-      "type": "image",
-      "purpose": "explicit_screenshot",
-      "name": "登录后首页",
-      "objectKey": "runs/run-20260612-001/resources/home_after_login.png",
-      "url": "https://minio.example.com/bucket/runs/run-20260612-001/resources/home_after_login.png",
-      "contentType": "image/png"
-    }
-  ]
-}
-```
+当前已打通的能力：
 
-当前状态摘要：
-
-- 显式截图、显式录屏和录屏文本断言命中帧由 `PlanResourceSink` 写入本地资源目录，再由 `PlanResourceManifestWriter` 生成 `plan-resource-manifest.json`。
-- `startScreenRecording` / `stopScreenRecording` 使用 Appium Java Client 的录屏能力。Appium XCUITest driver 的 iOS 录屏会在 Appium server 进程内调用名为 `ffmpeg` 的命令；managed Appium server 启动时会把解析到的项目绑定 FFmpeg 目录 prepend 到 PATH，外部 Appium server 需要由调用方自行保证 PATH。`assertScreenRecordingTextRegexMatch` 使用同一个 FFmpeg 工具解析器抽帧，可先按归一化 `roi` 裁剪，再用 `visual-diff` / `uniform` / `visual-diff-uniform` / `all` 候选帧策略控制 OCR 工作量，并交给 kt-visual Paddle OCR 或 OpenAI-compatible multimodal OCR 做文本匹配。多模态 OCR 的 base URL、API key、model、reasoning effort、prompt、非 stream timeout、stream idle timeout、stream HTTP timeout、parallelism 和 stream 开关只来自运行时系统属性或环境变量，不写入用例资产。`tapVisualTemplate` 使用相同的归一化 ROI 约定约束模板匹配范围；`assertImageColorRatio` 读取显式截图等图片文件，使用 kt-visual 命名色检测并按归一化 ROI 统计颜色占比。
-- manifest 只保存计划级元信息和显式资源列表；不保存 action 执行明细。
-- 启用 artifact uploader 时，manifest 中的资源包含 MinIO object key 和 URL。
-
-## 12. 报告设计
+- schema-first DSL 和 plan-rooted runner。
+- Android/iOS 真机 Appium 执行。
+- managed Appium Server、managed iOS WDA、session recovery。
+- 元素目录、参数数据、fragment、case refs 和 runtime variables。
+- 视觉模板、颜色断言、静态图片 OCR、录屏 OCR。
+- App log capture 和 JVM app-log assertion plugin。
+- 显式资源 manifest、失败 trace、本地 JSON/HTML 报告。
+- MinIO 异步上传、bounded drain、本地清理和 DingTalk 通知。
+- Codex skill 分发目录随 Gradle distribution 打包。
 
-报告不使用第三方测试报告插件。
+需要继续收口的实现差距：
 
-报告输出：
+- `Plan.defaults.retryStrategy` 字段尚未接入命名策略选择。
+- `app.reset` 目前只作为 plan app 参数 seed，不触发自动 reset；reset 行为应继续通过 lifecycle fragment/action 显式表达，直到 runner 提供清晰策略。
+- 部分 host/device-adjacent 操作仍在 Kotlin adapter 内直接调用 `adb`，后续应迁移到 `soluna-ext` 能力和客户端抽象。
+- 报告、manifest 和生命周期通知仍主要由 `PlanRunner` 编排，尚未完全转成 hook consumer。
+- `soluna-project.yaml` 已有合同但当前 CLI 不强制 project discovery。
 
-- 单体 HTML 文件。
-- 报告引用的所有资源都必须是 MinIO 链接。
-- 报告数据使用 JSON 文件保存，可以拆分为多个 JSON。
-- 报告器组件消费原始执行结果产物和数据 JSON，生成不同形态的报告。
+后续新增或调整能力时：
 
-建议同级目录：
-
-```text
-runs/{runId}/report/index.html
-runs/{runId}/report/execution-result.json
-runs/{runId}/report/plan-resource-manifest.json
-```
-
-报告 HTML 中至少引用：
-
-- `execution-result.json`
-- `plan-resource-manifest.json`
-
-报告数据和报告渲染器分离，为后续替换报告器组件预留空间。
-
-当前状态摘要：
-
-- `LocalReportWriter` 写出 `execution-result.json` 和单体 `index.html`。
-- `report-data.schema.json` 定义报告数据视图；它不是内部执行结果模型的直接序列化。当前数据视图包含产品型号、应用标识/真实应用名称、设备编号/真实设备名称、开始/结束时间、执行摘要、失败摘要、生命周期 action 列表、action id/keyword/attempt/duration 等动作元数据，以及 trace artifacts。
-- 报告 HTML 引用 `execution-result.json` 和 `plan-resource-manifest.json`，启用上传时链接改写为 MinIO URL。HTML 首屏展示 `App UI自动化测试` 概览、plan/run/app/device/start/end 信息、报告资源入口、stage/case/action 统计、可折叠的用例执行概览、失败摘要和 trace 资源；动作执行明细不在首页铺开，只通过用例行或 `操作` 列的 `动作明细` 链接打开弹窗查看。明细弹窗标题区承载阶段/用例上下文，表格只展示动作级字段，关闭控件使用图标按钮，弹窗打开期间锁定首页滚动，且标题栏不随明细表格滚动。
-- 报告必需资源会执行 bounded drain；失败 trace 截图进入 `traceArtifacts`，显式截图进入 manifest。
-
-## 13. 钉钉通知
-
-钉钉通知应设计成可配置、可插拔、可复用组件。
-
-要求：
-
-- 可在不同上下文作为组件引用。
-- 支持 plan 开始通知。
-- 支持测试执行结束通知，并区分正常结束、失败结束和 runner 异常结束。
-- 支持测试报告发布通知。
-- 支持 stage 失败通知。
-- 支持上传系统异常告警。
-- 支持 Appium Server 反复退出告警。
-- 支持通知模板。
-- 支持告警抑制、去重和频率控制。
-
-钉钉通知不应直接耦合执行引擎，而应作为 hook consumer 或后台监控组件接入。
-
-当前状态摘要：
-
-- `notification-sender.schema.json` 定义 DingTalk robot sender；webhook/secret 支持直接 YAML 配置，也保留 env 间接引用。
-- `PlanRunner` 支持 `planStarted`、`testFinished`、`reportPublished` 三个生命周期通知点；旧 `planFinished` 兼容映射到 `reportPublished`。生命周期通知使用固定标题 `App UI自动化测试`，正文先展示带颜色/字号的标题和引用副标题 `<productModel> UI 自动化测试`，标题与副标题、字段列表之间用分割线隔开。通知项逐行展示并使用中文语义标签，字段列表以 `设备名称`、`设备标识` 开头，执行结束和报告发布通知使用执行 `开始时间`/`结束时间`，不展示报告生成时间。
-- `DingTalkUploadFailureNotifier` 聚合上传失败告警，支持时间窗口、阈值和抑制间隔。
-
-## 14. Schema First
-
-所有组件都应有对应 schema 定义，方便 Codex agent 和跨项目消费者稳定使用。
-
-当前使用 JSON Schema 作为外部数据合同格式，schema 文件位于：
-
-```text
-src/main/resources/schemas/v1/
-```
-
-Kotlin 数据模型是运行时模型，不替代对外 schema。
-
-schema 需要版本化，并在运行前做严格校验。当前 v1 schema 文件和覆盖范围以 [docs/schemas.md](schemas.md) 为准；本文档只保留 schema-first 原则和边界，不重复维护完整清单。
-
-## 15. 插件化组件边界
-
-核心层只依赖接口，不绑定具体实现。
-
-初版 SPI：
-
-- `DslParser`
-- `SchemaValidator`
-- `KeywordRegistry`
-- `ExecutionEngine`
-- `ActionExecutor`
-- `InitFragmentExecutor`
-- `WebDriverClient`
-- `AppiumServerManager`
-- `SolunaAppiumExtClient`
-- `DeviceService`
-- `WaitStrategy`
-- `AssertionEngine`
-- `FailureStrategy`
-- `RetryStrategy`
-- `HookBus`
-- `ArtifactStore`
-- `UploadQueue`
-- `ReportDataWriter`
-- `ReportRenderer`
-- `PlanResourceManifestWriter`
-- `NotificationSender`
-
-默认实现可以简单，但接口边界要先稳定。
-
-## 16. 当前收口状态
-
-当前已具备可运行骨架：schema-first DSL、plan-rooted runner、Android/iOS 真机 Appium 执行、managed Appium/WDA、session recovery、MinIO 上传、报告数据/HTML、显式截图 manifest、失败 trace、本地清理、DingTalk 生命周期通知、debug CLI、视觉模板点击和录屏 OCR 分析均已打通。
-
-后续不再扩张基础说明文档。新增能力优先通过以下方式记录：
-
-- schema 变化写入 `src/main/resources/schemas/v*/` 和 [docs/schemas.md](schemas.md)。
-- 架构边界变化写入本文档对应章节。
-- CLI、schema、关键字、debug 行为、报告产物或能力扩展流程变化时，同步检查并更新 `codex/skills/soluna-ui-autotest-creator`。
-- 每轮框架实现只在 [docs/progress.md](progress.md) 追加高层摘要，不记录长命令输出和完整调试过程。
-- 真实业务用例的编写进度、逐条调试状态和详细操作路径不进入本项目文档；这些内容进入对应 asset project 的 `docs/` 目录。
-- 真实业务用例暴露出的动作关键字、报告体验和稳定性需求，只有在抽象为框架能力或契约变化后，才进入本项目文档和 v1 迭代记录。
-
-## 17. v1 设计入口
-
-v1 由真实业务用例驱动，优先关注：
-
-- Soluna asset project 契约、project resolver 和平台 Runner 服务边界。
-- 动作关键字补齐和别名治理。
-- 轮询等待、条件等待和失败诊断的进一步抽象。
-- 报告信息密度、资源预览、失败定位和 MinIO 链接可读性。
-- plan 生命周期通知从 artifact-store 配置中解耦。
-- `lib/soluna-appium-ext` 作为项目内置插件的版本治理、能力协商和分发校验。
+- 行为、边界或生命周期假设变化必须更新本文档。
+- schema 字段变化必须同步更新 schema 文件和 [docs/schemas.md](schemas.md)。
+- CLI、DSL、debug 行为、报告/产物合同、Appium/WebDriver authoring 行为变化时，必须同步检查 `codex/skills/soluna-ui-autotest-creator`。
+- 每轮实现结束必须更新 [docs/progress.md](progress.md)，记录变更、状态、验证和下一步。
